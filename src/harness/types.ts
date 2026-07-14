@@ -6,6 +6,26 @@ export interface ArtifactRef {
   description?: string;
 }
 
+export type HarnessDecisionCandidateSource = "executor" | "policy" | "guard-gate" | "loop" | "risk" | "fallback";
+
+export interface HarnessDecisionCandidate {
+  id: string;
+  source: HarnessDecisionCandidateSource;
+  action: HarnessDecisionAction;
+  priority: number;
+  blocking: boolean;
+  confidence: number;
+  reasons: string[];
+  requiredCommands: string[];
+  artifacts: ArtifactRef[];
+}
+
+export interface HarnessDecisionArbitration {
+  selectedCandidate: HarnessDecisionCandidate;
+  selectedPriority: number;
+  supportingCandidates: HarnessDecisionCandidate[];
+}
+
 export interface HarnessDecision {
   action: HarnessDecisionAction;
   blocking: boolean;
@@ -13,6 +33,7 @@ export interface HarnessDecision {
   reasons: string[];
   requiredCommands: string[];
   artifacts: ArtifactRef[];
+  arbitration?: HarnessDecisionArbitration;
 }
 
 export type GuardResultSource = "policy" | "hallucination" | "regression" | "context" | "boundary" | "evidence";
@@ -43,7 +64,8 @@ export function createHarnessDecision(input: HarnessDecision): HarnessDecision {
     confidence: clampConfidence(input.confidence),
     reasons: dedupe(input.reasons.filter(Boolean)),
     requiredCommands: dedupe(input.requiredCommands.filter(Boolean)),
-    artifacts: dedupeArtifacts(input.artifacts)
+    artifacts: dedupeArtifacts(input.artifacts),
+    ...(input.arbitration ? { arbitration: normalizeArbitration(input.arbitration) } : {})
   };
 }
 
@@ -76,4 +98,22 @@ function dedupeArtifacts(items: ArtifactRef[]): ArtifactRef[] {
     result.push(item);
   }
   return result;
+}
+
+function normalizeArbitration(arbitration: HarnessDecisionArbitration): HarnessDecisionArbitration {
+  return {
+    selectedCandidate: normalizeCandidate(arbitration.selectedCandidate),
+    selectedPriority: arbitration.selectedPriority,
+    supportingCandidates: arbitration.supportingCandidates.map(normalizeCandidate)
+  };
+}
+
+function normalizeCandidate(candidate: HarnessDecisionCandidate): HarnessDecisionCandidate {
+  return {
+    ...candidate,
+    confidence: clampConfidence(candidate.confidence),
+    reasons: dedupe(candidate.reasons.filter(Boolean)),
+    requiredCommands: dedupe(candidate.requiredCommands.filter(Boolean)),
+    artifacts: dedupeArtifacts(candidate.artifacts)
+  };
 }

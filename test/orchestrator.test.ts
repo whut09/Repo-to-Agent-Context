@@ -25,6 +25,7 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.equal(report.executorResult.exitCode, 0);
     assert.equal(report.decision.action, "finalize");
     assert.equal(report.decision.blocking, false);
+    assert.equal(report.decision.arbitration?.selectedCandidate.id, "fallback.finalize");
     assert.ok(report.artifacts.orchestratorFiles.includes(".agent-context/orchestrator/fix-login-timeout-bug/orchestrator.json"));
     assert.ok(existsSync(path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug", "policy.md")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "executor.mock.json")));
@@ -34,6 +35,8 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.match(rendered, /# Harness Orchestrator/);
     assert.match(rendered, /## Evidence Summary/);
     assert.match(rendered, /## Guard Gates/);
+    assert.match(rendered, /## Decision Arbitration/);
+    assert.match(rendered, /fallback\.finalize/);
     assert.match(rendered, /Decision: finalize/);
 
     const executorArtifact = JSON.parse(
@@ -52,12 +55,15 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
       schemaVersion: string;
       kind: string;
       decision: { action: string; reasons: string[]; requiredCommands: string[] };
+      arbitration: { selectedCandidate: { id: string }; selectedPriority: number; supportingCandidates: unknown[] };
       priorityOrder: Record<string, number>;
     };
     assert.equal(decisionArtifact.schemaVersion, "opencode-plusplus.decision.v1");
     assert.equal(decisionArtifact.kind, "decision");
     assert.equal(decisionArtifact.decision.action, "finalize");
     assert.ok(decisionArtifact.decision.reasons.length > 0);
+    assert.equal(decisionArtifact.arbitration.selectedCandidate.id, "fallback.finalize");
+    assert.equal(decisionArtifact.arbitration.selectedPriority, 10);
 
     const traceArtifact = JSON.parse(
       readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "trace.json"), "utf8")

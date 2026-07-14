@@ -557,6 +557,7 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
         ["Impact risk", report.loop.risk],
         ["Convergence", report.convergence.status],
         ["State fingerprint", code(report.convergence.fingerprint.value)],
+        ["Selected decision candidate", report.decision.arbitration?.selectedCandidate.id ?? "legacy/direct decision"],
         ["Final decision", `${report.decision.action} - ${decisionReason(report.decision)}`]
       ]
     ),
@@ -598,6 +599,7 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
     heading(2, "Decision Reasons"),
     bullet(report.decision.reasons),
     "",
+    ...renderDecisionArbitration(report.decision),
     heading(2, "Convergence"),
     table(
       ["Field", "Value"],
@@ -669,6 +671,37 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
         .map(code)
     )
   ].join("\n");
+}
+
+function renderDecisionArbitration(decision: HarnessDecision): string[] {
+  const arbitration = decision.arbitration;
+  if (!arbitration) return [];
+  return [
+    heading(2, "Decision Arbitration"),
+    table(
+      ["Field", "Value"],
+      [
+        ["Selected candidate", arbitration.selectedCandidate.id],
+        ["Selected source", arbitration.selectedCandidate.source],
+        ["Selected action", arbitration.selectedCandidate.action],
+        ["Selected priority", String(arbitration.selectedPriority)],
+        ["Supporting candidates", String(arbitration.supportingCandidates.length)]
+      ]
+    ),
+    "",
+    heading(3, "Supporting Candidates"),
+    table(
+      ["Candidate", "Source", "Action", "Priority", "Reason"],
+      arbitration.supportingCandidates.map((candidate) => [
+        candidate.id,
+        candidate.source,
+        candidate.action,
+        String(candidate.priority),
+        (candidate.reasons[0] ?? "none").replace(/\|/g, "\\|")
+      ])
+    ),
+    ""
+  ];
 }
 
 function createAgentExecutor(name: AgentExecutorName): AgentExecutor {
@@ -986,6 +1019,7 @@ function writeIterationArtifacts(root: string, iterationDir: string, input: Iter
       guardGates: input.guardGates.summary
     },
     convergence: input.convergence,
+    arbitration: input.decision.arbitration,
     decision: input.decision
   };
   const iterationArtifact = {
@@ -1018,6 +1052,8 @@ function writeIterationArtifacts(root: string, iterationDir: string, input: Iter
       policyPassed: input.policy.passed,
       loopStatus: input.loop.status,
       decision: input.decision.action,
+      selectedCandidate: input.decision.arbitration?.selectedCandidate.id,
+      supportingCandidates: input.decision.arbitration?.supportingCandidates.length ?? 0,
       convergence: input.convergence.status,
       fingerprint: input.convergence.fingerprint.value
     }

@@ -37,4 +37,10 @@ interface GuardGate {
 }
 ```
 
-Gates feed the orchestrator decision router, which writes a decision report such as `finalize`, `repair`, `repack`, `block`, `rollback`, or `require-human-review`.
+Gates, executor failures, policy findings, Loop decisions, and risk signals are normalized into `HarnessDecisionCandidate` records before arbitration. Candidate ordering is deterministic and uses the shared action priority:
+
+```txt
+rollback > block > repack > repair > run-tests > human-review > finalize
+```
+
+The highest-priority candidate becomes the selected action. Remaining candidates are retained as supporting candidates; their reasons, required commands, and artifacts are merged into the final decision with stable deduplication. `decision.json` and the orchestrator Markdown report record the selected candidate, selected priority, and supporting candidates, so the result does not depend on Guard Gate array order.
