@@ -268,6 +268,26 @@ function createReportFixture(): HarnessOrchestratorReport {
       requiredCommands: ["npm test -- auth"],
       artifacts: []
     },
+    convergence: {
+      schemaVersion: "opencode-plusplus.convergence.v1",
+      status: "progressing",
+      fingerprint: {
+        schemaVersion: "opencode-plusplus.iteration-fingerprint.v1",
+        value: "fixture-fingerprint",
+        state: {
+          workingTreeHash: "fixture-tree",
+          decisionAction: "repair",
+          blockingFindingIds: [],
+          blockingGateIds: ["evidence.no-test-after-edit"],
+          missingEvidence: ["required_tests_passed"],
+          requiredCommands: ["npm test -- auth"],
+          contextFreshness: "fresh",
+          contextDrift: "clean"
+        }
+      },
+      repeated: false,
+      shouldStop: false
+    },
     artifacts: {
       contextFiles: [],
       runFiles: [],

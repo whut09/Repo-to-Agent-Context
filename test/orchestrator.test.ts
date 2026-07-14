@@ -109,6 +109,8 @@ test("harness orchestrator blocks when a selected executor has no command adapte
     assert.equal(result.report.executor, "opencode");
     assert.equal(result.report.executorResult.exitCode, 2);
     assert.equal(result.report.decision.action, "block");
+    assert.equal(result.report.convergence.status, "executor-failure");
+    assert.equal(result.report.convergence.stopReason, "executor-failure");
     assert.match(result.report.executorResult.stderr, /No executor command configured/);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -178,6 +180,62 @@ test("harness orchestrator writes multi-loop iteration artifacts before max-loop
     const secondPrompt = readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "002", "prompt.md"), "utf8");
     assert.match(secondPrompt, /Previous harness decision/);
     assert.match(secondPrompt, /Action: repack/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("harness orchestrator stops on repeated blocking state with no progress", async () => {
+  const root = createOrchestratorRepo();
+  try {
+    const result = await runHarnessOrchestrator(root, "fix login timeout bug", {
+      executor: "mock",
+      type: "bugfix",
+      tokenBudget: 1,
+      base: "main",
+      maxLoops: 3
+    });
+
+    assert.equal(result.report.iterations.length, 2);
+    assert.equal(result.report.decision.action, "human-review");
+    assert.equal(result.report.convergence.status, "repeated-state");
+    assert.equal(result.report.convergence.stopReason, "repeated-state/no-progress");
+    assert.equal(result.report.iterations[0]?.convergence.status, "progressing");
+    assert.equal(result.report.iterations[1]?.convergence.status, "repeated-state");
+    assert.equal(result.report.iterations[0]?.convergence.fingerprint.value, result.report.iterations[1]?.convergence.fingerprint.value);
+    assert.ok(result.report.decision.reasons.some((reason) => reason.includes("repeated-state/no-progress")));
+
+    const iteration = JSON.parse(
+      readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "002", "iteration.json"), "utf8")
+    ) as { convergence: { status: string; fingerprint: { value: string } } };
+    const report = JSON.parse(readFileSync(path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug", "orchestrator.json"), "utf8")) as {
+      convergence: { status: string; fingerprint: { value: string } };
+    };
+    assert.equal(iteration.convergence.status, "repeated-state");
+    assert.equal(iteration.convergence.fingerprint.value, result.report.convergence.fingerprint.value);
+    assert.equal(report.convergence.status, "repeated-state");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("harness orchestrator reports max-loop for a single blocking iteration", async () => {
+  const root = createOrchestratorRepo();
+  try {
+    const result = await runHarnessOrchestrator(root, "fix login timeout bug", {
+      executor: "mock",
+      type: "bugfix",
+      tokenBudget: 1,
+      base: "main",
+      maxLoops: 1
+    });
+
+    assert.equal(result.report.iterations.length, 1);
+    assert.equal(result.report.decision.action, "human-review");
+    assert.equal(result.report.convergence.status, "max-loops-reached");
+    assert.equal(result.report.convergence.stopReason, "max-loops-reached");
+    assert.equal(result.report.convergence.repeated, false);
+    assert.ok(result.report.decision.reasons.some((reason) => reason.includes("Maximum orchestrator loop count")));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

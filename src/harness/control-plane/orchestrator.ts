@@ -28,7 +28,8 @@ import { buildGuardFindingsArtifact, type GuardFindingsArtifact } from "../../ou
 import { buildGuardGateReport, type GuardGateReport } from "../../outputs/guard-gates.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
 import type { HarnessDecision, HarnessDecisionAction } from "../types.js";
-import { decideHarnessAction, HARNESS_DECISION_PRIORITY, maxLoopHarnessDecision } from "./decision-engine.js";
+import { decideHarnessAction, HARNESS_DECISION_PRIORITY, maxLoopHarnessDecision, noProgressHarnessDecision } from "./decision-engine.js";
+import { buildIterationStateFingerprint, evaluateConvergence, type ConvergenceResult, type IterationStateFingerprint } from "./convergence.js";
 
 export type AgentExecutorName = "codex" | "claude-code" | "opencode" | "mimocode" | "cursor" | "mock";
 export type OrchestratorDecision = HarnessDecisionAction;
@@ -120,6 +121,7 @@ export interface HarnessOrchestratorReport {
   loop: Pick<LoopControllerReport, "status" | "risk" | "trace" | "checks" | "decisions">;
   gates: Pick<GuardGateReport, "summary" | "gates">;
   decision: HarnessDecision;
+  convergence: ConvergenceResult;
   artifacts: {
     contextFiles: string[];
     runFiles: string[];
@@ -153,6 +155,7 @@ export interface OrchestratorIterationReport {
   loop: Pick<LoopControllerReport, "status" | "risk" | "trace" | "checks" | "decisions">;
   gates: Pick<GuardGateReport, "summary" | "gates">;
   decision: HarnessOrchestratorReport["decision"];
+  convergence: ConvergenceResult;
   files: string[];
 }
 
@@ -175,6 +178,7 @@ interface IterationArtifactInput {
   verify: string;
   loop: LoopControllerReport;
   decision: HarnessOrchestratorReport["decision"];
+  convergence: ConvergenceResult;
   guardFindings: GuardFindingsArtifact;
   guardGates: GuardGateReport;
 }
@@ -218,6 +222,8 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
   let latestGuardGates: GuardGateReport | undefined;
   let latestChangedFiles: string[] = [];
   let latestDecision: HarnessOrchestratorReport["decision"] | undefined;
+  let latestConvergence: ConvergenceResult | undefined;
+  let previousFingerprint: IterationStateFingerprint | undefined;
 
   try {
     for (let loopIndex = 1; loopIndex <= maxLoops; loopIndex += 1) {
@@ -317,17 +323,34 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         guardGates,
         checkpointMode: options.checkpoint ?? "none"
       });
-      if (
-        loopIndex === maxLoops &&
-        decision.action !== "finalize" &&
-        decision.action !== "block" &&
-        decision.action !== "rollback" &&
-        decision.action !== "human-review"
-      ) {
+      const fingerprint = buildIterationStateFingerprint({
+        workingTreeHash: currentWorkingTreeHash(sandboxHandle.root),
+        decisionAction: decision.action,
+        blockingFindingIds: guardFindings.findings
+          .filter((finding) => finding.status === "failed" || finding.status === "missing")
+          .map((finding) => finding.id),
+        blockingGateIds: guardGates.gates.filter((gate) => gate.status === "blocked").map((gate) => gate.id),
+        missingEvidence: loop.runtime.missingEvidence,
+        requiredCommands: decision.requiredCommands,
+        contextFreshness: loop.context.freshness,
+        contextDrift: loop.context.drift
+      });
+      const convergence = evaluateConvergence({
+        fingerprint,
+        previousFingerprint,
+        decision,
+        executorExitCode: executorResult.exitCode,
+        loopIndex,
+        maxLoops
+      });
+      if (convergence.status === "repeated-state") {
+        latestDecision = noProgressHarnessDecision(fingerprint.value, decision);
+      } else if (convergence.status === "max-loops-reached") {
         latestDecision = maxLoopHarnessDecision(maxLoops, decision);
       } else {
         latestDecision = decision;
       }
+      latestConvergence = convergence;
       progress("decision", `decision: ${latestDecision.action}`, loopIndex);
 
       const iterationFiles = writeIterationArtifacts(root, iterationDir, {
@@ -342,6 +365,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         verify,
         loop,
         decision: latestDecision,
+        convergence,
         guardFindings,
         guardGates
       });
@@ -368,6 +392,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
           gates: guardGates.gates
         },
         decision: latestDecision,
+        convergence,
         files: iterationFiles.map((file) => path.relative(root, file).replaceAll("\\", "/"))
       };
       iterations.push(iterationReport);
@@ -379,18 +404,12 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
       latestGuardGates = guardGates;
       latestChangedFiles = changedFiles;
       previousDecision = latestDecision;
+      previousFingerprint = fingerprint;
 
-      if (
-        latestDecision.action === "finalize" ||
-        latestDecision.action === "block" ||
-        latestDecision.action === "rollback" ||
-        latestDecision.action === "human-review"
-      ) {
-        break;
-      }
+      if (convergence.shouldStop) break;
     }
 
-    if (!latestExecutorResult || !latestPolicy || !latestLoop || !latestGuardGates || !latestDecision) {
+    if (!latestExecutorResult || !latestPolicy || !latestLoop || !latestGuardGates || !latestDecision || !latestConvergence) {
       throw new Error("Orchestrator loop did not produce an iteration.");
     }
 
@@ -425,6 +444,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         gates: latestGuardGates.gates
       },
       decision: latestDecision,
+      convergence: latestConvergence,
       artifacts: {
         contextFiles: contextWrite.files.map((file) => path.relative(root, file).replaceAll("\\", "/")),
         runFiles: taskRun.files.map((file) => path.relative(root, file).replaceAll("\\", "/")),
@@ -499,6 +519,7 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
     `Task id: ${report.taskId}`,
     `Executor: ${report.executor}`,
     `Decision: ${report.decision.action}`,
+    `Convergence: ${report.convergence.status}`,
     `Base: ${report.base}`,
     `Sandbox: ${report.sandbox.mode}${report.sandbox.discarded ? " (discarded)" : ""}`,
     "",
@@ -534,6 +555,8 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
         ["Missing required evidence", String(report.policy.summary.requiredMissing)],
         ["Forbidden findings", String(report.policy.summary.forbidden)],
         ["Impact risk", report.loop.risk],
+        ["Convergence", report.convergence.status],
+        ["State fingerprint", code(report.convergence.fingerprint.value)],
         ["Final decision", `${report.decision.action} - ${decisionReason(report.decision)}`]
       ]
     ),
@@ -575,12 +598,27 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
     heading(2, "Decision Reasons"),
     bullet(report.decision.reasons),
     "",
+    heading(2, "Convergence"),
+    table(
+      ["Field", "Value"],
+      [
+        ["Status", report.convergence.status],
+        ["Stop", report.convergence.shouldStop ? "yes" : "no"],
+        ["Stop reason", report.convergence.stopReason ?? "none"],
+        ["Repeated", report.convergence.repeated ? "yes" : "no"],
+        ["Fingerprint", code(report.convergence.fingerprint.value)],
+        ["Previous fingerprint", report.convergence.previousFingerprint ? code(report.convergence.previousFingerprint) : "none"]
+      ]
+    ),
+    "",
     heading(2, "Loop Iterations"),
     table(
-      ["Loop", "Decision", "Exit", "Changed files", "Directory"],
+      ["Loop", "Decision", "Convergence", "Fingerprint", "Exit", "Changed files", "Directory"],
       report.iterations.map((iteration) => [
         String(iteration.index),
         iteration.decision.action,
+        iteration.convergence.status,
+        code(iteration.convergence.fingerprint.value.slice(0, 12)),
         String(iteration.executorResult.exitCode ?? "unknown"),
         String(iteration.changedFiles.length),
         code(iteration.dir)
@@ -947,6 +985,7 @@ function writeIterationArtifacts(root: string, iterationDir: string, input: Iter
       guardFindings: input.guardFindings.summary,
       guardGates: input.guardGates.summary
     },
+    convergence: input.convergence,
     decision: input.decision
   };
   const iterationArtifact = {
@@ -969,6 +1008,7 @@ function writeIterationArtifacts(root: string, iterationDir: string, input: Iter
       loop: "loop.json",
       decision: "decision.json"
     },
+    convergence: input.convergence,
     summary: {
       executor: input.executorResult.executor,
       exitCode: input.executorResult.exitCode,
@@ -977,7 +1017,9 @@ function writeIterationArtifacts(root: string, iterationDir: string, input: Iter
       guardGates: input.guardGates.summary.blocking,
       policyPassed: input.policy.passed,
       loopStatus: input.loop.status,
-      decision: input.decision.action
+      decision: input.decision.action,
+      convergence: input.convergence.status,
+      fingerprint: input.convergence.fingerprint.value
     }
   };
   const files = [

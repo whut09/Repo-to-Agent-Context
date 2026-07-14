@@ -157,6 +157,23 @@ export function maxLoopHarnessDecision(maxLoops: number, lastDecision: HarnessDe
   });
 }
 
+export function noProgressHarnessDecision(fingerprint: string, lastDecision: HarnessDecision): HarnessDecision {
+  return decision({
+    action: "human-review",
+    blocking: true,
+    confidence: 0.94,
+    reasons: [
+      "No progress was detected across consecutive orchestrator iterations.",
+      "stop reason: repeated-state/no-progress",
+      `repeated fingerprint: ${fingerprint}`,
+      `repeated action: ${lastDecision.action}`,
+      ...lastDecision.reasons
+    ],
+    requiredCommands: lastDecision.requiredCommands,
+    artifacts: lastDecision.artifacts
+  });
+}
+
 function decision(
   input: Omit<HarnessDecision, "requiredCommands" | "artifacts"> & { requiredCommands?: string[]; artifacts?: ArtifactRef[] }
 ): HarnessDecision {
