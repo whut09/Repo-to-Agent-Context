@@ -2,6 +2,7 @@ import type { ExecutionTrace } from "../harness/observability/execution-trace.js
 import type { GuardFindingsArtifact } from "./guard-finding.js";
 import type { LoopControllerReport } from "../harness/control-plane/loop-controller.js";
 import type { PolicyEngineReport } from "../harness/verification-plane/policy-engine.js";
+import { latestTestResultSteps, testStepFailedByExitCode, testStepHasFailureOutput } from "./evidence.js";
 
 export type GuardGateName = "context" | "boundary" | "evidence" | "hallucination" | "regression";
 export type GuardGateAction = "repack" | "expand-context" | "rollback" | "human-review" | "run-tests" | "repair" | "block" | "run-regression-tests";
@@ -161,6 +162,7 @@ function boundaryGates(policy: PolicyEngineReport, changedFiles: string[], check
 
 function evidenceGates(policy: PolicyEngineReport, loop: LoopControllerReport, trace: ExecutionTrace | null | undefined): GuardGate[] {
   const gates: GuardGate[] = [];
+  const latestTestResults = trace ? latestTestResultSteps(trace, { afterLastEdit: true }) : [];
   const testFinding = policy.results.find((finding) => finding.id === "policy.required.tests" && finding.status === "missing");
   if (testFinding || (loop.changedFiles.length > 0 && loop.trace.passedTestEvidence === "none")) {
     gates.push({
@@ -175,9 +177,7 @@ function evidenceGates(policy: PolicyEngineReport, loop: LoopControllerReport, t
     });
   }
 
-  const failedTest = trace?.steps.find(
-    (step) => /run-test|test|check|lint|typecheck/i.test(`${step.action} ${step.command ?? ""}`) && step.exitCode !== undefined && step.exitCode !== 0
-  );
+  const failedTest = latestTestResults.find(testStepFailedByExitCode);
   if (failedTest) {
     gates.push({
       id: "evidence.test-exit-code",
@@ -191,9 +191,7 @@ function evidenceGates(policy: PolicyEngineReport, loop: LoopControllerReport, t
     });
   }
 
-  const failureOutput = trace?.steps.find(
-    (step) => /fail|failed|error|exception/i.test(step.output ?? "") && /run-test|test|check|lint|typecheck/i.test(`${step.action} ${step.command ?? ""}`)
-  );
+  const failureOutput = latestTestResults.find(testStepHasFailureOutput);
   if (failureOutput) {
     gates.push({
       id: "evidence.test-output-failure",

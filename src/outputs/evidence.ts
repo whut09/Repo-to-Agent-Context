@@ -20,6 +20,10 @@ export interface EvidenceResult {
   evidence: string[];
 }
 
+export interface LatestTestResultOptions {
+  afterLastEdit?: boolean;
+}
+
 export function evidenceSatisfies(requirement: HarnessRequirement, trace: ExecutionTrace | null): EvidenceResult {
   if (!trace) {
     return {
@@ -31,7 +35,8 @@ export function evidenceSatisfies(requirement: HarnessRequirement, trace: Execut
   }
 
   const lastEdit = lastEditStep(trace);
-  const candidates = trace.steps
+  const requirementSteps = requirement.kind === "tests" ? latestTestResultSteps(trace) : trace.steps;
+  const candidates = requirementSteps
     .filter((step) => matchesRequirement(step, requirement.kind) && stepPassed(step))
     .map((step) => evaluateCandidate(step, requirement, lastEdit))
     .sort((a, b) => evidenceRank(b.level) - evidenceRank(a.level) || stepTime(b.step) - stepTime(a.step));
@@ -74,6 +79,28 @@ export function evidenceRank(level: EvidenceLevel): number {
 export function matchesTestStep(step: ExecutionTraceStep): boolean {
   const text = `${step.action} ${step.command ?? ""} ${step.test ?? ""}`.toLowerCase();
   return /\b(run-test|test|verify|check|lint|typecheck)\b/.test(text) || /\b(npm|pnpm|yarn|bun|pytest|vitest|jest|node --test)\b/.test(text);
+}
+
+export function latestTestResultSteps(trace: ExecutionTrace, options: LatestTestResultOptions = {}): ExecutionTraceStep[] {
+  const lastEditIndex = options.afterLastEdit ? findLastEditIndex(trace) : -1;
+  const latest = new Map<string, { index: number; step: ExecutionTraceStep }>();
+
+  for (let index = lastEditIndex + 1; index < trace.steps.length; index += 1) {
+    const step = trace.steps[index];
+    if (!step || !matchesTestStep(step) || !hasTerminalTestResult(step)) continue;
+    latest.set(testResultKey(step), { index, step });
+  }
+
+  return [...latest.values()].sort((a, b) => a.index - b.index).map((item) => item.step);
+}
+
+export function testStepFailedByExitCode(step: ExecutionTraceStep): boolean {
+  return typeof step.exitCode === "number" && step.exitCode !== 0;
+}
+
+export function testStepHasFailureOutput(step: ExecutionTraceStep): boolean {
+  if (step.result === "passed" || step.exitCode === 0) return false;
+  return /fail|failed|error|exception/i.test(step.output ?? "");
 }
 
 interface CandidateEvaluation {
@@ -167,6 +194,7 @@ function normalizeCommand(command: string): string {
   return command
     .toLowerCase()
     .replace(/\bnpm\.cmd\b/g, "npm")
+    .replace(/\b(pnpm|yarn|bun)\.cmd\b/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -186,7 +214,16 @@ function isHarnessCommandEvidence(step: ExecutionTraceStep): boolean {
 }
 
 function lastEditStep(trace: ExecutionTrace): ExecutionTraceStep | undefined {
-  return [...trace.steps].reverse().find((step) => isEditStep(step));
+  const index = findLastEditIndex(trace);
+  return index >= 0 ? trace.steps[index] : undefined;
+}
+
+function findLastEditIndex(trace: ExecutionTrace): number {
+  for (let index = trace.steps.length - 1; index >= 0; index -= 1) {
+    const step = trace.steps[index];
+    if (step && isEditStep(step)) return index;
+  }
+  return -1;
 }
 
 function isEditStep(step: ExecutionTraceStep): boolean {
@@ -196,6 +233,20 @@ function isEditStep(step: ExecutionTraceStep): boolean {
 
 function stepTime(step: ExecutionTraceStep): number {
   return Date.parse(step.finishedAt ?? step.at) || 0;
+}
+
+function hasTerminalTestResult(step: ExecutionTraceStep): boolean {
+  return typeof step.exitCode === "number" || step.result === "passed" || step.result === "failed" || testStepHasFailureOutput(step);
+}
+
+function testResultKey(step: ExecutionTraceStep): string {
+  if (step.command) return `command:${normalizeTestCommand(step.command)}`;
+  if (step.test) return `test:${normalizeCommand(step.test)}`;
+  return `action:${normalizeCommand(step.action)}`;
+}
+
+function normalizeTestCommand(command: string): string {
+  return normalizeCommand(command).replace(/^(npm|pnpm|yarn|bun) test\b/, "$1 run test");
 }
 
 function formatTraceEvidence(step: ExecutionTraceStep, level: EvidenceLevel): string[] {
