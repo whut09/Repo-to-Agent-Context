@@ -317,9 +317,15 @@ trace 记录 task、agent、steps、files、reason、command、test、result、o
 - `command evidence`：通过 `trace run` 由 harness 实际执行命令，记录 `exitCode`、`startedAt`、`finishedAt`、`stdoutHash`、`stderrHash`、`workingTreeHashBefore` 和 `workingTreeHashAfter`。
 - `ci evidence`：来自 CI artifact 或 GitHub Action 的外部验证记录，可通过 trace step 导入。
 
-trace step 只有通过验证后才会成为决策证据。`evidenceSatisfies()` 会检查 requirement 类型、required command 是否匹配、exit code 是否通过、working tree hash 是否仍等于当前可执行 diff，以及证据是否发生在最后一次编辑之后。这样可以避免一种假闭环：Agent 先跑测试，再继续改代码，但仍复用旧的 passed test evidence。
+trace step 只有通过验证后才会成为决策证据。`evidenceSatisfies()` 会检查 requirement 类型、evidence policy、required command 是否匹配、exit code 是否通过、working tree hash 是否仍等于当前可执行 diff，以及证据是否发生在最后一次编辑之后。结果会分别标记 `claimed` 与 `verified`，避免把用户或 Agent 的声明表达成系统已经验证。这样可以避免一种假闭环：Agent 先跑测试，再继续改代码，但仍复用旧的 passed test evidence。
 
-Policy Engine 会优先使用 `ci` 和 `command` evidence；只有 `manual` 测试证据时仍可满足基础 required check，但会提示风险并建议使用 `opencode-plusplus trace run ...` 捕获真实命令证据。
+Loop Controller、Policy Engine、Regression Guard、Guard Gate 输入和 Orchestrator 使用同一套 evidence policy：
+
+- `advisory` 保持兼容行为，manual evidence 可以满足 requirement，但只标记为未验证声明。
+- `balanced` 在修改 source/config 后要求测试至少来自 command 或 CI；非关键检查仍可使用 manual evidence。
+- `strict` 要求测试和 contract validation 都来自当前 working tree 上的 command 或 CI，manual evidence 只能作为辅助信息。
+
+为了兼容旧配置，默认值仍为 `advisory`；新 PR 工作流建议显式使用 `balanced`。CLI 可通过 `--evidence-policy` 传递，MCP runtime tool 使用同名 `evidencePolicy` 字段。
 
 `opencode-plusplus policy . --base main --trace <trace-id>` 会把 diff、contracts、freshness 和 trace evidence 合并检查。它能阻止 forbidden edits，提示风险，并要求测试、contract validation 或 context refresh 证据。这一层让 Harness 不只是“建议”，而是具备 runtime guardrail 的形态。
 

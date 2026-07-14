@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { TaskType } from "../../core/types.js";
+import type { EvidencePolicyMode, TaskType } from "../../core/types.js";
 import {
   renderOrchestratorReport,
   runHarnessOrchestrator,
@@ -8,7 +8,7 @@ import {
 } from "../../harness/control-plane/orchestrator.js";
 import type { PolicyFailOn } from "../../harness/verification-plane/policy-engine.js";
 import { resolveTaskArguments } from "../task-args.js";
-import { parseAgentExecutor, parseInteger, parseOrchestratorCheckpoint, parsePolicyFailOn, parseTaskType } from "../parsers/options.js";
+import { parseAgentExecutor, parseEvidencePolicy, parseInteger, parseOrchestratorCheckpoint, parsePolicyFailOn, parseTaskType } from "../parsers/options.js";
 
 export function registerOrchestrateCommands(program: Command): void {
   program
@@ -24,6 +24,7 @@ export function registerOrchestrateCommands(program: Command): void {
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, policy, tests, impact, and verify", "main")
     .option("--fail-on <level>", "policy failure threshold: forbidden, required, risk", parsePolicyFailOn, "required")
+    .option("--evidence-policy <mode>", "evidence policy: advisory, balanced, strict", parseEvidencePolicy)
     .option("--checkpoint <mode>", "checkpoint mode: none, git-worktree", parseOrchestratorCheckpoint, "none")
     .option("--dry-run", "exercise the harness using the mock executor without editing files")
     .option("--json", "print machine-readable orchestrator report")
@@ -40,6 +41,7 @@ export function registerOrchestrateCommands(program: Command): void {
         tokenBudget: options.tokenBudget,
         base: options.base,
         failOn: options.failOn,
+        evidencePolicy: options.evidencePolicy,
         checkpoint: options.checkpoint,
         dryRun: options.dryRun
       });
@@ -61,6 +63,7 @@ export function registerOrchestrateCommands(program: Command): void {
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, policy, tests, impact, and verify", "main")
     .option("--fail-on <level>", "policy failure threshold: forbidden, required, risk", parsePolicyFailOn, "required")
+    .option("--evidence-policy <mode>", "evidence policy: advisory, balanced, strict", parseEvidencePolicy)
     .option("--checkpoint <mode>", "checkpoint mode: none, git-worktree", parseOrchestratorCheckpoint, "none")
     .option("--dry-run", "exercise the harness using the mock executor without editing files")
     .option("--json", "print machine-readable orchestrator report")
@@ -77,6 +80,7 @@ export function registerOrchestrateCommands(program: Command): void {
         tokenBudget: options.tokenBudget,
         base: options.base,
         failOn: options.failOn,
+        evidencePolicy: options.evidencePolicy,
         checkpoint: options.checkpoint,
         dryRun: options.dryRun
       });
@@ -99,6 +103,7 @@ interface AgentRunCliOptions {
   tokenBudget?: number;
   base: string;
   failOn: PolicyFailOn;
+  evidencePolicy?: EvidencePolicyMode;
   checkpoint: OrchestratorCheckpointMode;
   dryRun?: boolean;
   json?: boolean;

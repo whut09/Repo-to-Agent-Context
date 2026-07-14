@@ -16,6 +16,19 @@ test("invalid target fails instead of silently falling back", () => {
   }
 });
 
+test("legacy config without evidencePolicy remains advisory", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
+  try {
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "target: opencode\n", "utf8");
+    assert.equal(loadConfig(root).evidencePolicy, "advisory");
+
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "evidencePolicy: balanced\n", "utf8");
+    assert.equal(loadConfig(root).evidencePolicy, "balanced");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("enabled LLM requires non-placeholder credentials", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
   try {

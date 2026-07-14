@@ -145,6 +145,7 @@ test("mcp runtime tools drive an agent loop with trace and policy evidence", asy
       strict: true
     });
     assert.equal(missingEvidence.passed, false);
+    assert.equal((missingEvidence.policy as { evidencePolicy?: string }).evidencePolicy, "strict");
     assert.equal(missingEvidence.blocking, true);
     assert.ok((missingEvidence.missingEvidence as string[]).some((item) => item.includes("test") || item.includes("contract")));
     assert.ok((missingEvidence.requiredCommands as string[]).length > 0);

@@ -5,6 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 import { buildContextPackage, type BuildOptions } from "../core/context-builder.js";
+import type { EvidencePolicyMode } from "../core/types.js";
 import { buildContextDelta, renderContextDelta } from "../outputs/context-delta.js";
 import { buildChangeImpactReport, renderChangeImpactReport } from "../outputs/impact.js";
 import { buildLoopControllerReport, renderLoopControllerReport, writeLoopControllerReport, type LoopPhase } from "../harness/control-plane/loop-controller.js";
@@ -197,7 +198,8 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
         agent: z.enum(["codex", "claude-code", "cursor", "librechat", "openhands", "other"]).optional().default("other"),
         type: z.enum(["auto", "bugfix", "feature", "refactor"]).optional().default("auto"),
         tokenBudget: z.number().int().positive().optional(),
-        base: z.string().optional().default("main")
+        base: z.string().optional().default("main"),
+        evidencePolicy: z.enum(["advisory", "balanced", "strict"]).optional()
       })
     },
     async (args) => jsonToolResult(await runStartLoop(args))
@@ -237,7 +239,8 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
         base: z.string().optional().default("main"),
         phase: z.enum(["preflight", "after-edit", "repair"]).optional().default("after-edit"),
         failOn: z.enum(["forbidden", "required", "risk"]).optional(),
-        strict: z.boolean().optional().default(false)
+        strict: z.boolean().optional().default(false),
+        evidencePolicy: z.enum(["advisory", "balanced", "strict"]).optional()
       })
     },
     async (args) => jsonToolResult(await runRuntimeEvaluate(args))
@@ -253,7 +256,8 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
         traceId: z.string().optional(),
         type: z.enum(["auto", "bugfix", "feature", "refactor"]).optional().default("auto"),
         tokenBudget: z.number().int().positive().optional(),
-        base: z.string().optional().default("main")
+        base: z.string().optional().default("main"),
+        evidencePolicy: z.enum(["advisory", "balanced", "strict"]).optional()
       })
     },
     async (args) => jsonToolResult(await runRuntimeRepair(args))
@@ -268,6 +272,7 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
         task: z.string(),
         traceId: z.string(),
         base: z.string().optional().default("main"),
+        evidencePolicy: z.enum(["advisory", "balanced", "strict"]).optional(),
         finalState: z.enum(["success", "partial_success", "failed", "blocked"]).optional().default("success")
       })
     },
@@ -323,6 +328,7 @@ interface PlanInput {
   task: string;
   type?: "auto" | "bugfix" | "feature" | "refactor";
   tokenBudget?: number;
+  evidencePolicy?: EvidencePolicyMode;
 }
 
 type PackInput = PlanInput;
@@ -387,6 +393,7 @@ interface RuntimeFinalizeInput {
   task: string;
   traceId: string;
   base?: string;
+  evidencePolicy?: EvidencePolicyMode;
   finalState?: Extract<ExecutionFinalState, "success" | "partial_success" | "failed" | "blocked">;
 }
 
@@ -558,7 +565,8 @@ async function runStartLoop(args: RuntimeStartInput): Promise<OpenCodePlusplusMc
     type: args.type ?? "auto",
     tokenBudget: args.tokenBudget,
     base: args.base ?? "main",
-    traceId: run.runId
+    traceId: run.runId,
+    evidencePolicy: args.evidencePolicy
   });
   const delta = buildContextDelta(context, { base: args.base ?? "main" });
   const guidance = buildRuntimeGuidance(context, args.task, {
@@ -610,9 +618,16 @@ async function runRuntimeEvaluate(args: RuntimeEvaluateInput): Promise<OpenCodeP
     type: args.type ?? "auto",
     tokenBudget: args.tokenBudget,
     base: args.base ?? "main",
-    traceId: args.traceId
+    traceId: args.traceId,
+    evidencePolicy: args.evidencePolicy
   });
-  const policy = buildPolicyReport(context, { base: args.base ?? "main", traceId: args.traceId, failOn: args.failOn, strict: args.strict });
+  const policy = buildPolicyReport(context, {
+    base: args.base ?? "main",
+    traceId: args.traceId,
+    failOn: args.failOn,
+    strict: args.strict,
+    evidencePolicy: args.evidencePolicy ?? (args.strict ? "strict" : undefined)
+  });
   const delta = buildContextDelta(context, { base: args.base ?? "main" });
   const verifyMarkdown = renderTaskVerify(context, { base: args.base ?? "main", diff: true });
   const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? taskSlug(args.task));
@@ -644,9 +659,10 @@ async function runRuntimeRepair(args: RuntimeRepairInput): Promise<OpenCodePlusp
     type: args.type ?? "auto",
     tokenBudget: args.tokenBudget,
     base: args.base ?? "main",
-    traceId: args.traceId
+    traceId: args.traceId,
+    evidencePolicy: args.evidencePolicy
   });
-  const policy = buildPolicyReport(context, { base: args.base ?? "main", traceId: args.traceId, strict: false });
+  const policy = buildPolicyReport(context, { base: args.base ?? "main", traceId: args.traceId, evidencePolicy: args.evidencePolicy });
   const tests = buildTestSelection(context, { diff: true, base: args.base ?? "main" });
   const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? taskSlug(args.task));
   const guidance = buildRuntimeGuidance(context, args.task, {
@@ -676,9 +692,14 @@ async function runRuntimeRepair(args: RuntimeRepairInput): Promise<OpenCodePlusp
 
 async function runRuntimeFinalize(args: RuntimeFinalizeInput): Promise<OpenCodePlusplusMcpResult> {
   const context = await buildContextPackage(args.repo ?? ".");
-  const policy = buildPolicyReport(context, { base: args.base ?? "main", traceId: args.traceId, strict: false });
+  const policy = buildPolicyReport(context, { base: args.base ?? "main", traceId: args.traceId, evidencePolicy: args.evidencePolicy });
   const traceBefore = readExecutionTrace(context.scan.root, args.traceId);
-  const loop = buildLoopControllerReport(context, args.task, { phase: "after-edit", base: args.base ?? "main", traceId: args.traceId });
+  const loop = buildLoopControllerReport(context, args.task, {
+    phase: "after-edit",
+    base: args.base ?? "main",
+    traceId: args.traceId,
+    evidencePolicy: args.evidencePolicy
+  });
   const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? taskSlug(args.task));
   const guidance = buildRuntimeGuidance(context, args.task, {
     loop,

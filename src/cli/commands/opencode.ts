@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { renderOrchestratorReport, runHarnessOrchestrator, type OrchestratorCheckpointMode } from "../../harness/control-plane/orchestrator.js";
 import type { PolicyFailOn } from "../../harness/verification-plane/policy-engine.js";
-import type { TaskType } from "../../core/types.js";
+import type { EvidencePolicyMode, TaskType } from "../../core/types.js";
 import { resolveTaskArguments } from "../task-args.js";
 import {
   findOpencodeReport,
@@ -13,7 +13,7 @@ import {
   renderOpencodeRunSummary,
   runOpencodeDoctor
 } from "../opencode-preset.js";
-import { parseInteger, parseOrchestratorCheckpoint, parsePolicyFailOn, parseTaskType } from "../parsers/options.js";
+import { parseEvidencePolicy, parseInteger, parseOrchestratorCheckpoint, parsePolicyFailOn, parseTaskType } from "../parsers/options.js";
 
 interface OpencodeRunCliOptions {
   repo?: string | string[];
@@ -25,6 +25,7 @@ interface OpencodeRunCliOptions {
   tokenBudget?: number;
   base: string;
   failOn: PolicyFailOn;
+  evidencePolicy?: EvidencePolicyMode;
   checkpoint: OrchestratorCheckpointMode;
   dryRun?: boolean;
   json?: boolean;
@@ -97,6 +98,7 @@ function addOpencodeRunOptions(command: Command): Command {
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, policy, tests, impact, and verify", "main")
     .option("--fail-on <level>", "policy failure threshold: forbidden, required, risk", parsePolicyFailOn, "required")
+    .option("--evidence-policy <mode>", "evidence policy: advisory, balanced, strict", parseEvidencePolicy)
     .option("--checkpoint <mode>", "checkpoint mode: none, git-worktree", parseOrchestratorCheckpoint, "git-worktree")
     .option("--dry-run", "exercise the harness using the mock executor without editing files")
     .option("--stream-executor", "stream executor stdout/stderr while the harness is running")
@@ -190,6 +192,7 @@ async function runOpencodePreset(args: string[], options: OpencodeRunCliOptions)
     tokenBudget: options.tokenBudget,
     base: options.base,
     failOn: options.failOn,
+    evidencePolicy: options.evidencePolicy,
     checkpoint: options.checkpoint,
     dryRun: options.dryRun,
     executorTimeoutMs: options.executorTimeoutMs,

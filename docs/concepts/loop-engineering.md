@@ -142,9 +142,15 @@ Trace evidence is split into three levels:
 - `command evidence`: the harness executes the command with `trace run` and captures `exitCode`, timestamps, stdout/stderr hashes, and working-tree hashes before and after the command.
 - `ci evidence`: external verification from CI artifacts or GitHub Actions imported into a trace step.
 
-Trace steps are validated before they satisfy a loop requirement. `evidenceSatisfies()` checks the requirement type, required command match, exit code, current actionable working-tree hash, and whether the evidence was recorded after the last edit step. This prevents a false loop close where an agent runs tests, edits code again, and reuses the old passing test evidence.
+Trace steps are validated before they satisfy a loop requirement. `evidenceSatisfies()` checks the requirement type, evidence policy, required command match, exit code, current actionable working-tree hash, and whether the evidence was recorded after the last edit step. It also reports `claimed` separately from `verified`, so a user or agent statement is not presented as system verification. This prevents a false loop close where an agent runs tests, edits code again, and reuses the old passing test evidence.
 
-The Policy Engine prefers CI and harness-captured command evidence. Manual test evidence can satisfy a required check for compatibility, but it is reported as a risk because it does not prove a command was actually executed.
+The shared evidence policy is used by the Loop Controller, Policy Engine, regression Guard, Guard Gate inputs, and Orchestrator:
+
+- `advisory` keeps the compatibility behavior: manual evidence can satisfy a requirement but remains an unverified claim.
+- `balanced` requires command or CI test evidence after source/config changes, while allowing manual evidence for non-critical checks.
+- `strict` requires current-tree command or CI evidence for both tests and contract validation; manual evidence cannot close a blocking requirement.
+
+The configuration default remains `advisory` for old projects, while `balanced` is recommended for new PR workflows. Use `--evidence-policy` on `policy`, `loop`, `orchestrate`, or `agent run`; MCP runtime tools expose the same `evidencePolicy` input.
 
 `opencode-plusplus policy . --base main --trace <trace-id>` merges diff, contracts, freshness, and trace evidence. It can block forbidden edits, flag risky behavior, and require test, contract, or context-refresh evidence before a loop is considered complete.
 

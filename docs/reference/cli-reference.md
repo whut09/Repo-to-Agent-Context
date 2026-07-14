@@ -409,6 +409,7 @@ Options:
                                    and verify (default: "main")
   --fail-on <level>                policy failure threshold: forbidden,
                                    required, risk (default: "required")
+  --evidence-policy <mode>         evidence policy: advisory, balanced, strict
   --checkpoint <mode>              checkpoint mode: none, git-worktree (default:
                                    "git-worktree")
   --dry-run                        exercise the harness using the mock executor
@@ -549,6 +550,7 @@ Options:
                                    and verify (default: "main")
   --fail-on <level>                policy failure threshold: forbidden,
                                    required, risk (default: "required")
+  --evidence-policy <mode>         evidence policy: advisory, balanced, strict
   --checkpoint <mode>              checkpoint mode: none, git-worktree (default:
                                    "git-worktree")
   --dry-run                        exercise the harness using the mock executor
@@ -889,6 +891,7 @@ Options:
   --base <ref>                 base git ref for diff, tests, impact, and
                                contract checks (default: "main")
   --trace <id>                 execution trace id used as loop evidence
+  --evidence-policy <mode>     evidence policy: advisory, balanced, strict
   --write                      write loop.md and loop.json under
                                .agent-context/loops/<task-id>
   --json                       print machine-readable loop controller report
@@ -1015,15 +1018,16 @@ Evaluate changed files, trace evidence, contracts, freshness, impact, and guard
 findings against policy gates.
 
 Arguments:
-  repo               repository path (default: ".")
+  repo                      repository path (default: ".")
 
 Options:
-  --base <ref>       base git ref for diff checks (default: "main")
-  --trace <id>       execution trace id used as verification evidence
-  --fail-on <level>  policy failure threshold: forbidden, required, risk
-                     (default: "required")
-  --json             print machine-readable policy report
-  -h, --help         display help for command
+  --base <ref>              base git ref for diff checks (default: "main")
+  --trace <id>              execution trace id used as verification evidence
+  --evidence-policy <mode>  evidence policy: advisory, balanced, strict
+  --fail-on <level>         policy failure threshold: forbidden, required, risk
+                            (default: "required")
+  --json                    print machine-readable policy report
+  -h, --help                display help for command
 ```
 
 ### `opencode-plusplus hallucination`
@@ -1375,6 +1379,7 @@ Options:
                                 and verify (default: "main")
   --fail-on <level>             policy failure threshold: forbidden, required,
                                 risk (default: "required")
+  --evidence-policy <mode>      evidence policy: advisory, balanced, strict
   --checkpoint <mode>           checkpoint mode: none, git-worktree (default:
                                 "none")
   --dry-run                     exercise the harness using the mock executor
@@ -1428,6 +1433,7 @@ Options:
                                 and verify (default: "main")
   --fail-on <level>             policy failure threshold: forbidden, required,
                                 risk (default: "required")
+  --evidence-policy <mode>      evidence policy: advisory, balanced, strict
   --checkpoint <mode>           checkpoint mode: none, git-worktree (default:
                                 "none")
   --dry-run                     exercise the harness using the mock executor

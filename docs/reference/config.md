@@ -18,6 +18,7 @@ Do not commit `opencode-plusplus.local.yml`.
 
 ```yaml
 target: opencode
+evidencePolicy: advisory
 tokenBudget: 60000
 
 include:
@@ -70,6 +71,16 @@ outputs:
 ```
 
 Config files use `tokenizer.mode: chars_approx`; the CLI option `--tokenizer chars-approx` is accepted and normalized for command-line convenience.
+
+## Evidence Policy
+
+`evidencePolicy` controls the minimum trusted evidence that can close test and contract requirements:
+
+- `advisory` preserves compatibility. Manual evidence can satisfy requirements, but reports mark it as a claim rather than system verification.
+- `balanced` accepts manual evidence for non-critical checks, but source or config changes require harness-captured command evidence or CI for tests. This is the recommended explicit mode for normal PR workflows.
+- `strict` requires current-working-tree command or CI evidence for both tests and contract validation. Manual evidence remains visible as supporting context but cannot close a blocking requirement.
+
+The default remains `advisory` so existing configuration files keep their previous behavior. CLI commands that evaluate evidence accept `--evidence-policy advisory|balanced|strict`; MCP runtime tools accept the equivalent `evidencePolicy` field.
 
 ## LLM Credentials
 

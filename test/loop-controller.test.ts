@@ -83,11 +83,20 @@ test("loop controller consumes passed test trace evidence", async () => {
 
     const context = await buildContextPackage(root);
     const report = buildLoopControllerReport(context, "fix login timeout bug", { phase: "after-edit", type: "bugfix", base: "main", traceId: trace.id });
+    const balancedReport = buildLoopControllerReport(context, "fix login timeout bug", {
+      phase: "after-edit",
+      type: "bugfix",
+      base: "main",
+      traceId: trace.id,
+      evidencePolicy: "balanced"
+    });
     const rendered = renderLoopControllerReport(report);
 
     assert.equal(report.trace.loaded, true);
     assert.equal(report.trace.passedTestEvidence, "manual");
     assert.equal(report.status, "ready");
+    assert.equal(balancedReport.trace.passedTestEvidence, "none");
+    assert.ok(balancedReport.decisions.some((decision) => decision.action === "run-tests"));
     assert.ok(report.changedFiles.includes("src/auth/session.ts"));
     assert.ok(!report.decisions.some((decision) => decision.action === "run-tests"));
     assert.ok(report.decisions.some((decision) => decision.action === "ready-for-review"));

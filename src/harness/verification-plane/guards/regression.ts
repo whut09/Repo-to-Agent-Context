@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { ContextPackage } from "../../../core/types.js";
+import type { ContextPackage, EvidencePolicyMode } from "../../../core/types.js";
 import { changedFilesSince, runGit } from "../../../core/git.js";
 import { currentWorkingTreeHash, readExecutionTrace, traceIdForTask } from "../../observability/execution-trace.js";
 import { evidenceSatisfies, type EvidenceResult } from "../../../outputs/evidence.js";
@@ -24,6 +24,7 @@ export interface RegressionGuardOptions {
   task?: string;
   traceId?: string;
   changedFiles?: string[];
+  evidencePolicy?: EvidencePolicyMode;
 }
 
 export interface RegressionMatch {
@@ -83,7 +84,9 @@ export function buildRegressionReport(context: ContextPackage, options: Regressi
     {
       kind: "tests",
       currentRepoHash: currentWorkingTreeHash(context.scan.root),
-      requiredCommands: requiredTests
+      requiredCommands: requiredTests,
+      policy: options.evidencePolicy ?? context.config.evidencePolicy,
+      sourceChanged: changedFiles.length > 0
     },
     trace
   );

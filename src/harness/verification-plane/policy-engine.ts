@@ -1,4 +1,4 @@
-import type { ContextPackage, IndexedFile } from "../../core/types.js";
+import type { ContextPackage, EvidencePolicyMode, IndexedFile } from "../../core/types.js";
 import { changedFilesSince, runGit } from "../../core/git.js";
 import { assessDrift, assessFreshness } from "../../core/freshness.js";
 import { buildChangeImpactReport } from "../../outputs/impact.js";
@@ -22,6 +22,7 @@ export interface PolicyEngineOptions {
   traceId?: string;
   strict?: boolean;
   failOn?: PolicyFailOn;
+  evidencePolicy?: EvidencePolicyMode;
 }
 
 export interface PolicyFinding extends Partial<Pick<GuardResult, "blocking" | "confidence" | "reasons" | "requiredCommands" | "artifacts">> {
@@ -41,6 +42,7 @@ export interface PolicyEngineReport {
   traceId?: string;
   traceLoaded: boolean;
   failOn: PolicyFailOn;
+  evidencePolicy?: EvidencePolicyMode;
   changedFiles: string[];
   generatedContextFiles: string[];
   summary: {
@@ -56,6 +58,7 @@ export interface PolicyEngineReport {
 export function buildPolicyReport(context: ContextPackage, options: PolicyEngineOptions = {}): PolicyEngineReport {
   const base = options.base ?? "main";
   const failOn = normalizeFailOn(options);
+  const evidencePolicy = options.evidencePolicy ?? context.config.evidencePolicy;
   const trace = options.traceId ? readExecutionTrace(context.scan.root, options.traceId) : null;
   const changed = changedFilesForPolicy(context, base);
   const indexed = new Map(context.index.files.map((file) => [file.path, file]));
@@ -67,13 +70,21 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
   const impact = buildChangeImpactReport(context, { base });
   const tests = buildTestSelection(context, { diff: true, base });
   const hallucination = buildHallucinationReport(context, { base, traceId: options.traceId, task: trace?.task });
-  const regression = buildRegressionReport(context, { base, traceId: options.traceId, task: trace?.task, changedFiles: changed.actionable });
+  const regression = buildRegressionReport(context, {
+    base,
+    traceId: options.traceId,
+    task: trace?.task,
+    changedFiles: changed.actionable,
+    evidencePolicy
+  });
   const currentRepoHash = currentWorkingTreeHash(context.scan.root);
   const testEvidence = evidenceSatisfies(
     {
       kind: "tests",
       currentRepoHash,
-      requiredCommands: [...tests.minimalCommands, ...tests.recommendedCommands, ...tests.fullConfidenceCommands]
+      requiredCommands: [...tests.minimalCommands, ...tests.recommendedCommands, ...tests.fullConfidenceCommands],
+      policy: evidencePolicy,
+      sourceChanged: sourceOrConfigChanged
     },
     trace
   );
@@ -81,7 +92,9 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
     {
       kind: "contract-validation",
       currentRepoHash,
-      requiredCommands: [`opencode-plusplus validate-contracts . --base ${base}`]
+      requiredCommands: [`opencode-plusplus validate-contracts . --base ${base}`],
+      policy: evidencePolicy,
+      sourceChanged: sourceOrConfigChanged
     },
     trace
   );
@@ -186,7 +199,7 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
       })
     );
 
-    if (testEvidence.level === "manual") {
+    if (testEvidence.claimed && !testEvidence.verified) {
       findings.push({
         id: "policy.risk.manual-test-evidence",
         kind: "risk",
@@ -267,6 +280,7 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
     traceId: options.traceId,
     traceLoaded: Boolean(trace),
     failOn,
+    evidencePolicy,
     changedFiles: changed.actionable,
     generatedContextFiles: changed.generatedContextFiles,
     summary,
@@ -282,6 +296,7 @@ export function renderPolicyReport(report: PolicyEngineReport): string {
     `Policy check: ${report.passed ? "passed" : "failed"}`,
     `Base: ${report.base}`,
     `Fail on: ${report.failOn}`,
+    `Evidence policy: ${report.evidencePolicy ?? "advisory"}`,
     report.traceId ? `Trace: ${report.traceId} (${report.traceLoaded ? "loaded" : "missing"})` : "Trace: none",
     "",
     heading(2, "Summary"),

@@ -23,6 +23,7 @@ export const DEFAULT_EXCLUDES = [
 
 export const DEFAULT_CONFIG: OpenCodePlusplusConfig = {
   target: "opencode",
+  evidencePolicy: "advisory",
   tokenBudget: 60000,
   include: ["**/*"],
   exclude: DEFAULT_EXCLUDES,

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { ContextPackage, TaskType } from "../../core/types.js";
+import type { ContextPackage, EvidencePolicyMode, TaskType } from "../../core/types.js";
 import { buildContextPackage } from "../../core/context-builder.js";
 import { changedFilesSince, runGit } from "../../core/git.js";
 import { shellQuote } from "../../core/safe-command.js";
@@ -43,6 +43,7 @@ export interface HarnessOrchestratorOptions {
   agent?: string;
   maxLoops?: number;
   failOn?: PolicyFailOn;
+  evidencePolicy?: EvidencePolicyMode;
   type?: TaskType;
   tokenBudget?: number;
   base?: string;
@@ -283,19 +284,26 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
 
       progress("evaluate", "running hallucination, regression, impact, policy, and verify checks", loopIndex);
       const postContext = await buildContextPackage(sandboxHandle.root);
+      const evidencePolicy = options.evidencePolicy ?? postContext.config.evidencePolicy;
       const hallucination = buildHallucinationReport(postContext, { base, traceId: taskRun.runId, task });
       writeHallucinationReport(postContext, hallucination);
-      const regression = buildRegressionReport(postContext, { base, traceId: taskRun.runId, task });
+      const regression = buildRegressionReport(postContext, { base, traceId: taskRun.runId, task, evidencePolicy });
       writeRegressionReport(postContext, regression);
       const changedFiles = collectChangedFiles(sandboxHandle.root, base);
-      const policy = buildPolicyReport(postContext, { base, traceId: taskRun.runId, failOn: options.failOn ?? "required" });
+      const policy = buildPolicyReport(postContext, {
+        base,
+        traceId: taskRun.runId,
+        failOn: options.failOn ?? "required",
+        evidencePolicy
+      });
       const verify = renderTaskVerify(postContext, { base, diff: true });
       const loop = buildLoopControllerReport(postContext, task, {
         phase: loopIndex === 1 ? "after-edit" : previousDecision?.action === "repair" ? "repair" : "after-edit",
         base,
         type: options.type ?? "auto",
         tokenBudget: options.tokenBudget,
-        traceId: taskRun.runId
+        traceId: taskRun.runId,
+        evidencePolicy
       });
       const guardFindings = buildGuardFindingsArtifact({
         runId: taskRun.runId,

@@ -4,9 +4,11 @@ export type AgentsSection = "commands" | "safety" | "entrypoints" | "contextLink
 export type TokenizerMode = "chars_approx" | "cl100k_base" | "o200k_base";
 export type AnalysisConfidence = "high" | "medium" | "low";
 export type TaskType = "bugfix" | "feature" | "refactor" | "auto";
+export type EvidencePolicyMode = "advisory" | "balanced" | "strict";
 
 export interface OpenCodePlusplusConfig {
   target: AgentTarget;
+  evidencePolicy: EvidencePolicyMode;
   tokenBudget: number;
   include: string[];
   exclude: string[];

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 import { DEFAULT_CONFIG } from "./defaults.js";
-import type { AgentTarget, AgentsMode, AgentsSection, OpenCodePlusplusConfig, TokenizerMode } from "../core/types.js";
+import type { AgentTarget, AgentsMode, AgentsSection, EvidencePolicyMode, OpenCodePlusplusConfig, TokenizerMode } from "../core/types.js";
 
 const CONFIG_FILES = ["opencode-plusplus.config.yml", "opencode-plusplus.config.yaml", "opencode-plusplus.config.json"];
 
@@ -79,6 +79,7 @@ function normalizeConfig(input: Record<string, unknown> | null | undefined): Par
   const target = typeof input.target === "string" ? (input.target as AgentTarget) : undefined;
   return stripUndefined({
     target,
+    evidencePolicy: typeof input.evidencePolicy === "string" ? (input.evidencePolicy as EvidencePolicyMode) : undefined,
     tokenBudget: typeof input.tokenBudget === "number" ? input.tokenBudget : undefined,
     include: toStringArray(input.include),
     exclude: toStringArray(input.exclude),
@@ -93,6 +94,9 @@ function normalizeConfig(input: Record<string, unknown> | null | undefined): Par
 export function validateConfig(config: OpenCodePlusplusConfig): void {
   if (!["opencode", "codex", "claude", "cursor", "all"].includes(config.target)) {
     throw new Error(`Invalid target "${config.target}". Expected one of: opencode, codex, claude, cursor, all.`);
+  }
+  if (!["advisory", "balanced", "strict"].includes(config.evidencePolicy)) {
+    throw new Error(`Invalid evidencePolicy "${config.evidencePolicy}". Expected one of: advisory, balanced, strict.`);
   }
   if (!Number.isFinite(config.tokenBudget) || config.tokenBudget <= 0) {
     throw new Error("tokenBudget must be a positive number.");
@@ -145,6 +149,9 @@ function validateRawConfig(input: Record<string, unknown> | null | undefined, so
   }
   if (input.target !== undefined && (typeof input.target !== "string" || !["opencode", "codex", "claude", "cursor", "all"].includes(input.target))) {
     throw new Error(`Invalid target "${String(input.target)}". Expected one of: opencode, codex, claude, cursor, all.`);
+  }
+  if (input.evidencePolicy !== undefined && (typeof input.evidencePolicy !== "string" || !["advisory", "balanced", "strict"].includes(input.evidencePolicy))) {
+    throw new Error(`Invalid evidencePolicy "${String(input.evidencePolicy)}". Expected one of: advisory, balanced, strict.`);
   }
   if (input.tokenBudget !== undefined && (typeof input.tokenBudget !== "number" || input.tokenBudget <= 0)) {
     throw new Error("tokenBudget must be a positive number.");

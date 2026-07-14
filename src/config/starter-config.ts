@@ -1,5 +1,6 @@
 export function starterConfig(): string {
   return `target: opencode
+evidencePolicy: advisory
 tokenBudget: 60000
 
 include:

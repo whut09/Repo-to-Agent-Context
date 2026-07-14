@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { Command } from "commander";
-import type { TaskType } from "../../core/types.js";
+import type { EvidencePolicyMode, TaskType } from "../../core/types.js";
 import type { CodeIntelligenceBackend } from "../../integrations/codegraph.js";
 import { buildContextPackage } from "../../core/context-builder.js";
 import { renderChangeImpactReport } from "../../outputs/impact.js";
@@ -15,7 +15,7 @@ import {
   type LoopPhase
 } from "../../harness/control-plane/loop-controller.js";
 import { resolveTaskArguments } from "../task-args.js";
-import { parseCodeBackend, parseInteger, parseLoopPhase, parseTaskType } from "../parsers/options.js";
+import { parseCodeBackend, parseEvidencePolicy, parseInteger, parseLoopPhase, parseTaskType } from "../parsers/options.js";
 
 export function registerTaskCommands(program: Command): void {
   program
@@ -47,6 +47,7 @@ export function registerTaskCommands(program: Command): void {
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, tests, impact, and contract checks", "main")
     .option("--trace <id>", "execution trace id used as loop evidence")
+    .option("--evidence-policy <mode>", "evidence policy: advisory, balanced, strict", parseEvidencePolicy)
     .option("--write", "write loop.md and loop.json under .agent-context/loops/<task-id>")
     .option("--json", "print machine-readable loop controller report")
     .description("Decide the next agent-loop step from context freshness, diff, contracts, tests, and impact signals.")
@@ -60,6 +61,7 @@ export function registerTaskCommands(program: Command): void {
           tokenBudget?: number;
           base: string;
           trace?: string;
+          evidencePolicy?: EvidencePolicyMode;
           write?: boolean;
           json?: boolean;
         }
@@ -71,7 +73,8 @@ export function registerTaskCommands(program: Command): void {
           type: options.type,
           tokenBudget: options.tokenBudget,
           base: options.base,
-          traceId: options.trace
+          traceId: options.trace,
+          evidencePolicy: options.evidencePolicy
         };
         const report = buildLoopControllerReport(context, task, loopOptions);
         if (options.json) {

@@ -1,4 +1,4 @@
-import type { AgentTarget, TaskType } from "../../core/types.js";
+import type { AgentTarget, EvidencePolicyMode, TaskType } from "../../core/types.js";
 import type { AgentExecutorName, OrchestratorCheckpointMode } from "../../harness/control-plane/orchestrator.js";
 import type { ExecutionEvidenceSource, ExecutionFinalState, ExecutionStepResult } from "../../harness/observability/execution-trace.js";
 import type { PolicyFailOn } from "../../harness/verification-plane/policy-engine.js";
@@ -94,6 +94,11 @@ export function parseTraceFinalState(value: string): ExecutionFinalState {
 export function parsePolicyFailOn(value: string): PolicyFailOn {
   if (value === "forbidden" || value === "required" || value === "risk") return value;
   throw new Error(`Unsupported policy failure threshold: ${value}`);
+}
+
+export function parseEvidencePolicy(value: string): EvidencePolicyMode {
+  if (value === "advisory" || value === "balanced" || value === "strict") return value;
+  throw new Error(`Unsupported evidence policy: ${value}`);
 }
 
 export function parseEvidenceSource(value: string): ExecutionEvidenceSource {

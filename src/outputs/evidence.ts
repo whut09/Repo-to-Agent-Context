@@ -1,4 +1,5 @@
 import type { ExecutionTrace, ExecutionTraceStep } from "../harness/observability/execution-trace.js";
+import type { EvidencePolicyMode } from "../core/types.js";
 
 export type EvidenceLevel = "none" | "manual" | "command" | "ci";
 export type HarnessRequirementKind = "tests" | "contract-validation";
@@ -9,6 +10,8 @@ export interface HarnessRequirement {
   requiredCommands?: string[];
   requireCurrentTree?: boolean;
   requireAfterLastEdit?: boolean;
+  policy?: EvidencePolicyMode;
+  sourceChanged?: boolean;
 }
 
 export interface EvidenceResult {
@@ -16,6 +19,10 @@ export interface EvidenceResult {
   level: EvidenceLevel;
   stepId?: string;
   stale: boolean;
+  policy: EvidencePolicyMode;
+  requiredLevel: EvidenceLevel;
+  claimed: boolean;
+  verified: boolean;
   matchedCommand?: string;
   evidence: string[];
 }
@@ -25,11 +32,17 @@ export interface LatestTestResultOptions {
 }
 
 export function evidenceSatisfies(requirement: HarnessRequirement, trace: ExecutionTrace | null): EvidenceResult {
+  const policy = requirement.policy ?? "advisory";
+  const requiredLevel = requiredEvidenceLevel(requirement);
   if (!trace) {
     return {
       satisfied: false,
       level: "none",
       stale: false,
+      policy,
+      requiredLevel,
+      claimed: false,
+      verified: false,
       evidence: ["Evidence level: none.", "No execution trace was provided."]
     };
   }
@@ -41,7 +54,7 @@ export function evidenceSatisfies(requirement: HarnessRequirement, trace: Execut
     .map((step) => evaluateCandidate(step, requirement, lastEdit))
     .sort((a, b) => evidenceRank(b.level) - evidenceRank(a.level) || stepTime(b.step) - stepTime(a.step));
   const satisfied = candidates.find((candidate) => candidate.satisfied);
-  if (satisfied) return resultForCandidate(satisfied, trace.id);
+  if (satisfied) return resultForCandidate(satisfied, trace.id, requirement);
 
   const best = candidates[0];
   if (!best) {
@@ -49,6 +62,10 @@ export function evidenceSatisfies(requirement: HarnessRequirement, trace: Execut
       satisfied: false,
       level: "none",
       stale: false,
+      policy,
+      requiredLevel,
+      claimed: false,
+      verified: false,
       evidence: ["Evidence level: none.", `No matching passed ${requirement.kind} trace step found.`]
     };
   }
@@ -58,6 +75,10 @@ export function evidenceSatisfies(requirement: HarnessRequirement, trace: Execut
     level: best.level,
     stepId: best.step.id,
     stale: best.stale,
+    policy,
+    requiredLevel,
+    claimed: true,
+    verified: false,
     matchedCommand: best.matchedCommand,
     evidence: [`Trace loaded: ${trace.id}.`, ...formatTraceEvidence(best.step, best.level), ...best.reasons]
   };
@@ -117,6 +138,11 @@ function evaluateCandidate(step: ExecutionTraceStep, requirement: HarnessRequire
   const reasons: string[] = [];
   let stale = false;
   const matchedCommand = commandMatchFor(step, requirement);
+  const requiredLevel = requiredEvidenceLevel(requirement);
+
+  if (evidenceRank(level) < evidenceRank(requiredLevel)) {
+    reasons.push(`Evidence policy ${requirement.policy ?? "advisory"} requires at least ${requiredLevel} evidence for ${requirement.kind}.`);
+  }
 
   if (level !== "manual" && (requirement.requiredCommands ?? []).length > 0 && !matchedCommand) {
     reasons.push(`Required command not matched. Expected one of: ${(requirement.requiredCommands ?? []).join(" | ")}.`);
@@ -153,15 +179,27 @@ function evaluateCandidate(step: ExecutionTraceStep, requirement: HarnessRequire
   };
 }
 
-function resultForCandidate(candidate: CandidateEvaluation, traceId: string): EvidenceResult {
+function resultForCandidate(candidate: CandidateEvaluation, traceId: string, requirement: HarnessRequirement): EvidenceResult {
+  const policy = requirement.policy ?? "advisory";
   return {
     satisfied: true,
     level: candidate.level,
     stepId: candidate.step.id,
     stale: candidate.stale,
+    policy,
+    requiredLevel: requiredEvidenceLevel(requirement),
+    claimed: true,
+    verified: candidate.level === "command" || candidate.level === "ci",
     matchedCommand: candidate.matchedCommand,
     evidence: [`Trace loaded: ${traceId}.`, ...formatTraceEvidence(candidate.step, candidate.level), ...candidate.reasons]
   };
+}
+
+function requiredEvidenceLevel(requirement: HarnessRequirement): EvidenceLevel {
+  const policy = requirement.policy ?? "advisory";
+  if (policy === "strict") return "command";
+  if (policy === "balanced" && requirement.kind === "tests" && requirement.sourceChanged) return "command";
+  return "manual";
 }
 
 function matchesRequirement(step: ExecutionTraceStep, kind: HarnessRequirementKind): boolean {

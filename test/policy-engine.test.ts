@@ -70,6 +70,8 @@ test("policy engine accepts passed trace evidence for required checks", async ()
     writeContextPackage(updatedContext);
     const context = await buildContextPackage(root);
     const report = buildPolicyReport(context, { base: "main", traceId: trace.id });
+    const balancedEvidenceReport = buildPolicyReport(context, { base: "main", traceId: trace.id, evidencePolicy: "balanced" });
+    const strictEvidenceReport = buildPolicyReport(context, { base: "main", traceId: trace.id, evidencePolicy: "strict" });
     const strictReport = buildPolicyReport(context, { base: "main", traceId: trace.id, failOn: "risk" });
     const legacyStrictReport = buildPolicyReport(context, { base: "main", traceId: trace.id, strict: true });
     const rendered = renderPolicyReport(report);
@@ -82,6 +84,10 @@ test("policy engine accepts passed trace evidence for required checks", async ()
     assert.equal(legacyStrictReport.failOn, "risk");
     assert.ok(report.findings.some((finding) => finding.id === "policy.required.tests" && finding.status === "satisfied"));
     assert.ok(report.findings.some((finding) => finding.id === "policy.required.contract-validation" && finding.status === "satisfied"));
+    assert.ok(balancedEvidenceReport.findings.some((finding) => finding.id === "policy.required.tests" && finding.status === "missing"));
+    assert.ok(balancedEvidenceReport.findings.some((finding) => finding.id === "policy.required.contract-validation" && finding.status === "satisfied"));
+    assert.ok(strictEvidenceReport.findings.some((finding) => finding.id === "policy.required.tests" && finding.status === "missing"));
+    assert.ok(strictEvidenceReport.findings.some((finding) => finding.id === "policy.required.contract-validation" && finding.status === "missing"));
     assert.match(rendered, /Evidence level: manual/);
     assert.ok(report.findings.some((finding) => finding.id === "policy.risk.manual-test-evidence" && finding.status === "warning"));
   } finally {

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { ContextPackage, TaskType } from "../../core/types.js";
+import type { ContextPackage, EvidencePolicyMode, TaskType } from "../../core/types.js";
 import { changedFilesSince, runGit } from "../../core/git.js";
 import { assessDrift, assessFreshness } from "../../core/freshness.js";
 import { buildChangeImpactReport } from "../../outputs/impact.js";
@@ -30,6 +30,7 @@ export interface LoopControllerOptions {
   type?: TaskType;
   tokenBudget?: number;
   traceId?: string;
+  evidencePolicy?: EvidencePolicyMode;
 }
 
 export interface LoopDecision {
@@ -46,6 +47,7 @@ export interface LoopControllerReport {
   task: string;
   phase: LoopPhase;
   base: string;
+  evidencePolicy?: EvidencePolicyMode;
   status: LoopStatus;
   changedFiles: string[];
   risk: "Low" | "Medium" | "High";
@@ -85,6 +87,7 @@ export interface LoopWriteResult {
 export function buildLoopControllerReport(context: ContextPackage, task: string, options: LoopControllerOptions = {}): LoopControllerReport {
   const base = options.base ?? "main";
   const phase = options.phase ?? "after-edit";
+  const evidencePolicy = options.evidencePolicy ?? context.config.evidencePolicy;
   const taskId = taskSlug(task);
   const freshness = assessFreshness(context);
   const drift = assessDrift(context);
@@ -95,11 +98,13 @@ export function buildLoopControllerReport(context: ContextPackage, task: string,
   const changedFiles = changedFilesForLoop(context, base);
   const tests = buildTestSelection(context, { diff: true, base });
   const taskPack = buildTaskPack(context, task, { type: options.type ?? "auto", tokenBudget: options.tokenBudget });
-  const traceEvidence = inspectTraceEvidence(context.scan.root, options.traceId, [
-    ...tests.minimalCommands,
-    ...tests.recommendedCommands,
-    ...tests.fullConfidenceCommands
-  ]);
+  const traceEvidence = inspectTraceEvidence(
+    context.scan.root,
+    options.traceId,
+    [...tests.minimalCommands, ...tests.recommendedCommands, ...tests.fullConfidenceCommands],
+    evidencePolicy,
+    sourceOrConfigChanged(context, changedFiles)
+  );
   const decisions = decideNextSteps({
     task,
     phase,
@@ -143,6 +148,7 @@ export function buildLoopControllerReport(context: ContextPackage, task: string,
     task,
     phase,
     base,
+    evidencePolicy,
     status: statusFor(decisions),
     changedFiles,
     risk: impact.risk,
@@ -173,6 +179,7 @@ export function renderLoopControllerReport(report: LoopControllerReport): string
     `Phase: ${report.phase}`,
     `Status: ${report.status}`,
     `Base: ${report.base}`,
+    `Evidence policy: ${report.evidencePolicy ?? "advisory"}`,
     `Risk: ${report.risk}`,
     "",
     heading(2, "Loop Checks"),
@@ -408,7 +415,13 @@ function changedFilesForLoop(context: ContextPackage, base: string): string[] {
   return [...files].sort();
 }
 
-function inspectTraceEvidence(root: string, traceId: string | undefined, requiredCommands: string[]): LoopControllerReport["trace"] {
+function inspectTraceEvidence(
+  root: string,
+  traceId: string | undefined,
+  requiredCommands: string[],
+  evidencePolicy: EvidencePolicyMode,
+  sourceChanged: boolean
+): LoopControllerReport["trace"] {
   if (!traceId) {
     return {
       loaded: false,
@@ -431,7 +444,9 @@ function inspectTraceEvidence(root: string, traceId: string | undefined, require
     {
       kind: "tests",
       currentRepoHash: currentWorkingTreeHash(root),
-      requiredCommands
+      requiredCommands,
+      policy: evidencePolicy,
+      sourceChanged
     },
     trace
   );
@@ -457,6 +472,14 @@ function inspectTraceEvidence(root: string, traceId: string | undefined, require
       ...result.evidence
     ].filter(Boolean)
   };
+}
+
+function sourceOrConfigChanged(context: ContextPackage, changedFiles: string[]): boolean {
+  const indexed = new Map(context.index.files.map((file) => [file.path, file]));
+  return changedFiles.some((path) => {
+    const file = indexed.get(path);
+    return file ? !file.isTest && (file.kind === "source" || file.kind === "config" || file.kind === "lockfile") : false;
+  });
 }
 
 function isGeneratedContextState(file: string): boolean {
