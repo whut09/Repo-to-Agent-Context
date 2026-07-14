@@ -11,6 +11,7 @@ import type { LoopControllerReport } from "./loop-controller.js";
 import { HARNESS_DECISION_PRIORITY } from "./decision-engine.js";
 import type { AgentExecutorResult, HarnessOrchestratorReport } from "./orchestrator.js";
 import type { ConvergenceResult } from "./convergence.js";
+import type { ContextRefreshMetrics } from "./context-refresh.js";
 
 export interface IterationArtifactInput {
   runId: string;
@@ -27,6 +28,7 @@ export interface IterationArtifactInput {
   convergence: ConvergenceResult;
   guardFindings: GuardFindingsArtifact;
   guardGates: GuardGateReport;
+  contextRefresh: ContextRefreshMetrics;
 }
 
 export function writeIterationArtifacts(root: string, iterationDir: string, input: IterationArtifactInput): string[] {
@@ -116,7 +118,8 @@ export function writeIterationArtifacts(root: string, iterationDir: string, inpu
       selectedCandidate: input.decision.arbitration?.selectedCandidate.id,
       supportingCandidates: input.decision.arbitration?.supportingCandidates.length ?? 0,
       convergence: input.convergence.status,
-      fingerprint: input.convergence.fingerprint.value
+      fingerprint: input.convergence.fingerprint.value,
+      contextRefresh: input.contextRefresh
     }
   };
   const files = [

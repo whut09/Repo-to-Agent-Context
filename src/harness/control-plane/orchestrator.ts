@@ -38,6 +38,7 @@ import { runPrepareSandboxPhase } from "./phases/prepare-sandbox.js";
 import { runPersistPhase } from "./phases/persist.js";
 import { buildExecutorPrompt, collectChangedFiles, createAgentExecutor } from "./orchestrator-executors.js";
 import { writeIterationArtifacts } from "./iteration-artifacts.js";
+import { combineContextRefreshMetrics, initialContextMetrics, refreshHarnessContext, type ContextRefreshMetrics } from "./context-refresh.js";
 
 export type AgentExecutorName = "codex" | "claude-code" | "opencode" | "mimocode" | "cursor" | "mock";
 export type OrchestratorDecision = HarnessDecisionAction;
@@ -100,6 +101,7 @@ export interface AgentExecutorResult {
   stdout: string;
   stderr: string;
   changedFiles: string[];
+  modifiedFiles?: string[];
   diffPath?: string;
   startedAt?: string;
   finishedAt?: string;
@@ -168,6 +170,7 @@ export interface OrchestratorIterationReport {
   gates: Pick<GuardGateReport, "summary" | "gates">;
   decision: HarnessOrchestratorReport["decision"];
   convergence: ConvergenceResult;
+  contextRefresh?: ContextRefreshMetrics;
   files: string[];
 }
 
@@ -196,7 +199,9 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
   }
 
   progress("context", `building repository context for ${root}`);
+  const initialContextStartedAt = performance.now();
   const preContext = await buildContextPackage(root);
+  let startupContextRefresh = initialContextMetrics(preContext, performance.now() - initialContextStartedAt);
   progress("context", "writing context package");
   const contextWrite = writeContextPackage(preContext);
   const executor = createAgentExecutor(executorName);
@@ -238,10 +243,17 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
   const iterations = loadPersistedIterationReports(root, taskRun.dir);
   let previousDecision = iterations.at(-1)?.decision;
   let latestContext = preContext;
+  let contextWorkingTreeHash = currentWorkingTreeHash(root);
   try {
     if (sandboxHandle.mode === "git-worktree") {
       progress("context", "building context inside git-worktree sandbox");
+      const sandboxContextStartedAt = performance.now();
       latestContext = await buildContextPackage(sandboxHandle.root);
+      startupContextRefresh = combineContextRefreshMetrics(
+        startupContextRefresh,
+        initialContextMetrics(latestContext, performance.now() - sandboxContextStartedAt)
+      );
+      contextWorkingTreeHash = currentWorkingTreeHash(sandboxHandle.root);
       writeContextPackage(latestContext);
       writeTaskRun(latestContext, task, { base, type: options.type ?? "auto", tokenBudget: options.tokenBudget, preserveTrace: true });
       mirrorTraceForEvaluation(root, sandboxHandle.root, taskRun.runId);
@@ -289,11 +301,22 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
     for (let loopIndex = state.currentIteration; state.currentPhase !== "finalize" && loopIndex <= maxLoops; loopIndex = state.currentIteration) {
       progress("plan", `starting loop ${loopIndex} of ${maxLoops}`, loopIndex);
       const plan = runPlanPhase({ runDir: taskRun.dir, iteration: loopIndex, previousDecision });
+      let iterationContextRefresh: ContextRefreshMetrics | undefined = loopIndex === 1 && iterations.length === 0 ? startupContextRefresh : undefined;
       mkdirSync(plan.iterationDir, { recursive: true });
       if (state.currentPhase === "plan") {
         if (plan.refreshContext) {
           progress("context", "refreshing context for next loop", loopIndex);
-          latestContext = await buildContextPackage(sandboxHandle.root);
+          const refreshed = await refreshHarnessContext({
+            root: sandboxHandle.root,
+            context: latestContext,
+            previousDecisionAction: previousDecision?.action,
+            contextWorkingTreeHash,
+            currentWorkingTreeHash: currentWorkingTreeHash(sandboxHandle.root),
+            modifiedFiles: []
+          });
+          latestContext = refreshed.context;
+          iterationContextRefresh = iterationContextRefresh ? combineContextRefreshMetrics(iterationContextRefresh, refreshed.metrics) : refreshed.metrics;
+          contextWorkingTreeHash = currentWorkingTreeHash(sandboxHandle.root);
           writeContextPackage(latestContext);
           writeTaskRun(latestContext, task, { base, type: options.type ?? "auto", tokenBudget: options.tokenBudget, preserveTrace: true });
           mirrorTraceForEvaluation(root, sandboxHandle.root, taskRun.runId);
@@ -363,10 +386,21 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         collected = artifactRepository.readJson<CollectPhaseOutput>(artifactRepository.relative(path.join(plan.iterationDir, "phase.collect.json")));
       }
 
-      let evaluated: EvaluatePhaseOutput & { changedFiles: string[] };
+      let evaluated: EvaluatePhaseOutput & { changedFiles: string[]; contextRefresh: ContextRefreshMetrics };
       if (state.currentPhase === "evaluate") {
         progress("evaluate", "running hallucination, regression, impact, policy, and verify checks", loopIndex);
-        latestContext = await buildContextPackage(sandboxHandle.root);
+        const currentHash = currentWorkingTreeHash(sandboxHandle.root);
+        const refreshed = await refreshHarnessContext({
+          root: sandboxHandle.root,
+          context: latestContext,
+          previousDecisionAction: plan.refreshContext ? undefined : previousDecision?.action,
+          contextWorkingTreeHash,
+          currentWorkingTreeHash: currentHash,
+          modifiedFiles: executorResult.modifiedFiles
+        });
+        latestContext = refreshed.context;
+        contextWorkingTreeHash = currentHash;
+        iterationContextRefresh = iterationContextRefresh ? combineContextRefreshMetrics(iterationContextRefresh, refreshed.metrics) : refreshed.metrics;
         const changedFiles = collectChangedFiles(sandboxHandle.root, base);
         evaluated = {
           ...runEvaluatePhase({
@@ -384,7 +418,8 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
             changedFiles,
             checkpointMode: options.checkpoint ?? "none"
           }),
-          changedFiles
+          changedFiles,
+          contextRefresh: iterationContextRefresh
         };
         const reference = artifactRepository.writeJson(path.join(plan.iterationDir, "phase.evaluate.json"), evaluated);
         advance("evaluate", "decide", {
@@ -394,9 +429,9 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         });
       } else {
         evaluated = loadEvaluation(state, artifactRepository);
-        latestContext = await buildContextPackage(sandboxHandle.root);
+        iterationContextRefresh = evaluated.contextRefresh;
       }
-      const { hallucination, regression, policy, verify, loop, guardFindings, guardGates, changedFiles } = evaluated;
+      const { hallucination, regression, policy, verify, loop, guardFindings, guardGates, changedFiles, contextRefresh } = evaluated;
       latestPolicy = policy;
       latestLoop = loop;
       latestGuardGates = guardGates;
@@ -464,7 +499,8 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         decision,
         convergence,
         guardFindings,
-        guardGates
+        guardGates,
+        contextRefresh
       });
       const iterationReport = runPersistPhase({
         root,
@@ -478,6 +514,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         guardGates,
         decision,
         convergence,
+        contextRefresh,
         files: iterationFiles
       }).iterationReport;
       const iterationReference = artifactRepository.writeJson(path.join(plan.iterationDir, "iteration.report.json"), iterationReport);
@@ -636,9 +673,12 @@ function loadExecutorResult(state: OrchestratorRunState, artifacts: Orchestrator
   return artifacts.readJson<AgentExecutorResult>(state.executorResultReference);
 }
 
-function loadEvaluation(state: OrchestratorRunState, artifacts: OrchestratorArtifactRepository): EvaluatePhaseOutput & { changedFiles: string[] } {
+function loadEvaluation(
+  state: OrchestratorRunState,
+  artifacts: OrchestratorArtifactRepository
+): EvaluatePhaseOutput & { changedFiles: string[]; contextRefresh: ContextRefreshMetrics } {
   if (!state.evaluationReference) throw new Error(`Run ${state.runId} has no evaluation reference.`);
-  return artifacts.readJson<EvaluatePhaseOutput & { changedFiles: string[] }>(state.evaluationReference);
+  return artifacts.readJson<EvaluatePhaseOutput & { changedFiles: string[]; contextRefresh: ContextRefreshMetrics }>(state.evaluationReference);
 }
 
 function restoreSandboxForResume(hostRoot: string, sandboxRoot: string, state: OrchestratorRunState, artifacts: OrchestratorArtifactRepository): void {
@@ -767,11 +807,15 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
     "",
     heading(2, "Loop Iterations"),
     table(
-      ["Loop", "Decision", "Convergence", "Fingerprint", "Exit", "Changed files", "Directory"],
+      ["Loop", "Decision", "Convergence", "Context", "Builds", "Build ms", "Cache", "Fingerprint", "Exit", "Changed files", "Directory"],
       report.iterations.map((iteration) => [
         String(iteration.index),
         iteration.decision.action,
         iteration.convergence.status,
+        iteration.contextRefresh?.mode ?? "unknown",
+        String(iteration.contextRefresh?.buildCount ?? 0),
+        (iteration.contextRefresh?.durationMs ?? 0).toFixed(1),
+        iteration.contextRefresh ? `${iteration.contextRefresh.cacheHits}/${iteration.contextRefresh.cacheMisses}` : "unknown",
         code(iteration.convergence.fingerprint.value.slice(0, 12)),
         String(iteration.executorResult.exitCode ?? "unknown"),
         String(iteration.changedFiles.length),

@@ -55,6 +55,16 @@ Convergence statuses are:
 
 Convergence is written into the final orchestrator report, each iteration report, `iteration.json`, and `decision.json`.
 
+## Context Refresh State
+
+Each iteration report also persists a `contextRefresh` record. Its mode is one of:
+
+- `reused`: no context builder call; the working tree and executor modification set show that the existing context is still applicable.
+- `incremental`: the working tree changed and `buildContextPackage()` runs with its file/index/graph/token caches enabled.
+- `rebuilt`: `repack`, context drift, or a dependency/configuration edit requires a cache-disabled full rebuild.
+
+The record includes the selection reason, cache hit/miss counts, build count, and elapsed build duration. A resumed run loads this value from the Evaluate artifact, so Persist and Finalize do not reconstruct or double-count the completed context work. Freshness and drift remain evaluation inputs in all three modes.
+
 ## Orchestrator Phase State
 
 Harness-led Orchestrator recovery uses a separate versioned state file:

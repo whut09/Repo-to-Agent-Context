@@ -21,6 +21,7 @@ export function createAgentExecutor(name: AgentExecutorName): AgentExecutor {
         stdout: "",
         stderr: `No executor command configured for ${name}. Pass --executor-command with placeholders such as {prompt}, {task}, {repo}, and {runDir}.`,
         changedFiles: collectChangedFiles(input.repo, input.base),
+        modifiedFiles: [],
         sandboxMode: input.sandboxHandle.mode,
         sandboxRoot: input.sandboxHandle.root
       };
@@ -109,6 +110,7 @@ async function runMockExecutor(name: AgentExecutorName, input: AgentExecutorInpu
     stdout,
     stderr,
     changedFiles: collectChangedFiles(input.repo, input.base),
+    modifiedFiles: [],
     diffPath,
     startedAt,
     finishedAt,
@@ -125,6 +127,7 @@ async function runShellExecutor(name: AgentExecutorName, input: AgentExecutorInp
   const command = expandExecutorCommand(input.executorCommand ?? "", input);
   input.onProgress?.({ at: new Date().toISOString(), phase: "execute", message: `executor command: ${command}` });
   const startedHash = currentWorkingTreeHash(input.repo);
+  const filesBefore = changedFileSnapshot(input.repo, input.base);
   const startedAt = new Date().toISOString();
   let result: ExecResult;
   try {
@@ -147,6 +150,7 @@ async function runShellExecutor(name: AgentExecutorName, input: AgentExecutorInp
   }
   const finishedAt = new Date().toISOString();
   const finishedHash = currentWorkingTreeHash(input.repo);
+  const filesAfter = changedFileSnapshot(input.repo, input.base);
   const stdout = result.stdout;
   const stderr = result.stderr;
   const exitCode = result.status;
@@ -169,6 +173,7 @@ async function runShellExecutor(name: AgentExecutorName, input: AgentExecutorInp
     stdout,
     stderr,
     changedFiles: collectChangedFiles(input.repo, input.base),
+    modifiedFiles: modifiedFilesBetween(filesBefore, filesAfter),
     diffPath,
     startedAt,
     finishedAt,
@@ -233,6 +238,19 @@ function writePatchSnapshot(hostRoot: string, runDir: string, executor: AgentExe
 function isHarnessGeneratedPath(filePath: string): boolean {
   const normalized = filePath.replace(/\\/g, "/");
   return normalized === "AGENTS.md" || normalized.startsWith(".agent-context/");
+}
+
+function changedFileSnapshot(root: string, base: string): Map<string, string> {
+  return new Map(
+    collectChangedFiles(root, base).map((file) => {
+      const filePath = path.join(root, file);
+      return [file, existsSync(filePath) ? createHash("sha256").update(readFileSync(filePath)).digest("hex") : "<deleted>"];
+    })
+  );
+}
+
+function modifiedFilesBetween(before: Map<string, string>, after: Map<string, string>): string[] {
+  return [...new Set([...before.keys(), ...after.keys()])].filter((file) => before.get(file) !== after.get(file)).sort();
 }
 
 function hashText(text: string): string {

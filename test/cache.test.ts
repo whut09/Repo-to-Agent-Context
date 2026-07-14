@@ -51,3 +51,33 @@ test("build context writes and refreshes incremental cache", async () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("dependency and repository config changes invalidate cached indexes", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-cache-config-"));
+
+  try {
+    mkdirSync(path.join(root, ".git"));
+    mkdirSync(path.join(root, "src"), { recursive: true });
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test" } }), "utf8");
+    writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { module: "NodeNext" } }), "utf8");
+    writeFileSync(path.join(root, "src", "a.ts"), "export const a = 1;\n", "utf8");
+    await buildContextPackage(root);
+
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test", check: "tsc --noEmit" } }), "utf8");
+    const packageContext = await buildContextPackage(root);
+    assert.equal(packageContext.cacheStats.indexHits, 0);
+    assert.ok(packageContext.cacheStats.indexMisses >= 3);
+
+    writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { module: "NodeNext", strict: true } }), "utf8");
+    const tsconfigContext = await buildContextPackage(root);
+    assert.equal(tsconfigContext.cacheStats.indexHits, 0);
+    assert.ok(tsconfigContext.cacheStats.indexMisses >= 3);
+
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "tokenBudget: 12000\n", "utf8");
+    const configContext = await buildContextPackage(root);
+    assert.equal(configContext.cacheStats.indexHits, 0);
+    assert.ok(configContext.cacheStats.indexMisses >= 4);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

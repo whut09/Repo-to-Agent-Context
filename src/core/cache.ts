@@ -92,7 +92,7 @@ export class ContextCache implements TokenCountCache {
 
   dependencyFingerprint(scan: RepoScan): string {
     const dependencyFiles = scan.files.filter((file) => isDependencyResolutionFile(file.path)).sort((a, b) => a.path.localeCompare(b.path));
-    const fingerprint = hashText(dependencyFiles.map((file) => `${file.path}:${this.fileHash(file)}`).join("\n"));
+    const fingerprint = hashText([this.configFingerprint, ...dependencyFiles.map((file) => `${file.path}:${this.fileHash(file)}`)].join("\n"));
     this.fileHashes.dependencyFingerprint = fingerprint;
     this.fileHashes.configFingerprint = this.configFingerprint;
     return fingerprint;

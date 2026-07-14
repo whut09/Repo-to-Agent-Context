@@ -5,6 +5,7 @@ import type { AgentExecutorResult, OrchestratorIterationReport } from "../orches
 import type { PolicyEngineReport } from "../../verification-plane/policy-engine.js";
 import type { HarnessDecision } from "../../types.js";
 import type { ConvergenceResult } from "../convergence.js";
+import type { ContextRefreshMetrics } from "../context-refresh.js";
 
 export interface PersistPhaseInput {
   root: string;
@@ -18,6 +19,7 @@ export interface PersistPhaseInput {
   guardGates: GuardGateReport;
   decision: HarnessDecision;
   convergence: ConvergenceResult;
+  contextRefresh: ContextRefreshMetrics;
   files: string[];
 }
 
@@ -44,6 +46,7 @@ export function runPersistPhase(input: PersistPhaseInput): PersistPhaseOutput {
       gates: { summary: input.guardGates.summary, gates: input.guardGates.gates },
       decision: input.decision,
       convergence: input.convergence,
+      contextRefresh: input.contextRefresh,
       files: input.files.map((file) => path.relative(input.root, file).replaceAll("\\", "/"))
     }
   };

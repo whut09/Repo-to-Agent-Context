@@ -93,6 +93,23 @@ Every build writes `.agent-context/manifest.json` with hashes for source, config
 - `opencode-plusplus delta .` reports changed context impact and agent re-read guidance without refreshing all outputs.
 - `opencode-plusplus evolve .` currently performs a cache-aware full refresh plus `.agent-context/delta/latest.*` output. It prints cache stats and rewritten outputs so users can see what was reused. Selective writes of only affected outputs are planned.
 
+## Incremental Context Refresh
+
+Harness iterations do not rebuild repository context unconditionally. The Orchestrator compares the previous decision, the working-tree hash captured for the current context, and files actually modified by the executor:
+
+| Signal                                                                      | Refresh mode  | Behavior                                                                                                 |
+| --------------------------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------- |
+| `repack` or generated-context drift                                         | `rebuilt`     | Calls `buildContextPackage(..., { cache: false })`.                                                      |
+| Dependency or project configuration changed                                 | `rebuilt`     | Invalidates index, graph, and dependency-sensitive analysis.                                             |
+| Source changed during `repair` or another edit action                       | `incremental` | Calls `buildContextPackage(..., { cache: true })` so unchanged file indexes and token counts are reused. |
+| `run-tests`, identical working-tree hash, or no executor file modifications | `reused`      | Reuses the in-memory context and only refreshes trace, evidence, policy, Guard Gates, and decisions.     |
+
+Dependency-invalidating inputs include package manifests and lockfiles, `tsconfig*.json` / `jsconfig*.json`, language dependency manifests, and `opencode-plusplus.config.*`. Missing executor modification metadata is treated conservatively: a changed working-tree hash triggers an incremental build rather than an unsafe reuse.
+
+Freshness and drift checks still run during evaluation. Reuse only skips context construction; it does not skip evidence, policy, Guard Gate, freshness, or drift evaluation. Incremental builds use the same `buildContextPackage()` pipeline as full builds, and regression tests compare their semantic outputs with cache statistics removed.
+
+Every iteration report and `iteration.json` records `contextRefresh` metrics: `mode`, reason, cache hit/miss booleans and counts, context build count, and build duration. These fields make multi-loop cache effectiveness measurable and allow benchmarks to compare actual context builds with the previous one-build-per-round behavior.
+
 ## Loop Controller
 
 `buildLoopControllerReport()` combines freshness, drift, contracts, impact, changed files, tests, task-pack budget, and optional trace evidence. It supports `preflight`, `after-edit`, and `repair` phases and returns decisions such as:

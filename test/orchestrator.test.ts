@@ -27,6 +27,9 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.equal(report.decision.action, "finalize");
     assert.equal(report.decision.blocking, false);
     assert.equal(report.decision.arbitration?.selectedCandidate.id, "fallback.finalize");
+    assert.equal(report.iterations[0]?.contextRefresh?.mode, "rebuilt");
+    assert.ok((report.iterations[0]?.contextRefresh?.buildCount ?? 0) >= 1);
+    assert.ok((report.iterations[0]?.contextRefresh?.durationMs ?? -1) >= 0);
     assert.ok(report.artifacts.orchestratorFiles.includes(".agent-context/orchestrator/fix-login-timeout-bug/orchestrator.json"));
     assert.ok(existsSync(path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug", "policy.md")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "executor.mock.json")));
@@ -39,6 +42,7 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.match(rendered, /## Decision Arbitration/);
     assert.match(rendered, /fallback\.finalize/);
     assert.match(rendered, /Decision: finalize/);
+    assert.match(rendered, /rebuilt/);
     const state = JSON.parse(readFileSync(path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug", "state.json"), "utf8")) as {
       schemaVersion: string;
       currentPhase: string;
@@ -296,6 +300,12 @@ test("harness orchestrator continues into another iteration after repair", async
     assert.equal(result.report.iterations[0]?.decision.action, "repack");
     assert.equal(result.report.iterations[1]?.decision.action, "repair");
     assert.equal(result.report.decision.action, "human-review");
+    assert.equal(result.report.iterations[1]?.contextRefresh?.mode, "rebuilt");
+    assert.equal(result.report.iterations[2]?.contextRefresh?.mode, "reused");
+    assert.equal(result.report.iterations[2]?.contextRefresh?.buildCount, 0);
+    assert.ok(
+      result.report.iterations.reduce((total, iteration) => total + (iteration.contextRefresh?.buildCount ?? 0), 0) < result.report.iterations.length * 2
+    );
     assert.ok(result.report.artifacts.checkpointFile?.endsWith("checkpoint.patch"));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "prompt.md")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "executor.events.jsonl")));

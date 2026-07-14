@@ -15,6 +15,6 @@ export interface PlanPhaseOutput {
 export function runPlanPhase(input: PlanPhaseInput): PlanPhaseOutput {
   return {
     iterationDir: path.join(input.runDir, "iterations", String(input.iteration).padStart(3, "0")),
-    refreshContext: input.iteration > 1 || input.previousDecision?.action === "repack"
+    refreshContext: input.previousDecision?.action === "repack"
   };
 }
