@@ -6,6 +6,7 @@ import test from "node:test";
 import { runGit } from "../src/core/git.js";
 import { readExecutionTrace } from "../src/harness/observability/execution-trace.js";
 import { renderOrchestratorReport, runHarnessOrchestrator } from "../src/harness/control-plane/orchestrator.js";
+import { ORCHESTRATOR_STATE_SCHEMA_VERSION, OrchestratorInterruptedError } from "../src/harness/control-plane/orchestrator-state.js";
 
 test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock executor", async () => {
   const root = createOrchestratorRepo();
@@ -38,6 +39,14 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.match(rendered, /## Decision Arbitration/);
     assert.match(rendered, /fallback\.finalize/);
     assert.match(rendered, /Decision: finalize/);
+    const state = JSON.parse(readFileSync(path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug", "state.json"), "utf8")) as {
+      schemaVersion: string;
+      currentPhase: string;
+      completedPhases: string[];
+    };
+    assert.equal(state.schemaVersion, ORCHESTRATOR_STATE_SCHEMA_VERSION);
+    assert.equal(state.currentPhase, "completed");
+    assert.ok(state.completedPhases.includes("001:finalize"));
 
     const executorArtifact = JSON.parse(
       readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "executor.result.json"), "utf8")
@@ -102,6 +111,112 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
   }
 });
 
+test("harness orchestrator resumes after collect without duplicating trace steps", async () => {
+  const root = createOrchestratorRepo();
+  try {
+    await assert.rejects(
+      runHarnessOrchestrator(root, "fix login timeout bug", {
+        executor: "mock",
+        type: "bugfix",
+        tokenBudget: 2000,
+        base: "main",
+        interruptAfterPhase: "collect"
+      }),
+      (error: unknown) => error instanceof OrchestratorInterruptedError && error.phase === "collect"
+    );
+    const traceBefore = readExecutionTrace(root, "fix-login-timeout-bug");
+    const stateBefore = JSON.parse(readFileSync(path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug", "state.json"), "utf8")) as {
+      currentPhase: string;
+      executorResultReference?: string;
+      traceReference: string;
+    };
+    assert.equal(stateBefore.currentPhase, "evaluate");
+    assert.ok(stateBefore.executorResultReference?.endsWith("phase.execute.json"));
+    assert.ok(stateBefore.traceReference.endsWith("fix-login-timeout-bug.json"));
+
+    const resumed = await runHarnessOrchestrator(root, "fix login timeout bug", {
+      executor: "mock",
+      type: "bugfix",
+      tokenBudget: 2000,
+      base: "main",
+      resumeRunId: "fix-login-timeout-bug"
+    });
+    const traceAfter = readExecutionTrace(root, "fix-login-timeout-bug");
+    assert.equal(resumed.report.decision.action, "finalize");
+    assert.equal(traceAfter?.steps.length, traceBefore?.steps.length);
+
+    const repeatedResume = await runHarnessOrchestrator(root, "fix login timeout bug", {
+      resumeRunId: "fix-login-timeout-bug"
+    });
+    assert.equal(repeatedResume.report.decision.action, "finalize");
+    assert.equal(readExecutionTrace(root, "fix-login-timeout-bug")?.steps.length, traceAfter?.steps.length);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("harness orchestrator rejects incompatible persisted state schema", async () => {
+  const root = createOrchestratorRepo();
+  try {
+    const stateDir = path.join(root, ".agent-context", "orchestrator", "fix-login-timeout-bug");
+    mkdirSync(stateDir, { recursive: true });
+    writeFileSync(path.join(stateDir, "state.json"), JSON.stringify({ schemaVersion: "opencode-plusplus.orchestrator-state.v999" }), "utf8");
+    await assert.rejects(
+      runHarnessOrchestrator(root, "fix login timeout bug", { resumeRunId: "fix-login-timeout-bug" }),
+      /Unsupported orchestrator state schemaVersion/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("harness orchestrator resumes finalization after persisted terminal iteration", async () => {
+  const root = createOrchestratorRepo();
+  try {
+    await assert.rejects(
+      runHarnessOrchestrator(root, "fix login timeout bug", {
+        executor: "mock",
+        type: "bugfix",
+        tokenBudget: 2000,
+        base: "main",
+        interruptAfterPhase: "persist"
+      }),
+      (error: unknown) => error instanceof OrchestratorInterruptedError && error.phase === "persist"
+    );
+    const resumed = await runHarnessOrchestrator(root, "fix login timeout bug", {
+      executor: "mock",
+      type: "bugfix",
+      tokenBudget: 2000,
+      base: "main",
+      resumeRunId: "fix-login-timeout-bug"
+    });
+    assert.equal(resumed.report.iterations.length, 1);
+    assert.equal(resumed.report.decision.action, "finalize");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("git-worktree sandbox is discarded when a phase interrupts", async () => {
+  const root = createOrchestratorRepo();
+  try {
+    await assert.rejects(
+      runHarnessOrchestrator(root, "fix login timeout bug", {
+        executor: "mock",
+        type: "bugfix",
+        tokenBudget: 2000,
+        base: "main",
+        checkpoint: "git-worktree",
+        interruptAfterPhase: "execute"
+      }),
+      OrchestratorInterruptedError
+    );
+    assert.equal(existsSync(path.join(root, ".agent-context", "worktrees", "fix-login-timeout-bug", "worktree")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("harness orchestrator blocks when a selected executor has no command adapter", async () => {
   const root = createOrchestratorRepo();
   try {
@@ -109,7 +224,8 @@ test("harness orchestrator blocks when a selected executor has no command adapte
       executor: "opencode",
       type: "bugfix",
       tokenBudget: 2000,
-      base: "main"
+      base: "main",
+      checkpoint: "git-worktree"
     });
 
     assert.equal(result.report.executor, "opencode");
@@ -118,6 +234,8 @@ test("harness orchestrator blocks when a selected executor has no command adapte
     assert.equal(result.report.convergence.status, "executor-failure");
     assert.equal(result.report.convergence.stopReason, "executor-failure");
     assert.match(result.report.executorResult.stderr, /No executor command configured/);
+    assert.equal(result.report.sandbox.discarded, true);
+    assert.equal(existsSync(result.report.sandbox.root), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -145,7 +263,7 @@ test("harness orchestrator treats injected shell syntax as plain executor templa
   }
 });
 
-test("harness orchestrator writes multi-loop iteration artifacts before max-loop review", async () => {
+test("harness orchestrator continues into another iteration after repair", async () => {
   const root = createOrchestratorRepo();
   try {
     const source = Buffer.from("export function loginSession() { return 'fixed'; }\n").toString("base64");
@@ -156,7 +274,7 @@ test("harness orchestrator writes multi-loop iteration artifacts before max-loop
       type: "bugfix",
       tokenBudget: 2000,
       base: "main",
-      maxLoops: 2,
+      maxLoops: 3,
       checkpoint: "git-worktree"
     });
 
@@ -174,13 +292,15 @@ test("harness orchestrator writes multi-loop iteration artifacts before max-loop
     );
     assert.ok(existsSync(path.join(root, ".agent-context", "worktrees", "fix-login-timeout-bug", "manifest.json")));
     assert.ok(existsSync(path.join(root, ".agent-context", "worktrees", "fix-login-timeout-bug", "diff.patch")));
-    assert.equal(result.report.iterations.length, 2);
+    assert.equal(result.report.iterations.length, 3);
     assert.equal(result.report.iterations[0]?.decision.action, "repack");
+    assert.equal(result.report.iterations[1]?.decision.action, "repair");
     assert.equal(result.report.decision.action, "human-review");
     assert.ok(result.report.artifacts.checkpointFile?.endsWith("checkpoint.patch"));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "prompt.md")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "executor.events.jsonl")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "002", "decision.json")));
+    assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "003", "decision.json")));
     assert.match(readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "diff.opencode.patch"), "utf8"), /fixed/);
     assert.match(readFileSync(path.join(root, "src", "auth", "session.ts"), "utf8"), /return 'ok'/);
     const secondPrompt = readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "002", "prompt.md"), "utf8");

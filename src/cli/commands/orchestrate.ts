@@ -20,6 +20,7 @@ export function registerOrchestrateCommands(program: Command): void {
     .option("--opencode-transcript <path>", "optional OpenCode session transcript file to normalize into the execution trace")
     .option("--agent <agent>", "executor-specific agent/profile name")
     .option("--max-loops <count>", "maximum orchestrator iterations before requiring human review", parseInteger, 1)
+    .option("--resume <run-id>", "resume a persisted orchestrator run")
     .option("--type <type>", "task type: auto, bugfix, feature, refactor", parseTaskType, "auto")
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, policy, tests, impact, and verify", "main")
@@ -37,6 +38,7 @@ export function registerOrchestrateCommands(program: Command): void {
         opencodeTranscript: options.opencodeTranscript,
         agent: options.agent,
         maxLoops: options.maxLoops,
+        resumeRunId: options.resume,
         type: options.type,
         tokenBudget: options.tokenBudget,
         base: options.base,
@@ -59,6 +61,7 @@ export function registerOrchestrateCommands(program: Command): void {
     .option("--executor-command <command>", "argv-style command used to run the selected executor; supports {prompt}, {task}, {repo}, {runDir}, {agent}")
     .option("--opencode-transcript <path>", "optional OpenCode session transcript file to normalize into the execution trace")
     .option("--agent <agent>", "executor-specific agent/profile name")
+    .option("--resume <run-id>", "resume a persisted orchestrator run")
     .option("--type <type>", "task type: auto, bugfix, feature, refactor", parseTaskType, "auto")
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, policy, tests, impact, and verify", "main")
@@ -76,6 +79,7 @@ export function registerOrchestrateCommands(program: Command): void {
         opencodeTranscript: options.opencodeTranscript,
         agent: options.agent,
         maxLoops: 1,
+        resumeRunId: options.resume,
         type: options.type,
         tokenBudget: options.tokenBudget,
         base: options.base,
@@ -99,6 +103,7 @@ interface AgentRunCliOptions {
   executorCommand?: string;
   opencodeTranscript?: string;
   agent?: string;
+  resume?: string;
   type: TaskType;
   tokenBudget?: number;
   base: string;

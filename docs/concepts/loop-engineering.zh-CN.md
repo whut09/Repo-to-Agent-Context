@@ -369,6 +369,10 @@ build/refresh pack
 
 `executor.events.jsonl` 保存归一化后的 `AgentEvent` 记录。OpenCode 当前支持 `opencode run --format json` stdout、可选 transcript 文件，以及普通 stdout/stderr fallback；后续 MiMoCode、Codex、Claude Code、Cursor adapter 也会输出同一套事件模型。
 
+Orchestrator 现在按 `Plan -> PrepareSandbox -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize/Continue` 的显式阶段状态机运行。每个阶段都有独立输入输出类型，executor adapter、证据收集、评估、仲裁和 artifact 持久化分别位于小型模块中。每个阶段完成后都会原子更新 `.agent-context/orchestrator/<run-id>/state.json`，其中记录 phase、iteration、已完成阶段、artifact/trace 引用、context fingerprint、working tree hash、decision、convergence 和时间戳。
+
+中断后可使用 `--resume <run-id>` 从 `currentPhase` 继续。已完成阶段不会再次执行；trace step 使用确定性的 iteration/event 标记，重复 resume 不会重复追加 executor 或 normalized event 记录。不兼容的 schemaVersion 会直接给出明确错误。git-worktree sandbox 在成功、executor failure、阶段中断和异常路径都会清理，恢复时可从已持久化 patch 重建执行后的工作树。
+
 当 decision 是 `repair` 或 `repack` 时，orchestrator 会进入下一轮，直到 `finalize`、`block`、`rollback`、`human-review`，或达到 `--max-loops`。`--checkpoint git-worktree` 现在会在 `.agent-context/worktrees/<run-id>/` 下为 executor 创建 git worktree sandbox，把 patch 导出到 `.agent-context/worktrees/<run-id>/diff.patch`，并把每轮 patch 镜像到 run 目录；OpenCode++ 会记录 rollback 决策和 checkpoint 证据，但不会在用户工作区自动执行破坏性回滚命令。
 
 ## 10. CLI 接入状态

@@ -308,6 +308,7 @@ Options:
   --agent <agent>                  OpenCode agent/profile name
   --max-loops <count>              maximum orchestrator iterations before
                                    requiring human review (default: 3)
+  --resume <run-id>                resume a persisted orchestrator run
   --type <type>                    task type: auto, bugfix, feature, refactor
                                    (default: "auto")
   -b, --token-budget <tokens>      task context token budget
@@ -449,6 +450,7 @@ Options:
   --agent <agent>                  OpenCode agent/profile name
   --max-loops <count>              maximum orchestrator iterations before
                                    requiring human review (default: 3)
+  --resume <run-id>                resume a persisted orchestrator run
   --type <type>                    task type: auto, bugfix, feature, refactor
                                    (default: "auto")
   -b, --token-budget <tokens>      task context token budget
@@ -1278,6 +1280,7 @@ Options:
   --agent <agent>               executor-specific agent/profile name
   --max-loops <count>           maximum orchestrator iterations before requiring
                                 human review (default: 1)
+  --resume <run-id>             resume a persisted orchestrator run
   --type <type>                 task type: auto, bugfix, feature, refactor
                                 (default: "auto")
   -b, --token-budget <tokens>   task context token budget
@@ -1332,6 +1335,7 @@ Options:
   --opencode-transcript <path>  optional OpenCode session transcript file to
                                 normalize into the execution trace
   --agent <agent>               executor-specific agent/profile name
+  --resume <run-id>             resume a persisted orchestrator run
   --type <type>                 task type: auto, bugfix, feature, refactor
                                 (default: "auto")
   -b, --token-budget <tokens>   task context token budget

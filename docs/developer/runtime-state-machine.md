@@ -54,3 +54,32 @@ Convergence statuses are:
 - `max-loops-reached`: the loop budget ended before a terminal decision. A single-loop run reports this status and cannot be classified as repeated state.
 
 Convergence is written into the final orchestrator report, each iteration report, `iteration.json`, and `decision.json`.
+
+## Orchestrator Phase State
+
+Harness-led Orchestrator recovery uses a separate versioned state file:
+
+```txt
+.agent-context/orchestrator/<run-id>/state.json
+```
+
+The state records `schemaVersion`, `runId`, `currentPhase`, `currentIteration`, completed phase keys, executor/evaluation/iteration artifact references, trace reference, context fingerprint, working-tree hash, latest decision, convergence state, and timestamps. Unknown schema versions fail with an explicit compatibility error instead of being interpreted heuristically.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Plan
+  Plan --> PrepareSandbox
+  PrepareSandbox --> Execute
+  Execute --> Collect
+  Collect --> Evaluate
+  Evaluate --> Decide
+  Decide --> Persist
+  Persist --> Plan: repair / repack / run-tests
+  Persist --> Finalize: terminal / convergence stop
+  Finalize --> Completed
+  Completed --> [*]
+```
+
+Every successful phase transition atomically rewrites `state.json`. Execute, Collect, Evaluate, Decide, and Persist also write phase artifacts under `.agent-context/runs/<run-id>/iterations/<iteration>/`. Resume uses `--resume <run-id>` and starts from `currentPhase`; completed phases are not executed again. Collect trace writes include deterministic iteration/event markers, so retrying after an interrupted persist cannot duplicate executor or normalized event steps.
+
+Sandbox preparation remains process-local. A resumed git-worktree run creates a fresh worktree and reapplies the persisted executor patch before continuing. The sandbox adapter is discarded on successful completion, executor failure, phase interruption, and exceptions during post-prepare initialization.

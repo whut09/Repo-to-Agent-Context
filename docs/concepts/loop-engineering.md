@@ -199,6 +199,10 @@ Each iteration computes a deterministic state fingerprint from the working-tree 
 
 `repair` and `repack` continue until a blocking/final decision, repeated state, or `--max-loops` is reached. The report distinguishes `repeated-state`, `max-loops-reached`, `executor-failure`, and existing terminal decisions. `--checkpoint git-worktree` creates a Sandbox Gateway git worktree under `.agent-context/worktrees/<run-id>/` for executor edits, exports patches to `.agent-context/worktrees/<run-id>/diff.patch` and mirrors per-iteration patches into the run directory, and discards the sandbox after the final gate. Rollback decisions are recorded, but destructive working-tree rollback is intentionally not automatic.
 
+The Orchestrator is implemented as explicit `Plan`, `PrepareSandbox`, `Execute`, `Collect`, `Evaluate`, `Decide`, `Persist`, and `Finalize` phases. Each phase has typed inputs/outputs; executor adapters, evaluation, decision arbitration, and iteration persistence live in separate modules rather than the top-level coordinator. After every phase, `.agent-context/orchestrator/<run-id>/state.json` is atomically updated with the current phase, iteration, completed phases, artifact references, trace reference, fingerprints, decision, convergence, and timestamps.
+
+Use `orchestrate ... --resume <run-id>`, `agent run ... --resume <run-id>`, or `opencode run ... --resume <run-id>` after interruption. Resume loads persisted Execute/Collect/Evaluate outputs and does not rerun completed phases. Trace writes carry deterministic per-iteration markers and artifact writes replace their target atomically, making repeated resume idempotent. Unsupported state schema versions fail explicitly. Git-worktree sandboxes are recreated from the persisted patch when necessary and discarded on success, executor failure, interruption, or exception.
+
 ## CLI Surface
 
 The runtime is exposed through CLI commands, including:

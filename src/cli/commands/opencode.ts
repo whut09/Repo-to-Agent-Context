@@ -21,6 +21,7 @@ interface OpencodeRunCliOptions {
   opencodeTranscript?: string;
   agent?: string;
   maxLoops: number;
+  resume?: string;
   type: TaskType;
   tokenBudget?: number;
   base: string;
@@ -94,6 +95,7 @@ function addOpencodeRunOptions(command: Command): Command {
     .option("--opencode-transcript <path>", "optional OpenCode session transcript file to normalize into the execution trace")
     .option("--agent <agent>", "OpenCode agent/profile name")
     .option("--max-loops <count>", "maximum orchestrator iterations before requiring human review", parseInteger, 3)
+    .option("--resume <run-id>", "resume a persisted orchestrator run")
     .option("--type <type>", "task type: auto, bugfix, feature, refactor", parseTaskType, "auto")
     .option("-b, --token-budget <tokens>", "task context token budget", parseInteger)
     .option("--base <ref>", "base git ref for diff, policy, tests, impact, and verify", "main")
@@ -188,6 +190,7 @@ async function runOpencodePreset(args: string[], options: OpencodeRunCliOptions)
     opencodeTranscript: options.opencodeTranscript,
     agent: options.agent,
     maxLoops: options.maxLoops,
+    resumeRunId: options.resume,
     type: options.type,
     tokenBudget: options.tokenBudget,
     base: options.base,
