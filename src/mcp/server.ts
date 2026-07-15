@@ -1,9 +1,11 @@
+#!/usr/bin/env node
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
+import { OPENCODE_PLUSPLUS_PACKAGE_NAME, OPENCODE_PLUSPLUS_PACKAGE_VERSION } from "../core/package-info.js";
 import { buildContextPackage, type BuildOptions } from "../core/context-builder.js";
 import { taskSlug } from "../core/task-id.js";
 import { unique } from "../core/collections.js";
@@ -76,8 +78,8 @@ interface RetrieveArguments {
 export function createOpenCodePlusplusMcpServer(): McpServer {
   const server = new McpServer(
     {
-      name: "opencode-plusplus",
-      version: "0.1.1"
+      name: OPENCODE_PLUSPLUS_PACKAGE_NAME,
+      version: OPENCODE_PLUSPLUS_PACKAGE_VERSION
     },
     { capabilities: { tools: {} } }
   );

@@ -6,8 +6,8 @@ import { runGit } from "./git.js";
 import { buildRepoContracts } from "../outputs/contracts.js";
 import { buildTaskPack } from "../outputs/task-context.js";
 import { bullet, code, heading } from "../outputs/renderers/markdown.js";
+import { OPENCODE_PLUSPLUS_PACKAGE_VERSION } from "./package-info.js";
 
-const TOOL_VERSION = "0.1.1";
 const MANIFEST_PATH = ".agent-context/manifest.json";
 
 export interface ContextManifest {
@@ -76,7 +76,7 @@ export function buildContextManifest(context: ContextPackage, generatedFiles: st
     contractsHash: contractsHash(normalized),
     taskPacksHash: taskPacksHash(normalized),
     generatedOutputHash: hashValue(generatedFileHashes),
-    toolVersion: TOOL_VERSION,
+    toolVersion: OPENCODE_PLUSPLUS_PACKAGE_VERSION,
     files: {
       source: normalized.scan.files.length,
       generated: Object.keys(generatedFileHashes).length

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { Command } from "commander";
+import { OPENCODE_PLUSPLUS_PACKAGE_VERSION } from "../core/package-info.js";
 import { resolveDefaultCommandArgs } from "./default-command.js";
 import { registerBenchmarkCommands } from "./commands/benchmark.js";
 import { registerContextCommands } from "./commands/context.js";
@@ -33,7 +34,10 @@ export async function runCli(argv = process.argv): Promise<void> {
 
 export function createCliProgram(invokedName = "opencode-plusplus"): Command {
   const program = new Command();
-  program.name(invokedName).description("OpenCode++: add context, boundaries, evidence, and verification gates to coding agents.").version("0.1.1");
+  program
+    .name(invokedName)
+    .description("OpenCode++: add context, boundaries, evidence, and verification gates to coding agents.")
+    .version(OPENCODE_PLUSPLUS_PACKAGE_VERSION);
 
   registerTuiCommand(program, invokedName);
   registerTuiInputCommands(program);

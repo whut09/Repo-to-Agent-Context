@@ -36,12 +36,11 @@ jobs:
       - run: npm run docs:cli:check
       - run: npm run test:core
       - run: npm run build
+      - name: Verify release packages
+        run: npm run release:verify
       - name: Windows command and launcher regression tests
         if: runner.os == 'Windows'
         run: npm run test:windows
       - name: Benchmarks
         if: runner.os == 'Linux'
         run: npm run benchmark && npm run benchmark:agent
-      - name: Package dry run
-        if: runner.os == 'Linux'
-        run: npm run pack:dry-run

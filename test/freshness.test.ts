@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { OPENCODE_PLUSPLUS_PACKAGE_VERSION } from "../src/core/package-info.js";
 import { buildContextPackage } from "../src/core/context-builder.js";
 import { assessDrift, assessFreshness, readContextManifest } from "../src/core/freshness.js";
 import { runGit } from "../src/core/git.js";
@@ -22,7 +23,7 @@ test("freshness is fresh after build and stale after source changes", async () =
 
     const freshContext = await buildContextPackage(root);
     const fresh = assessFreshness(freshContext);
-    assert.equal(readContextManifest(root)?.toolVersion, "0.1.1");
+    assert.equal(readContextManifest(root)?.toolVersion, OPENCODE_PLUSPLUS_PACKAGE_VERSION);
     assert.equal(fresh.status, "fresh");
 
     writeFileSync(path.join(root, "src", "index.ts"), "export const value = 2;\n", "utf8");

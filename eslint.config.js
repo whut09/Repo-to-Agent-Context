@@ -8,7 +8,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/**/*.ts", "test/**/*.ts", "apps/desktop/src/**/*.ts", "apps/desktop/src/**/*.tsx"],
+    files: ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.mjs", "apps/desktop/src/**/*.ts", "apps/desktop/src/**/*.tsx"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

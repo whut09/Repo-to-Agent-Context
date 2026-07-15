@@ -1,9 +1,18 @@
 {
   "name": "@opencode-plusplus/desktop",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.1",
+  "description": "Electron desktop control surface for OpenCode++.",
+  "license": "MIT",
   "type": "module",
   "main": "dist/main/main.js",
+  "files": [
+    "dist/main/*.js",
+    "dist/main/*.cjs",
+    "dist/renderer"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
@@ -13,6 +22,7 @@
     "start": "electron dist/main/main.js"
   },
   "dependencies": {
+    "electron": "^39.2.6",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
@@ -20,7 +30,6 @@
     "@vitejs/plugin-react": "^5.2.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "electron": "^39.2.6",
     "vite": "^6.4.3"
   }
 }
