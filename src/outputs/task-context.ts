@@ -67,6 +67,7 @@ export function buildTaskPack(context: ContextPackage, task: string, options: Ta
       .match(/[\p{L}\p{N}_/-]+/gu)
       ?.filter((term) => term.length >= 2) ?? [];
   const translatedTerms = expandTaskTerms(terms);
+  const regression = buildRegressionReport(context, { task });
   const fileTerms = new Map<string, string[]>();
   const frequencies = new Map<string, number>();
 
@@ -92,6 +93,8 @@ export function buildTaskPack(context: ContextPackage, task: string, options: Ta
     }, 0);
     if (matches.length) addScore(scores, file.path, lexicalScore, [`lexical match: ${matches.slice(0, 4).join(", ")}`]);
   }
+
+  addRegressionSignals(context, regression.matches, regression.requiredTests, scores);
 
   const direct = [...scores.entries()]
     .sort((a, b) => b[1].score - a[1].score)
@@ -119,8 +122,8 @@ export function buildTaskPack(context: ContextPackage, task: string, options: Ta
         b.file.importanceScore - a.file.importanceScore
     );
 
-  const selected: TaskPackFile[] = [];
-  let estimatedTokens = 0;
+  const selected = regressionMemoryFiles(regression.matches);
+  let estimatedTokens = selected.reduce((sum, file) => sum + file.estimatedTokens, 0);
   for (const item of ranked) {
     const tokens = taskFileTokens(item.file);
     if (selected.length && estimatedTokens + tokens > tokenBudget) continue;
@@ -135,7 +138,6 @@ export function buildTaskPack(context: ContextPackage, task: string, options: Ta
   }
 
   const budget = buildBudget(tokenBudget, selected);
-  const regression = buildRegressionReport(context, { task });
   const suggested = dedupe([...suggestedCommands(context, type, terms), ...regression.requiredTests]);
   return {
     task,
@@ -160,6 +162,40 @@ export function buildTaskPack(context: ContextPackage, task: string, options: Ta
       configDocs: selected.filter((file) => file.category === "config-doc").length
     }
   };
+}
+
+function addRegressionSignals(
+  context: ContextPackage,
+  matches: ReturnType<typeof buildRegressionReport>["matches"],
+  requiredTests: string[],
+  scores: Map<string, { score: number; reasons: string[] }>
+): void {
+  for (const match of matches) {
+    for (const file of match.files) {
+      if (context.index.files.some((item) => item.path === file)) addScore(scores, file, 72, [`regression memory: ${match.id}`]);
+    }
+  }
+  for (const command of requiredTests) {
+    for (const file of context.index.files) {
+      if (command.includes(file.path)) addScore(scores, file.path, 64, ["required regression test"]);
+    }
+  }
+}
+
+function regressionMemoryFiles(matches: ReturnType<typeof buildRegressionReport>["matches"]): TaskPackFile[] {
+  const fileBySource = {
+    "known-issues": ".agent-context/regression/known-issues.json",
+    "fix-history": ".agent-context/regression/fix-history.json",
+    "fragile-modules": ".agent-context/regression/fragile-modules.json",
+    "anti-regression-tests": ".agent-context/regression/anti-regression-tests.json"
+  } as const;
+  return [...new Set(matches.map((match) => fileBySource[match.source]))].map((file) => ({
+    path: file,
+    score: 90,
+    reasons: ["matched regression memory source"],
+    category: "config-doc" as const,
+    estimatedTokens: estimateTokens(file)
+  }));
 }
 
 function expandGraph(context: ContextPackage, direct: string[], scores: Map<string, { score: number; reasons: string[] }>): number {

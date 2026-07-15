@@ -48,6 +48,7 @@
     "test:windows": "tsx --test test/safe-command.test.ts test/task-args.test.ts test/opencode-launcher.test.ts",
     "benchmark": "tsx src/cli/index.ts benchmark benchmarks --top-k 8",
     "benchmark:agent": "tsx src/cli/index.ts benchmark-agent benchmarks --executor mock --dry-run",
+    "benchmark:agent:real": "tsx src/cli/index.ts benchmark-agent-real benchmarks",
     "pack:dry-run": "npm pack --dry-run --ignore-scripts",
     "pack:json": "npm pack --json --dry-run --ignore-scripts",
     "release:verify": "node scripts/verify-release.mjs --all",

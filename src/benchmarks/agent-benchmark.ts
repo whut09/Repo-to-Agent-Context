@@ -1,11 +1,12 @@
 ﻿import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildContextPackage } from "../core/context-builder.js";
 import { changedFilesSince, runGit } from "../core/git.js";
 import { runSafeCommand, shellQuote } from "../core/safe-command.js";
 import { normalizeAgentEvents } from "../outputs/agent-events.js";
-import { appendExecutionTraceStep, currentWorkingTreeHash, startExecutionTrace } from "../harness/observability/execution-trace.js";
+import { appendExecutionTraceStep, currentWorkingTreeHash, readExecutionTrace, startExecutionTrace } from "../harness/observability/execution-trace.js";
 import { buildHallucinationReport } from "../harness/verification-plane/guards/hallucination.js";
 import { buildLoopControllerReport } from "../harness/control-plane/loop-controller.js";
 import { buildPolicyReport, type PolicyFailOn } from "../harness/verification-plane/policy-engine.js";
@@ -31,6 +32,8 @@ export interface AgentBehaviorBenchmarkOptions {
   keepWorkdirs?: boolean;
   modes?: AgentRunMode[];
   taskIds?: string[];
+  seed?: number;
+  repetition?: number;
 }
 
 export interface AgentBehaviorBenchmarkRun {
@@ -57,6 +60,15 @@ export interface AgentBehaviorBenchmarkRun {
   hallucinationFindings: number;
   regressionFindings: number;
   exitCode: number | null;
+  repetition?: number;
+  seed?: number;
+  elapsedMs?: number;
+  commandCount?: number;
+  tokenUsage?: number | null;
+  estimatedCostUsd?: number | null;
+  promptHash?: string;
+  noProgress?: boolean;
+  success?: boolean;
 }
 
 export interface AgentBehaviorModeSummary {
@@ -76,6 +88,7 @@ export interface AgentBehaviorModeSummary {
 }
 
 export interface AgentBehaviorBenchmarkResult {
+  kind: "deterministic-proxy" | "executor-run";
   benchmarkDir: string;
   executor: AgentExecutorName;
   modes: AgentRunMode[];
@@ -100,6 +113,7 @@ export async function runAgentBehaviorBenchmark(options: AgentBehaviorBenchmarkO
   }
 
   return {
+    kind: executor === "mock" || options.dryRun ? "deterministic-proxy" : "executor-run",
     benchmarkDir,
     executor,
     modes,
@@ -111,12 +125,13 @@ export async function runAgentBehaviorBenchmark(options: AgentBehaviorBenchmarkO
 
 export function renderAgentBehaviorBenchmark(result: AgentBehaviorBenchmarkResult): string {
   return [
-    heading(1, "Real Agent Behavior Benchmark"),
+    heading(1, result.kind === "deterministic-proxy" ? "Deterministic Agent Benchmark Proxy" : "Executor Agent Behavior Benchmark"),
     "",
     `Benchmark dir: ${code(result.benchmarkDir)}`,
     `Executor: ${result.executor}`,
     `Tasks: ${result.tasks}`,
     `Runs: ${result.runs.length}`,
+    `Metric class: ${result.kind}`,
     "",
     heading(2, "Mode Comparison"),
     table(
@@ -165,7 +180,9 @@ export function renderAgentBehaviorBenchmark(result: AgentBehaviorBenchmarkResul
     ),
     "",
     heading(2, "Interpretation"),
-    "- This benchmark can run a real executor, such as OpenCode, over the same fixture tasks in four modes.",
+    result.kind === "deterministic-proxy"
+      ? "- These are deterministic mock proxy metrics and must not be reported as real executor success or cost."
+      : "- These runs use an external executor; use benchmark-agent-real for repeated statistical evaluation.",
     "- A no-context: task only.",
     "- B AGENTS.md: task plus root operating guide.",
     "- C context-pack: task plus task-aware pack and edit boundary.",
@@ -183,8 +200,13 @@ async function runAgentModeBenchmark(
   executor: AgentExecutorName,
   options: AgentBehaviorBenchmarkOptions
 ): Promise<AgentBehaviorBenchmarkRun> {
+  const startedAtMs = Date.now();
+  const executionOptions: AgentBehaviorBenchmarkOptions = {
+    ...options,
+    executorCommand: options.executorCommand?.replaceAll("{seed}", String(options.seed ?? 0))
+  };
   if (options.dryRun && executor === "mock") {
-    return mockDryRunAgentModeBenchmark(benchmarkDir, task, mode, executor);
+    return finalizeRunTelemetry(mockDryRunAgentModeBenchmark(benchmarkDir, task, mode, executor), options, Date.now() - startedAtMs);
   }
 
   const workspace = mkdtempSync(path.join(tmpdir(), `opencode-plusplus-agent-benchmark-${task.id}-${mode}-`));
@@ -200,10 +222,12 @@ async function runAgentModeBenchmark(
   initBaseline(repo, options.base ?? "main");
 
   const result =
-    mode === "loop-enabled-harness" ? await runHarnessMode(repo, task, executor, options) : await runDirectMode(repo, task, mode, executor, options);
+    mode === "loop-enabled-harness"
+      ? await runHarnessMode(repo, task, executor, executionOptions)
+      : await runDirectMode(repo, task, mode, executor, executionOptions);
 
   if (!options.keepWorkdirs) rmSync(workspace, { recursive: true, force: true });
-  return result;
+  return finalizeRunTelemetry(result, options, Date.now() - startedAtMs);
 }
 
 function mockDryRunAgentModeBenchmark(
@@ -288,6 +312,9 @@ async function runHarnessMode(
     finalDecision: result.report.decision.action,
     finalGate
   });
+  const trace = readExecutionTrace(repo, result.report.traceId);
+  const usage = extractExecutorUsage([result.report.executorResult.stdout, result.report.executorResult.stderr].join("\n"));
+  const promptHash = hashText(result.report.iterations.map((iteration) => readTextOrValue(iteration.promptFile)).join("\n--- iteration ---\n"));
 
   return {
     taskId: task.id,
@@ -312,7 +339,13 @@ async function runHarnessMode(
     humanReviewNeeded: metrics.humanReviewNeeded,
     hallucinationFindings: hallucination.summary.errors + hallucination.summary.warnings,
     regressionFindings: regression.summary.matches,
-    exitCode: result.report.executorResult.exitCode
+    exitCode: result.report.executorResult.exitCode,
+    commandCount: trace?.steps.filter((step) => Boolean(step.command)).length ?? 0,
+    tokenUsage: usage.tokens,
+    estimatedCostUsd: usage.costUsd,
+    promptHash,
+    noProgress: result.report.convergence.status === "repeated-state",
+    success: !result.report.decision.blocking && metrics.testsFailed === 0 && metrics.forbiddenFilesChanged === 0 && metrics.hallucinatedCommands === 0
   };
 }
 
@@ -396,6 +429,8 @@ async function runDirectMode(
     finalDecision,
     finalGate
   });
+  const usage = extractExecutorUsage([execution.stdout, execution.stderr].join("\n"));
+  const wrongEdits = unrelatedChanges(changedFiles, task);
 
   return {
     taskId: task.id,
@@ -405,7 +440,7 @@ async function runDirectMode(
     executor,
     workdir: repo,
     changedFiles,
-    unrelatedChanges: unrelatedChanges(changedFiles, task),
+    unrelatedChanges: wrongEdits,
     forbiddenFilesChanged: metrics.forbiddenFilesChanged,
     passedTests: policy.passed && policy.summary.requiredMissing === 0 && execution.exitCode === 0,
     missingEvidence: policy.summary.requiredMissing,
@@ -420,7 +455,19 @@ async function runDirectMode(
     humanReviewNeeded: metrics.humanReviewNeeded,
     hallucinationFindings: hallucination.summary.errors + hallucination.summary.warnings,
     regressionFindings: regression.summary.matches,
-    exitCode: execution.exitCode
+    exitCode: execution.exitCode,
+    commandCount: normalized.events.filter((event) => event.type === "command_run" || event.type === "test_run").length,
+    tokenUsage: usage.tokens,
+    estimatedCostUsd: usage.costUsd,
+    promptHash: hashText(prompt),
+    noProgress: changedFiles.length === 0 && finalGate === "blocked",
+    success:
+      metrics.testsFailed === 0 &&
+      metrics.testsMissing === 0 &&
+      metrics.forbiddenFilesChanged === 0 &&
+      metrics.hallucinatedCommands === 0 &&
+      wrongEdits === 0 &&
+      finalGate !== "blocked"
   };
 }
 
@@ -644,6 +691,46 @@ function expandExecutorCommand(
   let expanded = command;
   for (const [token, value] of Object.entries(replacements)) expanded = expanded.replaceAll(token, value);
   return expanded;
+}
+
+function finalizeRunTelemetry(run: AgentBehaviorBenchmarkRun, options: AgentBehaviorBenchmarkOptions, elapsedMs: number): AgentBehaviorBenchmarkRun {
+  return {
+    ...run,
+    repetition: options.repetition,
+    seed: options.seed,
+    elapsedMs,
+    commandCount: run.commandCount ?? 0,
+    tokenUsage: run.tokenUsage ?? null,
+    estimatedCostUsd: run.estimatedCostUsd ?? null,
+    promptHash: run.promptHash ?? hashText(`${run.taskId}:${run.mode}:${options.seed ?? 0}`),
+    noProgress: run.noProgress ?? false,
+    success: run.success ?? (run.passedTests && run.unrelatedChanges === 0 && run.forbiddenFilesChanged === 0 && run.hallucinatedCommands === 0)
+  };
+}
+
+function extractExecutorUsage(text: string): { tokens: number | null; costUsd: number | null } {
+  const tokenValues = [...text.matchAll(/"(?:total_tokens|totalTokens|tokens)"\s*:\s*(\d+)/gi)].map((match) => Number(match[1]));
+  const inputValues = [...text.matchAll(/"(?:input_tokens|prompt_tokens)"\s*:\s*(\d+)/gi)].map((match) => Number(match[1]));
+  const outputValues = [...text.matchAll(/"(?:output_tokens|completion_tokens)"\s*:\s*(\d+)/gi)].map((match) => Number(match[1]));
+  const costValues = [...text.matchAll(/"(?:cost_usd|total_cost_usd|costUSD)"\s*:\s*(\d+(?:\.\d+)?)/gi)].map((match) => Number(match[1]));
+  const tokens = tokenValues.length ? Math.max(...tokenValues) : inputValues.length || outputValues.length ? sum(inputValues) + sum(outputValues) : null;
+  return { tokens, costUsd: costValues.length ? Math.max(...costValues) : null };
+}
+
+function hashText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function readTextOrValue(filePath: string): string {
+  try {
+    return readFileSync(filePath, "utf8");
+  } catch {
+    return filePath;
+  }
+}
+
+function sum(values: number[]): number {
+  return values.reduce((total, value) => total + value, 0);
 }
 
 function displayMode(mode: AgentRunMode): string {

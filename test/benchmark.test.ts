@@ -40,6 +40,9 @@ test("benchmark evaluates loop behavior against expected files and tests", async
   assert.ok(result.cases.every((item) => item.recommendedTests.length > 0));
   assert.ok(result.cases.every((item) => item.agentRunModes.length === 4));
   assert.ok(result.cases.every((item) => item.agentRunModes.some((mode) => mode.mode === "loop-enabled-harness")));
+  const regressionCase = result.cases.find((item) => item.id === "regression-session-ttl");
+  assert.equal(regressionCase?.metrics.recallAtK, 1);
+  assert.ok(regressionCase?.selectedTopK.includes(".agent-context/regression/known-issues.json"));
 
   const markdown = renderBenchmarkReport(result);
   assert.match(markdown, /# Harness Benchmark/);

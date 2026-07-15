@@ -1,0 +1,103 @@
+name: Real Agent Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      executor:
+        description: Real executor adapter
+        required: true
+        default: codex
+        type: choice
+        options: [codex, opencode, claude-code, mimocode]
+      model:
+        description: Model or executor profile
+        required: false
+        default: unspecified
+        type: string
+      executor_version:
+        description: Executor CLI or adapter version
+        required: false
+        default: unknown
+        type: string
+      repetitions:
+        description: Repetitions per task and mode
+        required: false
+        default: "3"
+        type: string
+      task:
+        description: Optional comma-separated task IDs
+        required: false
+        type: string
+      modes:
+        description: Optional comma-separated modes
+        required: false
+        type: string
+  schedule:
+    - cron: "23 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      BENCHMARK_EXECUTOR: ${{ inputs.executor || 'codex' }}
+      BENCHMARK_MODEL: ${{ inputs.model || 'unspecified' }}
+      BENCHMARK_EXECUTOR_VERSION: ${{ inputs.executor_version || 'unknown' }}
+      BENCHMARK_REPETITIONS: ${{ inputs.repetitions || '3' }}
+      BENCHMARK_TASK: ${{ inputs.task }}
+      BENCHMARK_MODES: ${{ inputs.modes }}
+      OPENCODE_BENCHMARK_COMMAND: ${{ secrets.OPENCODE_BENCHMARK_COMMAND }}
+      CODEX_BENCHMARK_COMMAND: ${{ secrets.CODEX_BENCHMARK_COMMAND }}
+      CLAUDE_CODE_BENCHMARK_COMMAND: ${{ secrets.CLAUDE_CODE_BENCHMARK_COMMAND }}
+      MIMOCODE_BENCHMARK_COMMAND: ${{ secrets.MIMOCODE_BENCHMARK_COMMAND }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:core
+      - name: Select executor command
+        shell: bash
+        run: |
+          case "$BENCHMARK_EXECUTOR" in
+            opencode) command_value="$OPENCODE_BENCHMARK_COMMAND" ;;
+            codex) command_value="$CODEX_BENCHMARK_COMMAND" ;;
+            claude-code) command_value="$CLAUDE_CODE_BENCHMARK_COMMAND" ;;
+            mimocode) command_value="$MIMOCODE_BENCHMARK_COMMAND" ;;
+            *) echo "Unsupported executor: $BENCHMARK_EXECUTOR" >&2; exit 1 ;;
+          esac
+          if [ -z "$command_value" ]; then
+            echo "The selected executor benchmark command secret is not configured." >&2
+            exit 1
+          fi
+          echo "BENCHMARK_COMMAND<<__BENCHMARK_COMMAND__" >> "$GITHUB_ENV"
+          echo "$command_value" >> "$GITHUB_ENV"
+          echo "__BENCHMARK_COMMAND__" >> "$GITHUB_ENV"
+      - name: Run repeated real benchmark
+        shell: bash
+        run: |
+          args=(
+            benchmarks
+            --executor "$BENCHMARK_EXECUTOR"
+            --executor-command "$BENCHMARK_COMMAND"
+            --model "$BENCHMARK_MODEL"
+            --executor-version "$BENCHMARK_EXECUTOR_VERSION"
+            --repetitions "$BENCHMARK_REPETITIONS"
+            --output-dir benchmarks/results/real
+          )
+          if [ -n "$BENCHMARK_TASK" ]; then args+=(--task "$BENCHMARK_TASK"); fi
+          if [ -n "$BENCHMARK_MODES" ]; then args+=(--modes "$BENCHMARK_MODES"); fi
+          npm run benchmark:agent:real -- "${args[@]}"
+      - name: Upload benchmark reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-agent-benchmark-${{ env.BENCHMARK_EXECUTOR }}-${{ github.run_id }}
+          path: benchmarks/results/real/
+          if-no-files-found: warn
+          retention-days: 30

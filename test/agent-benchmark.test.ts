@@ -14,6 +14,7 @@ test("agent behavior benchmark runs all context modes with the mock executor", a
   });
 
   assert.equal(result.tasks, 1);
+  assert.equal(result.kind, "deterministic-proxy");
   assert.equal(result.runs.length, 4);
   assert.deepEqual(
     result.runs.map((run) => run.mode),
@@ -28,9 +29,14 @@ test("agent behavior benchmark runs all context modes with the mock executor", a
   assert.ok(result.runs.every((run) => typeof run.hallucinatedCommands === "number"));
   assert.ok(result.runs.every((run) => typeof run.finalDecisionAccuracy === "boolean"));
   assert.ok(result.runs.every((run) => typeof run.humanReviewNeeded === "boolean"));
+  assert.ok(result.runs.every((run) => typeof run.elapsedMs === "number"));
+  assert.ok(result.runs.every((run) => typeof run.promptHash === "string"));
+  assert.ok(result.runs.every((run) => typeof run.noProgress === "boolean"));
+  assert.ok(result.runs.every((run) => typeof run.success === "boolean"));
 
   const markdown = renderAgentBehaviorBenchmark(result);
-  assert.match(markdown, /# Real Agent Behavior Benchmark/);
+  assert.match(markdown, /# Deterministic Agent Benchmark Proxy/);
+  assert.match(markdown, /must not be reported as real executor success or cost/);
   assert.match(markdown, /Mode Comparison/);
   assert.match(markdown, /A\. no context/);
   assert.match(markdown, /D\. harness-led/);

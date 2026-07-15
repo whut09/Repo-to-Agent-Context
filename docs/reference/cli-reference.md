@@ -91,7 +91,8 @@ opencode-plusplus orchestrate "task" .
 | `opencode-plusplus agent`                 | Harness-led executor commands for external coding agents.                                                      |
 | `opencode-plusplus agent run`             | Harness-led alias for one orchestrator pass with a selected coding agent executor.                             |
 | `opencode-plusplus benchmark`             | Run the loop behavior benchmark over benchmark fixtures.                                                       |
-| `opencode-plusplus benchmark-agent`       | Run the real-agent behavior benchmark across context modes using a selected executor.                          |
+| `opencode-plusplus benchmark-agent`       | Run the deterministic agent benchmark proxy or a single executor comparison.                                   |
+| `opencode-plusplus benchmark-agent-real`  | Run repeated real-executor benchmarks; intended for manual or scheduled workflows.                             |
 
 ## Sidecar Evidence Note
 
@@ -108,54 +109,55 @@ OpenCode++: add context, boundaries, evidence, and verification gates to coding
 agents.
 
 Options:
-  -V, --version                             output the version number
-  -h, --help                                display help for command
+  -V, --version                                  output the version number
+  -h, --help                                     display help for command
 
 Commands:
-  tui [options] [repo]                      Launch OpenCode TUI with the OpenCode++ sidecar plugin.
-  setup-editor                              Configure EDITOR for OpenCode TUI /editor input.
-  clip [repo]                               Write clipboard or piped text to .opencode-plusplus/clipboard/latest.md.
-  install-commands [repo]                   Install OpenCode slash commands for OpenCode++ helpers.
-  sidecar                                   Inspect and verify OpenCode++ sidecar integrations.
-  report [options] [repo]                   Show the latest OpenCode++ sidecar report.
-  status [options] [repo]                   Show whether the OpenCode++ OpenCode sidecar is active.
-  doctor [options] [repo]                   Check OpenCode, auth, git, context, plugin version, and OpenCode++ sidecar readiness.
-  opencode                                  OpenCode preset commands.
-  oc                                        Shortcut for OpenCode preset commands.
-  build [options] [repo]                    Generate AGENTS.md and .agent-context outputs.
-  savings [options] [repo]                  Print the token savings report.
-  init [repo]                               Create a starter opencode-plusplus.config.yml.
-  graph [repo]                              Print the generated dependency graph markdown.
-  readiness [repo]                          Print the agent readiness score and missing context signals.
-  validate [repo]                           Validate config, generated JSON, dependency edges, confidence, and token budget.
-  freshness [options] [repo]                Check whether AGENTS.md and .agent-context were generated from the current source, config, and commit.
-  drift [options] [repo]                    Detect stale generated context, dependency graph, task pack, and contract drift.
-  delta [options] [repo]                    Show what changed, which context outputs are stale, and what an agent must re-read.
-  evolve [options] [repo]                   Refresh the agent context with cache-aware full output rebuild and write .agent-context/delta/latest.*.
-  diff [options] [repo]                     Generate context for files changed since a git base ref.
-  update [options] [repo]                   Rebuild the context package and report files changed since a git ref.
-  explain <path> [repo]                     Explain a file or module from the generated repository index.
-  run [options] <args...>                   Agent-led handoff: write .agent-context/runs/<task-id> without spawning a code-agent executor.
-  loop [options] <args...>                  Decide the next agent-loop step from context freshness, diff, contracts, tests, and impact signals.
-  plan [options] <args...>                  Generate a task plan with inspection, risk, and validation guidance.
-  pack [options] <args...>                  Write a task context pack under .agent-context/tasks/<task-id>.
-  verify [options] [repo]                   Verify changed files against affected modules, tests, and risk signals.
-  task [options] <args...>                  Generate a task-focused context recommendation.
-  tests [options] [repo]                    Select minimal, regression, and full-confidence tests for a file or diff.
-  impact [options] [repo]                   Analyze changed files, dependents, related tests, and required verification.
-  policy [options] [repo]                   Evaluate changed files, trace evidence, contracts, freshness, impact, and guard findings against policy gates.
-  hallucination [options] [repo]            Detect deterministic OpenCode hallucinations: missing files, symbols, commands, dependencies, and config keys.
-  regression [options] [repo]               Match structured regression memory and require anti-regression test evidence.
-  validate-contracts [options] [repo]       Validate changed files against generated OpenCode++ contracts and edit boundaries.
-  memory                                    Create and confirm structured regression memory candidates.
-  trace                                     Record and inspect structured agent execution traces.
-  rag                                       RAG integration commands.
-  retrieve [options] <task> [repo]          Search repository context through the unified retrieval protocol.
-  orchestrate [options] <args...>           Harness-led flow: plan/pack -> executor -> diff/trace evidence -> policy/impact/verify -> final decision.
-  agent                                     Harness-led executor commands for external coding agents.
-  benchmark [options] [benchmarkDir]        Run the loop behavior benchmark over benchmark fixtures.
-  benchmark-agent [options] [benchmarkDir]  Run the real-agent behavior benchmark across context modes using a selected executor.
-  help [command]                            display help for command
+  tui [options] [repo]                           Launch OpenCode TUI with the OpenCode++ sidecar plugin.
+  setup-editor                                   Configure EDITOR for OpenCode TUI /editor input.
+  clip [repo]                                    Write clipboard or piped text to .opencode-plusplus/clipboard/latest.md.
+  install-commands [repo]                        Install OpenCode slash commands for OpenCode++ helpers.
+  sidecar                                        Inspect and verify OpenCode++ sidecar integrations.
+  report [options] [repo]                        Show the latest OpenCode++ sidecar report.
+  status [options] [repo]                        Show whether the OpenCode++ OpenCode sidecar is active.
+  doctor [options] [repo]                        Check OpenCode, auth, git, context, plugin version, and OpenCode++ sidecar readiness.
+  opencode                                       OpenCode preset commands.
+  oc                                             Shortcut for OpenCode preset commands.
+  build [options] [repo]                         Generate AGENTS.md and .agent-context outputs.
+  savings [options] [repo]                       Print the token savings report.
+  init [repo]                                    Create a starter opencode-plusplus.config.yml.
+  graph [repo]                                   Print the generated dependency graph markdown.
+  readiness [repo]                               Print the agent readiness score and missing context signals.
+  validate [repo]                                Validate config, generated JSON, dependency edges, confidence, and token budget.
+  freshness [options] [repo]                     Check whether AGENTS.md and .agent-context were generated from the current source, config, and commit.
+  drift [options] [repo]                         Detect stale generated context, dependency graph, task pack, and contract drift.
+  delta [options] [repo]                         Show what changed, which context outputs are stale, and what an agent must re-read.
+  evolve [options] [repo]                        Refresh the agent context with cache-aware full output rebuild and write .agent-context/delta/latest.*.
+  diff [options] [repo]                          Generate context for files changed since a git base ref.
+  update [options] [repo]                        Rebuild the context package and report files changed since a git ref.
+  explain <path> [repo]                          Explain a file or module from the generated repository index.
+  run [options] <args...>                        Agent-led handoff: write .agent-context/runs/<task-id> without spawning a code-agent executor.
+  loop [options] <args...>                       Decide the next agent-loop step from context freshness, diff, contracts, tests, and impact signals.
+  plan [options] <args...>                       Generate a task plan with inspection, risk, and validation guidance.
+  pack [options] <args...>                       Write a task context pack under .agent-context/tasks/<task-id>.
+  verify [options] [repo]                        Verify changed files against affected modules, tests, and risk signals.
+  task [options] <args...>                       Generate a task-focused context recommendation.
+  tests [options] [repo]                         Select minimal, regression, and full-confidence tests for a file or diff.
+  impact [options] [repo]                        Analyze changed files, dependents, related tests, and required verification.
+  policy [options] [repo]                        Evaluate changed files, trace evidence, contracts, freshness, impact, and guard findings against policy gates.
+  hallucination [options] [repo]                 Detect deterministic OpenCode hallucinations: missing files, symbols, commands, dependencies, and config keys.
+  regression [options] [repo]                    Match structured regression memory and require anti-regression test evidence.
+  validate-contracts [options] [repo]            Validate changed files against generated OpenCode++ contracts and edit boundaries.
+  memory                                         Create and confirm structured regression memory candidates.
+  trace                                          Record and inspect structured agent execution traces.
+  rag                                            RAG integration commands.
+  retrieve [options] <task> [repo]               Search repository context through the unified retrieval protocol.
+  orchestrate [options] <args...>                Harness-led flow: plan/pack -> executor -> diff/trace evidence -> policy/impact/verify -> final decision.
+  agent                                          Harness-led executor commands for external coding agents.
+  benchmark [options] [benchmarkDir]             Run the loop behavior benchmark over benchmark fixtures.
+  benchmark-agent [options] [benchmarkDir]       Run the deterministic agent benchmark proxy or a single executor comparison.
+  benchmark-agent-real [options] [benchmarkDir]  Run repeated real-executor benchmarks; intended for manual or scheduled workflows.
+  help [command]                                 display help for command
 ```
 
 ### `opencode-plusplus tui`
@@ -1467,8 +1469,7 @@ Options:
 ```txt
 Usage: opencode-plusplus benchmark-agent [options] [benchmarkDir]
 
-Run the real-agent behavior benchmark across context modes using a selected
-executor.
+Run the deterministic agent benchmark proxy or a single executor comparison.
 
 Arguments:
   benchmarkDir                  benchmark directory (default: "benchmarks")
@@ -1493,4 +1494,50 @@ Options:
   --json                        print machine-readable agent behavior benchmark
                                 results
   -h, --help                    display help for command
+```
+
+### `opencode-plusplus benchmark-agent-real`
+
+```txt
+Usage: opencode-plusplus benchmark-agent-real [options] [benchmarkDir]
+
+Run repeated real-executor benchmarks; intended for manual or scheduled
+workflows.
+
+Arguments:
+  benchmarkDir                     benchmark directory (default: "benchmarks")
+
+Options:
+  --executor <executor>            real executor: codex, claude-code, opencode,
+                                   mimocode, cursor
+  --executor-command <command>     argv-style command; supports {prompt},
+                                   {task}, {repo}, {runDir}, {agent}, {seed}
+  --model <model>                  executor model or profile name
+  --executor-version <version>     executor CLI or adapter version (default:
+                                   "unknown")
+  --repetitions <count>            number of repetitions per selected task and
+                                   mode (default: 3)
+  --seeds <values>                 comma-separated integer seeds
+  --max-loops <count>              maximum loop count for harness-led mode
+                                   (default: 3)
+  --fail-on <level>                policy failure threshold: forbidden,
+                                   required, risk (default: "required")
+  --base <ref>                     base git ref created in each fixture
+                                   workspace (default: "main")
+  --modes <modes>                  comma-separated modes: no-context, agents-md,
+                                   context-pack, loop-enabled-harness
+  --task <ids>                     comma-separated task ids to run
+  --output-dir <dir>               write latest and historical JSON plus
+                                   Markdown reports (default:
+                                   "benchmarks/results/real")
+  --baseline <file>                previous real benchmark JSON used for
+                                   regression comparison
+  --regression-threshold <number>  absolute mean regression threshold (default:
+                                   0.05)
+  --fail-on-regression             set a non-zero exit code when a baseline
+                                   regression is detected
+  --keep-workdirs                  keep temporary fixture workdirs for
+                                   inspection
+  --json                           print machine-readable real benchmark results
+  -h, --help                       display help for command
 ```

@@ -98,27 +98,36 @@ The benchmark groups runs by task and mode across:
 
 Legacy records using `task-pack` and `task-pack-contracts-verify` are still accepted and normalized to the new mode names.
 
-## Real Agent Behavior Benchmark
+## Deterministic Agent Benchmark Proxy
 
-`benchmark-agent` runs the same task through the same executor across four modes:
+`benchmark-agent` runs the same task across four modes. The default npm script uses `mock --dry-run`, is deterministic, and runs in pull-request CI:
 
 - A. `no-context`: task only.
 - B. `agents-md`: task plus root `AGENTS.md`.
 - C. `context-pack`: task plus task-aware pack and edit boundary.
 - D. `loop-enabled-harness`: OpenCode++ owns the loop and the code agent is only the executor.
 
-Minimal dry run:
+Fast proxy:
 
 ```bash
 opencode-plusplus benchmark-agent benchmarks --executor mock --dry-run
 ```
 
+The proxy must not be reported as real executor success, token, cost, or convergence metrics.
+
+## Real Executor Benchmark
+
+`benchmark-agent-real` rejects `mock`, repeats tasks across seeds, and writes separate JSON and Markdown reports. Executor commands are supplied by CLI arguments or CI secrets.
+
 OpenCode example:
 
 ```bash
-opencode-plusplus benchmark-agent benchmarks \
+opencode-plusplus benchmark-agent-real benchmarks \
   --executor opencode \
   --executor-command "opencode run --format json --dir {repo} --file {prompt} \"Follow the attached OpenCode++ task prompt.\"" \
+  --model example-model \
+  --repetitions 3 \
+  --seeds 11,22,33 \
   --max-loops 3 \
   --fail-on required
 ```
@@ -126,7 +135,7 @@ opencode-plusplus benchmark-agent benchmarks \
 Focused task example:
 
 ```bash
-opencode-plusplus benchmark-agent benchmarks \
+opencode-plusplus benchmark-agent-real benchmarks \
   --task fix-login-timeout \
   --modes no-context,agents-md,context-pack,loop-enabled-harness \
   --executor opencode \
@@ -160,3 +169,14 @@ Metrics collected per run:
 - `humanReviewNeeded`
 - `hallucinationFindings`
 - `regressionFindings`
+- `elapsedMs`
+- `commandCount`
+- `tokenUsage`
+- `estimatedCostUsd`
+- `promptHash`
+- `seed`
+- `repetition`
+- `noProgress`
+- `success`
+
+Aggregate real metrics include sample count, mean, median, sample standard deviation, and 95% confidence interval. Use `--baseline`, `--regression-threshold`, and `--fail-on-regression` for historical comparisons. Never promote mock-derived values into `benchmarks/baselines/`.

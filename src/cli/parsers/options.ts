@@ -60,6 +60,15 @@ export function parseInteger(value: string): number {
   return parsed;
 }
 
+export function parseNonNegativeNumber(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Expected a non-negative number, got: ${value}`);
+  }
+
+  return parsed;
+}
+
 export function parseTaskType(value: string): TaskType {
   if (value === "auto" || value === "bugfix" || value === "feature" || value === "refactor") return value;
   throw new Error(`Unsupported task type: ${value}`);
