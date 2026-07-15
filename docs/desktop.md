@@ -47,44 +47,51 @@ OpenCode++ remains the harness. The desktop app only gives users a visual contro
 apps/desktop/
   package.json
   src/main/main.ts        Electron main process and child_process runner
-  src/main/preload.ts     Safe IPC bridge
+  src/main/preload.cts    Safe IPC bridge
   src/renderer/src/       React UI
 ```
 
 ## Development
 
-| Mode                    | Status                        | Commands / notes                                                                                                                                                                       |
-| ----------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Development mode        | Supported                     | From the repo root, run `npm run build && npm link` first so the Desktop app can use the current CLI. Then run `cd apps/desktop`, `npm install`, `npm run build`, and `npm run start`. |
-| Packaged installer mode | Not provided yet              | Planned for a later `electron-builder` or `electron-forge` setup.                                                                                                                      |
-| CLI dependency          | Required for development mode | Development mode depends on the root CLI build/link step before starting the Electron shell.                                                                                           |
+| Mode                    | Status                        | Commands / notes                                                                                                                    |
+| ----------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Development mode        | Supported                     | From the repo root, run `npm ci`, `npm run build`, and `npm link`. Then run `npm run start --workspace @opencode-plusplus/desktop`. |
+| Packaged installer mode | Not provided yet              | Planned for a later `electron-builder` or `electron-forge` setup.                                                                   |
+| CLI dependency          | Required for development mode | Development mode depends on the root CLI build/link step before starting the Electron shell.                                        |
 
-Install the desktop app dependencies:
+Desktop is an npm workspace. Install root and Desktop dependencies with the single root lock file:
 
 ```bash
-cd apps/desktop
-npm install
+npm ci
 ```
 
-Build the desktop app:
+Check and build every workspace from the repository root:
 
 ```bash
+npm run check
 npm run build
+```
+
+Run only the Desktop checks or build:
+
+```bash
+npm run check:desktop
+npm run build:desktop
 ```
 
 Run the built shell:
 
 ```bash
-npm run start
+npm run start --workspace @opencode-plusplus/desktop
 ```
 
 During source development, build the root CLI before starting the desktop app:
 
 ```bash
 npm run build && npm link
-cd apps/desktop
-npm run build
-npm run start
+npm run start --workspace @opencode-plusplus/desktop
 ```
+
+CI typechecks and builds the Electron main process and renderer on both Ubuntu and Windows without starting a GUI. Electron downloads use the `ELECTRON_CACHE` directory cached by GitHub Actions so transient binary download failures can reuse a previously downloaded archive.
 
 The desktop app first looks for the repository root from its compiled main process and runs the local `dist/cli/index.js` with Node. Set `OPENCODE_PLUSPLUS_BIN` only when you intentionally want Desktop to use a different installed CLI.

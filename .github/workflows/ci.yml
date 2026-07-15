@@ -6,20 +6,42 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20]
+    env:
+      ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+      ELECTRON_GET_USE_PROXY: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
           cache: npm
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_CACHE }}
+          key: electron-${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            electron-${{ runner.os }}-node-${{ matrix.node }}-
       - run: npm ci
       - run: npm run check
       - run: npm run lint
       - run: npm run format:check
       - run: npm run docs:cli:check
-      - run: npm test
-      - run: npm run benchmark
-      - run: npm run benchmark:agent
+      - run: npm run test:core
       - run: npm run build
-      - run: npm run pack:dry-run
+      - name: Windows command and launcher regression tests
+        if: runner.os == 'Windows'
+        run: npm run test:windows
+      - name: Benchmarks
+        if: runner.os == 'Linux'
+        run: npm run benchmark && npm run benchmark:agent
+      - name: Package dry run
+        if: runner.os == 'Linux'
+        run: npm run pack:dry-run

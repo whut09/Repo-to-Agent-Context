@@ -3,6 +3,9 @@
   "version": "0.1.1",
   "description": "OpenCode++ adds context, boundaries, evidence, verification gates, and repair loops to OpenCode.",
   "type": "module",
+  "workspaces": [
+    "apps/desktop"
+  ],
   "bin": {
     "opencode-plusplus": "./dist/cli/index.js",
     "opencode-plusplus-mcp": "./dist/mcp/server.js"
@@ -32,16 +35,24 @@
     "apps/desktop/package.json"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:core && npm run build:desktop",
+    "build:core": "tsc -p tsconfig.json",
+    "build:desktop": "npm run build --workspace @opencode-plusplus/desktop",
     "dev": "tsx src/cli/index.ts",
     "mcp": "tsx src/mcp/server.ts",
-    "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
+    "check": "npm run check:core && npm run check:desktop",
+    "check:core": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "check:desktop": "npm run check --workspace @opencode-plusplus/desktop",
+    "lint": "npm run lint:core && npm run lint:desktop",
+    "lint:core": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
+    "lint:desktop": "npm run lint --workspace @opencode-plusplus/desktop",
     "format": "prettier --ignore-unknown --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"apps/desktop/**/*.{ts,tsx,js,jsx,json,css,html,md}\" \"README*.md\" \"docs/**/*.md\" \"*.{json,yml,yaml,cjs,js}\" \".github/**/*.yml\" \".env.example\" \"benchmarks/README.md\" \"benchmarks/expected/*.json\" \"benchmarks/tasks/*.json\" \"benchmarks/agent-runs/*.json\" \"benchmarks/fixtures/**/*.json\"",
     "format:check": "prettier --ignore-unknown --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"apps/desktop/**/*.{ts,tsx,js,jsx,json,css,html,md}\" \"README*.md\" \"docs/**/*.md\" \"*.{json,yml,yaml,cjs,js}\" \".github/**/*.yml\" \".env.example\" \"benchmarks/README.md\" \"benchmarks/expected/*.json\" \"benchmarks/tasks/*.json\" \"benchmarks/agent-runs/*.json\" \"benchmarks/fixtures/**/*.json\"",
     "docs:cli": "tsx scripts/generate-cli-docs.ts",
     "docs:cli:check": "tsx scripts/generate-cli-docs.ts --check",
-    "test": "tsx --test test/*.test.ts",
+    "test": "npm run test:core",
+    "test:core": "tsx --test test/*.test.ts",
+    "test:windows": "tsx --test test/safe-command.test.ts test/task-args.test.ts test/opencode-launcher.test.ts",
     "benchmark": "tsx src/cli/index.ts benchmark benchmarks --top-k 8",
     "benchmark:agent": "tsx src/cli/index.ts benchmark-agent benchmarks --executor mock --dry-run",
     "pack:dry-run": "npm pack --dry-run",

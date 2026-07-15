@@ -75,6 +75,7 @@ function runWindowsCmdCommand(file: string, args: string[], options: SafeCommand
   return spawnSync("cmd.exe", ["/d", "/s", "/c", command], {
     cwd: options.cwd,
     shell: false,
+    windowsVerbatimArguments: true,
     encoding: options.encoding ?? "utf8",
     maxBuffer: options.maxBuffer,
     timeout: options.timeoutMs
@@ -95,19 +96,21 @@ async function runWindowsCmdCommandStreaming(
   options: SafeCommandRunOptions
 ): Promise<{ stdout: string; stderr: string; status: number | null; error?: Error }> {
   const command = [file, ...args].map(windowsCmdQuote).join(" ");
-  return runSpawnStreaming("cmd.exe", ["/d", "/s", "/c", command], options);
+  return runSpawnStreaming("cmd.exe", ["/d", "/s", "/c", command], options, true);
 }
 
 async function runSpawnStreaming(
   file: string,
   args: string[],
-  options: SafeCommandRunOptions
+  options: SafeCommandRunOptions,
+  windowsVerbatimArguments = false
 ): Promise<{ stdout: string; stderr: string; status: number | null; error?: Error }> {
   return new Promise((resolve) => {
     const child = spawn(file, args, {
       cwd: options.cwd,
       shell: false,
-      windowsHide: true
+      windowsHide: true,
+      windowsVerbatimArguments
     });
     const encoding = options.encoding ?? "utf8";
     const maxBuffer = options.maxBuffer ?? 1024 * 1024;

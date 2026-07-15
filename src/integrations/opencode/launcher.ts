@@ -170,7 +170,12 @@ async function spawnOpenCodeTui(repo: string): Promise<{ status: number | null; 
 
 function spawnOpenCodeProcess(command: string, args: string[], cwd: string): Promise<{ status: number | null; error?: Error }> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd, stdio: "inherit", shell: false });
+    const child = spawn(command, args, {
+      cwd,
+      stdio: "inherit",
+      shell: false,
+      windowsVerbatimArguments: process.platform === "win32" && /cmd\.exe$/i.test(command)
+    });
     let settled = false;
 
     child.once("error", (error) => {
