@@ -5,14 +5,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as z from "zod/v4";
 import { buildContextPackage, type BuildOptions } from "../core/context-builder.js";
+import { taskSlug } from "../core/task-id.js";
+import { unique } from "../core/collections.js";
 import type { EvidencePolicyMode } from "../core/types.js";
 import { buildContextDelta, renderContextDelta } from "../outputs/context-delta.js";
-import { buildChangeImpactReport, renderChangeImpactReport } from "../outputs/impact.js";
 import { buildLoopControllerReport, renderLoopControllerReport, writeLoopControllerReport, type LoopPhase } from "../harness/control-plane/loop-controller.js";
 import { buildPolicyReport, renderPolicyReport, type PolicyFailOn } from "../harness/verification-plane/policy-engine.js";
-import { renderTaskPlan, renderTaskVerify, writeTaskContextPack } from "../outputs/task-harness.js";
-import { buildTaskPack, renderTaskContext } from "../outputs/task-context.js";
-import { buildTestSelection, renderTestSelection } from "../outputs/test-selector.js";
+import { renderTaskVerify } from "../outputs/task-harness.js";
+import { buildTaskPack } from "../outputs/task-context.js";
+import { buildTestSelection } from "../outputs/test-selector.js";
 import {
   appendExecutionTraceStep,
   readExecutionTrace,
@@ -22,8 +23,11 @@ import {
 } from "../harness/observability/execution-trace.js";
 import { writeTaskRun, type TaskRunManifest } from "../outputs/task-run.js";
 import { writeContextPackage } from "../outputs/renderers/writer.js";
-import { createContextRetriever } from "../retrievers/index.js";
 import type { RetrieverProvider } from "../retrievers/types.js";
+import { buildAndWriteApplicationContext } from "../application/context-service.js";
+import { packApplicationTask, planApplicationTask } from "../application/task-service.js";
+import { inspectApplicationImpact, testApplicationChanges, verifyApplicationChanges } from "../application/verification-service.js";
+import { explainApplicationPath, retrieveApplicationContext } from "../application/retrieval-service.js";
 
 export const opencodePlusplusMcpToolNames = [
   "opencode_plusplus_build",
@@ -42,6 +46,8 @@ export const opencodePlusplusMcpToolNames = [
 ] as const;
 
 type OpenCodePlusplusMcpToolName = (typeof opencodePlusplusMcpToolNames)[number];
+
+const mcpTaskSlug = (task: string) => taskSlug(task, { maxLength: 64, fallback: "task" });
 
 interface OpenCodePlusplusMcpResult {
   [key: string]: unknown;
@@ -398,14 +404,14 @@ interface RuntimeFinalizeInput {
 }
 
 async function runBuild(args: BuildInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".", {
+  const result = await buildAndWriteApplicationContext(args.repo ?? ".", {
     target: args.target,
     tokenBudget: args.tokenBudget,
     llm: args.llm,
     tokenizer: args.tokenizer,
     model: args.model
   });
-  const result = writeContextPackage(context);
+  const context = result.context;
 
   return {
     repo: context.scan.root,
@@ -420,130 +426,51 @@ async function runBuild(args: BuildInput): Promise<OpenCodePlusplusMcpResult> {
       estimatedTokens: context.tokenSavings.estimatedContextPackTokens.tokens,
       actualTokens: context.tokenSavings.actualOutputTokens?.total ?? null
     },
-    writtenFiles: result.files.map((file) => path.relative(context.scan.root, file).replaceAll("\\", "/"))
+    writtenFiles: result.writtenFiles
   };
 }
 
 async function runTaskPlan(args: PlanInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  const markdown = renderTaskPlan(context, args.task, { type: args.type ?? "auto", tokenBudget: args.tokenBudget });
+  const result = await planApplicationTask({ repo: args.repo ?? ".", task: args.task, type: args.type, tokenBudget: args.tokenBudget });
   return {
     task: args.task,
     type: args.type ?? "auto",
-    markdown
+    markdown: result.markdown
   };
 }
 
 async function runTaskPack(args: PackInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  const result = writeTaskContextPack(context, args.task, { type: args.type ?? "auto", tokenBudget: args.tokenBudget });
+  const result = await packApplicationTask({ repo: args.repo ?? ".", task: args.task, type: args.type, tokenBudget: args.tokenBudget });
   return {
     task: args.task,
     taskId: result.taskId,
-    dir: path.relative(context.scan.root, result.dir).replaceAll("\\", "/"),
-    files: result.files.map((file) => path.relative(context.scan.root, file).replaceAll("\\", "/")),
-    markdown: renderTaskContext(context, args.task, { type: args.type ?? "auto", tokenBudget: args.tokenBudget })
+    dir: result.dir,
+    files: result.files,
+    markdown: result.markdown
   };
 }
 
 async function runRetrieve(args: RetrieveArguments): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  const retriever = createContextRetriever(context, args.provider ?? "hybrid");
-  const hits = await retriever.search(args.task, {
-    topK: args.topK ?? 8,
-    modules: args.modules,
-    changedFiles: args.changedFiles,
-    includeTests: args.includeTests ?? false
-  });
-  const selectionPaths = unique([
-    ...(args.changedFiles ?? []),
-    ...hits
-      .slice(0, 3)
-      .map((hit) => hit.path)
-      .filter((pathName) => Boolean(pathName))
-  ]);
-  const selection = buildTestSelection(context, { forPaths: selectionPaths.length ? selectionPaths : undefined, diff: false });
-
-  return {
-    task: args.task,
-    provider: args.provider ?? "hybrid",
-    hits: hits.map((hit) => ({
-      path: hit.path,
-      reason: hit.title || hit.snippet || "Matches task terms",
-      confidence: confidenceForScore(hit.score),
-      evidence: [],
-      score: Number(hit.score.toFixed(1)),
-      moduleName: hit.moduleName,
-      kind: hit.kind,
-      source: hit.source
-    })),
-    suggestedCommands: unique([...selection.minimalCommands, ...selection.recommendedCommands]).slice(0, 6)
-  };
+  return retrieveApplicationContext({ repo: args.repo ?? ".", ...args });
 }
 
 async function runTests(args: TestsInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  const report = buildTestSelection(context, {
-    forPaths: args.forPaths,
-    diff: args.diff,
-    base: args.base ?? "main"
-  });
-  return {
-    markdown: renderTestSelection(context, { forPaths: args.forPaths, diff: args.diff, base: args.base ?? "main" }),
-    ...report
-  };
+  const { context: _context, ...result } = await testApplicationChanges({ repo: args.repo ?? ".", ...args });
+  return result;
 }
 
 async function runImpact(args: ImpactInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  const report = buildChangeImpactReport(context, { base: args.base ?? "main" });
-  return {
-    markdown: renderChangeImpactReport(context, { base: args.base ?? "main" }),
-    report
-  };
+  const { context: _context, ...result } = await inspectApplicationImpact({ repo: args.repo ?? ".", base: args.base });
+  return result;
 }
 
 async function runVerify(args: VerifyInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  return {
-    markdown: renderTaskVerify(context, { base: args.base ?? "main", diff: args.diff ?? true })
-  };
+  const { context: _context, ...result } = await verifyApplicationChanges({ repo: args.repo ?? ".", base: args.base, diff: args.diff });
+  return result;
 }
 
 async function runExplain(args: ExplainInput): Promise<OpenCodePlusplusMcpResult> {
-  const context = await buildContextPackage(args.repo ?? ".");
-  const targetPath = args.targetPath.replace(/\\/g, "/");
-  const file = context.index.files.find((candidate) => candidate.path === targetPath);
-  if (file) {
-    return {
-      kind: "file",
-      path: file.path,
-      moduleName: file.moduleName,
-      summary: file.summary,
-      analyzer: file.analyzer,
-      confidence: file.confidence,
-      imports: file.imports.map((item) => item.specifier),
-      exports: file.exports,
-      importanceScore: file.importanceScore,
-      importanceReasons: file.importanceReasons
-    };
-  }
-
-  const module = context.index.modules.find((candidate) => candidate.name === targetPath);
-  if (module) {
-    return {
-      kind: "module",
-      name: module.name,
-      summary: module.summary,
-      files: module.files,
-      imports: module.imports
-    };
-  }
-
-  return {
-    kind: "error",
-    message: `No file or module found for: ${args.targetPath}`
-  };
+  return explainApplicationPath({ repo: args.repo ?? ".", targetPath: args.targetPath });
 }
 
 async function runStartLoop(args: RuntimeStartInput): Promise<OpenCodePlusplusMcpResult> {
@@ -630,7 +557,7 @@ async function runRuntimeEvaluate(args: RuntimeEvaluateInput): Promise<OpenCodeP
   });
   const delta = buildContextDelta(context, { base: args.base ?? "main" });
   const verifyMarkdown = renderTaskVerify(context, { base: args.base ?? "main", diff: true });
-  const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? taskSlug(args.task));
+  const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? mcpTaskSlug(args.task));
   const guidance = buildRuntimeGuidance(context, args.task, {
     loop,
     policy,
@@ -664,7 +591,7 @@ async function runRuntimeRepair(args: RuntimeRepairInput): Promise<OpenCodePlusp
   });
   const policy = buildPolicyReport(context, { base: args.base ?? "main", traceId: args.traceId, evidencePolicy: args.evidencePolicy });
   const tests = buildTestSelection(context, { diff: true, base: args.base ?? "main" });
-  const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? taskSlug(args.task));
+  const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? mcpTaskSlug(args.task));
   const guidance = buildRuntimeGuidance(context, args.task, {
     loop: loopResult.report,
     policy,
@@ -700,7 +627,7 @@ async function runRuntimeFinalize(args: RuntimeFinalizeInput): Promise<OpenCodeP
     traceId: args.traceId,
     evidencePolicy: args.evidencePolicy
   });
-  const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? taskSlug(args.task));
+  const manifest = readTaskRunManifest(context.scan.root, args.traceId ?? mcpTaskSlug(args.task));
   const guidance = buildRuntimeGuidance(context, args.task, {
     loop,
     policy,
@@ -814,22 +741,6 @@ function firstDecision(loop: ReturnType<typeof buildLoopControllerReport>): Open
     : { action: "ready-for-review", confidence: 0.72, blocking: false, signals: ["no loop decisions returned"] };
 }
 
-function taskSlug(task: string): string {
-  return (
-    task
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 64) || "task"
-  );
-}
-
-function confidenceForScore(score: number): "high" | "medium" | "low" {
-  if (score >= 40) return "high";
-  if (score >= 15) return "medium";
-  return "low";
-}
-
 function jsonToolResult(result: OpenCodePlusplusMcpResult) {
   return {
     structuredContent: result,
@@ -844,10 +755,6 @@ function jsonToolResult(result: OpenCodePlusplusMcpResult) {
 
 function isRunnableCommand(command: string): boolean {
   return Boolean(command) && !/^No .*detected/i.test(command);
-}
-
-function unique(items: string[]): string[] {
-  return [...new Set(items.filter(Boolean))];
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

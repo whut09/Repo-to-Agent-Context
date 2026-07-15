@@ -6,6 +6,7 @@ import { buildTaskPack, renderTaskContext, type TaskContextOptions } from "./tas
 import { validateContracts } from "./contract-validator.js";
 import { buildRegressionReport, renderRegressionReport } from "../harness/verification-plane/guards/regression.js";
 import { bullet, code, heading, table } from "./renderers/markdown.js";
+import { taskSlug } from "../core/task-id.js";
 
 export interface TaskPackWriteResult {
   taskId: string;
@@ -388,22 +389,6 @@ function isRelatedTest(testFile: IndexedFile, directFiles: IndexedFile[]): boole
 
 function fileMapFor(context: ContextPackage): Map<string, IndexedFile> {
   return new Map(context.index.files.map((file) => [file.path, file]));
-}
-
-function taskSlug(task: string): string {
-  const normalized = task
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 56);
-  return normalized || `task-${hashTask(task)}`;
-}
-
-function hashTask(task: string): string {
-  let hash = 0;
-  for (const char of task) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  return Math.abs(hash).toString(36);
 }
 
 function dedupe(items: string[]): string[] {

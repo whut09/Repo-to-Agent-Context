@@ -9,6 +9,7 @@ import { buildTestSelection, renderTestSelection } from "./test-selector.js";
 import { executionTracePath, startExecutionTrace } from "../harness/observability/execution-trace.js";
 import { initialRunState, writeRunState } from "./runtime-state.js";
 import { buildRegressionReport, renderRegressionReport } from "../harness/verification-plane/guards/regression.js";
+import { taskSlug } from "../core/task-id.js";
 
 export interface TaskRunOptions extends TaskContextOptions {
   base?: string;
@@ -273,22 +274,6 @@ function taskRiskLevel(context: ContextPackage, pack: TaskPack, impactRisk: stri
   if (selected.some((file) => file.importanceScore >= 65) || pack.files.length > 16) return "high";
   if (selected.some((file) => file.importanceScore >= 40) || pack.retrieval.dependencyNeighbors > 0 || pack.retrieval.tests > 0) return "medium";
   return "low";
-}
-
-function taskSlug(task: string): string {
-  const normalized = task
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 56);
-  return normalized || `task-${hashTask(task)}`;
-}
-
-function hashTask(task: string): string {
-  let hash = 0;
-  for (const char of task) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  return Math.abs(hash).toString(36);
 }
 
 function dedupe(items: string[]): string[] {

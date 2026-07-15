@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { isGeneratedCachePath, isGeneratedContextPath } from "./generated-paths.js";
 
 const GIT_CANDIDATES = ["git", "D:\\Program Files\\Git\\cmd\\git.exe"];
 
@@ -25,11 +26,14 @@ export function changedFilesSince(cwd: string, base: string): string[] {
   return [...new Set([...changed, ...untracked])].filter((file) => !isGeneratedCachePath(file)).sort();
 }
 
-function isGeneratedCachePath(filePath: string): boolean {
-  return filePath.startsWith(".agent-context/cache/");
+export function collectWorkingTreeFiles(cwd: string, includeGenerated = false): string[] {
+  const changed = parseGitPathList(runGit(cwd, ["diff", "--name-only"]));
+  const staged = parseGitPathList(runGit(cwd, ["diff", "--cached", "--name-only"]));
+  const untracked = parseGitPathList(runGit(cwd, ["ls-files", "--others", "--exclude-standard"]));
+  return [...new Set([...changed, ...staged, ...untracked])].filter((file) => includeGenerated || !isGeneratedContextPath(file)).sort();
 }
 
-function parseGitPathList(output: string): string[] {
+export function parseGitPathList(output: string): string[] {
   return output
     .split(/\r?\n/)
     .map((line) => line.trim().replace(/\\/g, "/"))

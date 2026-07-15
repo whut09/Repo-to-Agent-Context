@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { runSafeCommand } from "../../core/safe-command.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
+import { traceIdForTask as sharedTraceIdForTask } from "../../core/task-id.js";
 
 export type ExecutionFinalState = "planned" | "in_progress" | "partial_success" | "success" | "failed" | "blocked";
 export type ExecutionStepResult = "passed" | "failed" | "skipped" | "unknown";
@@ -268,19 +269,7 @@ export function renderExecutionTrace(trace: ExecutionTrace): string {
 }
 
 export function traceIdForTask(task: string): string {
-  const normalized = task
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 56);
-  return normalized || `trace-${hashTask(task)}`;
-}
-
-function hashTask(task: string): string {
-  let hash = 0;
-  for (const char of task) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  return Math.abs(hash).toString(36);
+  return sharedTraceIdForTask(task);
 }
 
 function formatEvidenceSource(step: ExecutionTraceStep): string {

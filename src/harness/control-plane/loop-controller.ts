@@ -11,6 +11,7 @@ import { buildTaskPack } from "../../outputs/task-context.js";
 import { buildTestSelection } from "../../outputs/test-selector.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
 import { buildRunStateSnapshot, writeRunState, type RunStateSnapshot } from "../../outputs/runtime-state.js";
+import { taskSlug } from "../../core/task-id.js";
 
 export type LoopPhase = "preflight" | "after-edit" | "repair";
 export type LoopStatus = "ready" | "needs-context" | "needs-repair" | "needs-validation" | "blocked";
@@ -550,20 +551,4 @@ function clampConfidence(value: number): number {
 
 function formatConfidence(value: number): string {
   return `confidence ${value.toFixed(2)}`;
-}
-
-function taskSlug(task: string): string {
-  const normalized = task
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 56);
-  return normalized || `task-${hashTask(task)}`;
-}
-
-function hashTask(task: string): string {
-  let hash = 0;
-  for (const char of task) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  return Math.abs(hash).toString(36);
 }

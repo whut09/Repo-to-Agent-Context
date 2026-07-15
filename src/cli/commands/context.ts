@@ -14,6 +14,7 @@ import { buildContextDelta, renderContextDelta, writeContextDelta } from "../../
 import { renderDependencyGraph } from "../../outputs/dependency-graph.js";
 import { writeContextPackage } from "../../outputs/renderers/writer.js";
 import { parseInteger, parseTarget } from "../parsers/options.js";
+import { buildAndWriteApplicationContext } from "../../application/context-service.js";
 
 export function registerContextCommands(program: Command): void {
   program
@@ -31,8 +32,8 @@ export function registerContextCommands(program: Command): void {
         repo: string,
         options: { target?: AgentTarget; tokenBudget?: number; tokenizer?: ReturnType<typeof parseTokenizerMode>; model?: string; llm?: boolean }
       ) => {
-        const context = await buildContextPackage(repo, options);
-        const result = writeContextPackage(context);
+        const result = await buildAndWriteApplicationContext(repo, options);
+        const context = result.context;
         console.log(`Generated agent context for ${context.scan.root}`);
         console.log(`Files scanned: ${context.scan.files.length}`);
         console.log(`Languages: ${context.scan.languages.join(", ") || "none detected"}`);
@@ -44,9 +45,7 @@ export function registerContextCommands(program: Command): void {
         }
         console.log(formatTokenSavings(context.tokenSavings));
         console.log("Written:");
-        for (const file of result.files) {
-          console.log(`- ${path.relative(context.scan.root, file)}`);
-        }
+        for (const file of result.writtenFiles) console.log(`- ${file}`);
       }
     );
 

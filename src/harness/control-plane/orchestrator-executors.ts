@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { ContextPackage } from "../../core/types.js";
 import { changedFilesSince, runGit } from "../../core/git.js";
+import { isHarnessGeneratedPath } from "../../core/generated-paths.js";
 import { shellQuote } from "../../core/safe-command.js";
 import { currentWorkingTreeHash } from "../observability/execution-trace.js";
 import type { ExecResult } from "../../sandbox/sandbox-adapter.js";
@@ -233,11 +234,6 @@ function writePatchSnapshot(hostRoot: string, runDir: string, executor: AgentExe
   const filePath = path.join(runDir, `diff.${executor}.patch`);
   writeFileSync(filePath, patch, "utf8");
   return path.relative(hostRoot, filePath).replaceAll("\\", "/");
-}
-
-function isHarnessGeneratedPath(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, "/");
-  return normalized === "AGENTS.md" || normalized.startsWith(".agent-context/");
 }
 
 function changedFileSnapshot(root: string, base: string): Map<string, string> {

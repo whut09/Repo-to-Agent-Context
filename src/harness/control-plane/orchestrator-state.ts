@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
+import { readJsonFile, writeJsonAtomic } from "../../core/json-store.js";
 import type { HarnessDecision } from "../types.js";
 import type { ConvergenceResult } from "./convergence.js";
 
@@ -38,7 +39,8 @@ export class OrchestratorStateRepository {
   load(runId: string): OrchestratorRunState | null {
     const filePath = this.pathFor(runId);
     if (!existsSync(filePath)) return null;
-    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as Partial<OrchestratorRunState>;
+    const parsed = readJsonFile<Partial<OrchestratorRunState>>(filePath);
+    if (!parsed) return null;
     if (parsed.schemaVersion !== ORCHESTRATOR_STATE_SCHEMA_VERSION) {
       throw new Error(
         `Unsupported orchestrator state schemaVersion "${String(parsed.schemaVersion)}" for run ${runId}; expected ${ORCHESTRATOR_STATE_SCHEMA_VERSION}.`
@@ -74,11 +76,8 @@ export class OrchestratorStateRepository {
 
   save(state: OrchestratorRunState): OrchestratorRunState {
     const filePath = this.pathFor(state.runId);
-    mkdirSync(path.dirname(filePath), { recursive: true });
     const next = { ...state, updatedAt: new Date().toISOString() };
-    const temporaryPath = `${filePath}.tmp`;
-    writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-    renameSync(temporaryPath, filePath);
+    writeJsonAtomic(filePath, next);
     return next;
   }
 }

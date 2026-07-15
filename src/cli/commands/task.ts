@@ -6,8 +6,7 @@ import { buildContextPackage } from "../../core/context-builder.js";
 import { renderChangeImpactReport } from "../../outputs/impact.js";
 import { renderTaskContext } from "../../outputs/task-context.js";
 import { renderTestSelection } from "../../outputs/test-selector.js";
-import { renderTaskPlan, renderTaskVerify, writeTaskContextPack } from "../../outputs/task-harness.js";
-import { writeTaskRun } from "../../outputs/task-run.js";
+import { renderTaskVerify } from "../../outputs/task-harness.js";
 import {
   buildLoopControllerReport,
   renderLoopControllerReport,
@@ -16,6 +15,7 @@ import {
 } from "../../harness/control-plane/loop-controller.js";
 import { resolveTaskArguments } from "../task-args.js";
 import { parseCodeBackend, parseEvidencePolicy, parseInteger, parseLoopPhase, parseTaskType } from "../parsers/options.js";
+import { packApplicationTask, planApplicationTask, startApplicationTask } from "../../application/task-service.js";
 
 export function registerTaskCommands(program: Command): void {
   program
@@ -28,12 +28,12 @@ export function registerTaskCommands(program: Command): void {
     .description("Agent-led handoff: write .agent-context/runs/<task-id> without spawning a code-agent executor.")
     .action(async (args: string[], options: { repo?: string | string[]; type: TaskType; tokenBudget?: number; base: string }) => {
       const { task, repo } = resolveTaskArguments(args, options.repo);
-      const context = await buildContextPackage(repo);
-      const result = writeTaskRun(context, task, { type: options.type, tokenBudget: options.tokenBudget, base: options.base });
-      console.log(`Wrote task run: ${path.relative(context.scan.root, result.dir).replaceAll("\\", "/")}`);
+      const result = await startApplicationTask({ repo, task, type: options.type, tokenBudget: options.tokenBudget, base: options.base });
+      const context = result.context;
+      console.log(`Wrote task run: ${path.relative(context.scan.root, result.run.dir).replaceAll("\\", "/")}`);
       console.log(`Risk level: ${result.manifest.riskLevel}`);
       console.log(`Context budget: ${result.manifest.contextBudget.usedTokens.toLocaleString()} / ${result.manifest.contextBudget.maxTokens.toLocaleString()}`);
-      for (const file of result.files) {
+      for (const file of result.run.files) {
         console.log(`- ${path.relative(context.scan.root, file).replaceAll("\\", "/")}`);
       }
     });
@@ -101,8 +101,8 @@ export function registerTaskCommands(program: Command): void {
     .description("Generate a task plan with inspection, risk, and validation guidance.")
     .action(async (args: string[], options: { repo?: string | string[]; type: TaskType; tokenBudget?: number }) => {
       const { task, repo } = resolveTaskArguments(args, options.repo);
-      const context = await buildContextPackage(repo);
-      console.log(renderTaskPlan(context, task, { type: options.type, tokenBudget: options.tokenBudget }));
+      const result = await planApplicationTask({ repo, task, type: options.type, tokenBudget: options.tokenBudget });
+      console.log(result.markdown);
     });
 
   program
@@ -114,12 +114,9 @@ export function registerTaskCommands(program: Command): void {
     .description("Write a task context pack under .agent-context/tasks/<task-id>.")
     .action(async (args: string[], options: { repo?: string | string[]; type: TaskType; tokenBudget?: number }) => {
       const { task, repo } = resolveTaskArguments(args, options.repo);
-      const context = await buildContextPackage(repo);
-      const result = writeTaskContextPack(context, task, { type: options.type, tokenBudget: options.tokenBudget });
-      console.log(`Wrote task pack: ${path.relative(context.scan.root, result.dir).replaceAll("\\", "/")}`);
-      for (const file of result.files) {
-        console.log(`- ${path.relative(context.scan.root, file).replaceAll("\\", "/")}`);
-      }
+      const result = await packApplicationTask({ repo, task, type: options.type, tokenBudget: options.tokenBudget });
+      console.log(`Wrote task pack: ${result.dir}`);
+      for (const file of result.files) console.log(`- ${file}`);
     });
 
   program
