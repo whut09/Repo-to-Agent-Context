@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { writeJsonAtomic, writeTextAtomic } from "../../core/atomic-store.js";
 import { collectWorkingTreeFiles, runGit } from "../../core/git.js";
 import type { ExecutionTrace, ExecutionTraceStep } from "../../harness/observability/execution-trace.js";
 import type { ChangeImpactReport } from "../../outputs/impact.js";
@@ -245,9 +246,8 @@ export async function verifyOpencodeSidecar(repo = "."): Promise<OpenCodeSidecar
 }
 
 export function writeOpencodeSidecarLatest(result: OpenCodeSidecarVerifyResult): void {
-  mkdirSync(path.dirname(result.latestJsonPath), { recursive: true });
-  writeFileSync(result.latestJsonPath, `${JSON.stringify(toPersistedSidecarResult(result), null, 2)}\n`, "utf8");
-  writeFileSync(result.latestMarkdownPath, `${renderOpencodeSidecarLatestMarkdown(result)}\n`, "utf8");
+  writeJsonAtomic(result.latestJsonPath, { schemaVersion: 1, revision: Date.now(), ...toPersistedSidecarResult(result) });
+  writeTextAtomic(result.latestMarkdownPath, `${renderOpencodeSidecarLatestMarkdown(result)}\n`);
 }
 
 export function checkOpencodeSidecarCommand(repo = ".", input: { command?: string; paths?: string[] } = {}): OpenCodeSidecarCommandCheckResult {

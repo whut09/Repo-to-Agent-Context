@@ -1,12 +1,17 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { readJsonFile, writeJsonAtomic } from "../../core/json-store.js";
+import { readJsonFile } from "../../core/json-store.js";
+import { updateJsonAtomic } from "../../core/atomic-store.js";
 
 export class OrchestratorArtifactRepository {
   constructor(private readonly root: string) {}
 
-  writeJson<T>(filePath: string, value: T): string {
-    writeJsonAtomic(filePath, value);
+  writeJson<T extends object>(filePath: string, value: T): string {
+    updateJsonAtomic<Record<string, unknown>>(filePath, (current) => ({
+      ...value,
+      schemaVersion: "schemaVersion" in value ? value.schemaVersion : "opencode-plusplus.artifact.v1",
+      revision: typeof current?.revision === "number" ? current.revision + 1 : 1
+    }));
     return this.relative(filePath);
   }
 

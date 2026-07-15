@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { readJsonDiagnostic, writeJsonAtomicWithRevision } from "./atomic-store.js";
 import type { CacheStats, DependencyGraph, IndexedFile, OpenCodePlusplusConfig, RepoFile, RepoScan, TokenizerConfig } from "./types.js";
 import type { TokenCountCache } from "./token-estimator.js";
 
@@ -15,6 +16,8 @@ interface FileHashEntry {
 }
 
 interface FileHashesCache {
+  schemaVersion: 1;
+  revision: number;
   version: number;
   configFingerprint: string;
   dependencyFingerprint: string;
@@ -22,6 +25,8 @@ interface FileHashesCache {
 }
 
 interface IndexCacheEntry {
+  schemaVersion: 1;
+  revision: number;
   version: number;
   fileHash: string;
   dependencyFingerprint: string;
@@ -30,17 +35,23 @@ interface IndexCacheEntry {
 }
 
 interface IndexCacheFile {
+  schemaVersion: 1;
+  revision: number;
   version: number;
   entries: Record<string, IndexCacheEntry>;
 }
 
 interface GraphCacheFile {
+  schemaVersion: 1;
+  revision: number;
   version: number;
   indexFingerprint: string;
   graph: DependencyGraph | null;
 }
 
 interface TokenizerCacheFile {
+  schemaVersion: 1;
+  revision: number;
   version: number;
   entries: Record<string, number>;
 }
@@ -73,14 +84,16 @@ export class ContextCache implements TokenCountCache {
     this.graphCachePath = path.join(this.cacheDir, "graph-cache.json");
     this.tokenizerCachePath = path.join(this.cacheDir, "tokenizer-cache.json");
     this.fileHashes = readJson(this.fileHashesPath, {
+      schemaVersion: 1,
+      revision: 0,
       version: CACHE_VERSION,
       configFingerprint: this.configFingerprint,
       dependencyFingerprint: "",
       files: {}
     });
-    this.indexCache = readJson(this.indexCachePath, { version: CACHE_VERSION, entries: {} });
-    this.graphCache = readJson(this.graphCachePath, { version: CACHE_VERSION, indexFingerprint: "", graph: null });
-    this.tokenizerCache = readJson(this.tokenizerCachePath, { version: CACHE_VERSION, entries: {} });
+    this.indexCache = readJson(this.indexCachePath, { schemaVersion: 1, revision: 0, version: CACHE_VERSION, entries: {} });
+    this.graphCache = readJson(this.graphCachePath, { schemaVersion: 1, revision: 0, version: CACHE_VERSION, indexFingerprint: "", graph: null });
+    this.tokenizerCache = readJson(this.tokenizerCachePath, { schemaVersion: 1, revision: 0, version: CACHE_VERSION, entries: {} });
   }
 
   static open(root: string, config: OpenCodePlusplusConfig, options: ContextCacheOptions = {}): ContextCache | null {
@@ -133,6 +146,8 @@ export class ContextCache implements TokenCountCache {
   setIndexedFile(file: RepoFile, dependencyFingerprint: string, analyzer: string, indexed: IndexedFile): void {
     this.indexCache.entries[file.path] = {
       version: CACHE_VERSION,
+      schemaVersion: 1,
+      revision: 0,
       fileHash: this.fileHash(file),
       dependencyFingerprint,
       analyzer,
@@ -167,6 +182,8 @@ export class ContextCache implements TokenCountCache {
 
   setGraph(indexFingerprint: string, graph: DependencyGraph): void {
     this.graphCache = {
+      schemaVersion: 1,
+      revision: this.graphCache.revision,
       version: CACHE_VERSION,
       indexFingerprint,
       graph: cloneGraph(graph)
@@ -201,10 +218,10 @@ export class ContextCache implements TokenCountCache {
 
   flush(): void {
     mkdirSync(this.cacheDir, { recursive: true });
-    writeJson(this.fileHashesPath, normalizeFileHashes(this.fileHashes));
-    writeJson(this.indexCachePath, this.indexCache);
-    writeJson(this.graphCachePath, this.graphCache);
-    writeJson(this.tokenizerCachePath, this.tokenizerCache);
+    this.fileHashes = writeJson(this.fileHashesPath, normalizeFileHashes(this.fileHashes), this.fileHashes.revision);
+    this.indexCache = writeJson(this.indexCachePath, this.indexCache, this.indexCache.revision);
+    this.graphCache = writeJson(this.graphCachePath, this.graphCache, this.graphCache.revision);
+    this.tokenizerCache = writeJson(this.tokenizerCachePath, this.tokenizerCache, this.tokenizerCache.revision);
   }
 
   snapshotStats(): CacheStats {
@@ -255,21 +272,24 @@ function hashText(text: string): string {
 }
 
 function readJson<T>(filePath: string, fallback: T): T {
-  try {
-    if (!existsSync(filePath)) return fallback;
-    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as T & { version?: number };
-    return parsed.version === CACHE_VERSION ? (parsed as T) : fallback;
-  } catch {
+  const result = readJsonDiagnostic<T & { version?: number; schemaVersion?: number; revision?: number }>(filePath);
+  if (result.status === "missing") return fallback;
+  if (result.status === "corrupt") {
+    console.warn(`Cache file is corrupt and will be rebuilt: ${filePath}: ${result.error}`);
     return fallback;
   }
+  if (result.value.version !== CACHE_VERSION) return fallback;
+  return { ...fallback, ...result.value, schemaVersion: result.value.schemaVersion ?? 1, revision: result.value.revision ?? 0 } as T;
 }
 
-function writeJson(filePath: string, value: unknown): void {
-  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+function writeJson<T extends { revision: number }>(filePath: string, value: T, revision: number): T {
+  return writeJsonAtomicWithRevision(filePath, value, revision);
 }
 
 function normalizeFileHashes(cache: FileHashesCache): FileHashesCache {
   return {
+    schemaVersion: 1,
+    revision: cache.revision,
     version: CACHE_VERSION,
     configFingerprint: cache.configFingerprint,
     dependencyFingerprint: cache.dependencyFingerprint,

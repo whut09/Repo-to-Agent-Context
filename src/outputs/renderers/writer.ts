@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { writeTextAtomic } from "../../core/atomic-store.js";
 import type { ContextPackage } from "../../core/types.js";
 import { buildContextManifest } from "../../core/freshness.js";
 import { countTokens } from "../../core/token-estimator.js";
@@ -342,31 +343,7 @@ function sanitizeIndexedFile(file: ContextPackage["index"]["files"][number]): Om
 }
 
 function writeTextFile(filePath: string, content: string): void {
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  const maxAttempts = 10;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const tempPath = `${filePath}.${process.pid}.${attempt}.tmp`;
-    try {
-      writeFileSync(tempPath, content, "utf8");
-      renameSync(tempPath, filePath);
-      return;
-    } catch (error) {
-      rmSync(tempPath, { force: true });
-      if (attempt === maxAttempts || !isRetryableWriteError(error)) throw error;
-      sleepSync(100 * attempt);
-    }
-  }
-}
-
-function isRetryableWriteError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const code = "code" in error ? String((error as { code?: unknown }).code) : "";
-  return code === "UNKNOWN" || code === "EPERM" || code === "EACCES" || code === "EBUSY";
-}
-
-function sleepSync(ms: number): void {
-  const view = new Int32Array(new SharedArrayBuffer(4));
-  Atomics.wait(view, 0, 0, ms);
+  writeTextAtomic(filePath, content);
 }
 
 function dedupe<T>(items: T[]): T[] {

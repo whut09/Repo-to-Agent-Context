@@ -1,5 +1,5 @@
-import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
+import { appendTextLocked } from "../../core/atomic-store.js";
 import { collectWorkingTreeFiles } from "../../core/git.js";
 import {
   appendExecutionTraceStep,
@@ -28,6 +28,8 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   const workingTreeHashAfter = input.workingTreeHashAfter ?? currentWorkingTreeHash(root);
   const filesTouched = [...new Set([...(input.paths ?? []).map(normalizeToolPath).filter(Boolean), ...safeChangedFiles(root)])].sort();
   const event = {
+    schemaVersion: 1,
+    revision: Date.now(),
     type: "tool.execute.after" as const,
     ts: finishedAt,
     tool,
@@ -49,8 +51,7 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
     sessionId
   };
 
-  mkdirSync(tracesDir, { recursive: true });
-  appendFileSync(eventLogPath, `${JSON.stringify(event)}\n`, "utf8");
+  appendTextLocked(eventLogPath, `${JSON.stringify(event)}\n`);
   let trace = readExecutionTrace(root, traceId);
   if (!trace) trace = startExecutionTrace(root, `OpenCode sidecar session ${sessionId}`, { id: traceId, agent: "opencode" });
   trace = appendExecutionTraceStep(root, traceId, {

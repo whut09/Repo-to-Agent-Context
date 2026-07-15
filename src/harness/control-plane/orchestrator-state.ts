@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { readJsonFile, writeJsonAtomic } from "../../core/json-store.js";
+import { readJsonFile } from "../../core/json-store.js";
+import { writeJsonAtomicWithRevision } from "../../core/atomic-store.js";
 import type { HarnessDecision } from "../types.js";
 import type { ConvergenceResult } from "./convergence.js";
 
@@ -10,6 +11,7 @@ export type OrchestratorPhase = "plan" | "prepare-sandbox" | "execute" | "collec
 
 export interface OrchestratorRunState {
   schemaVersion: typeof ORCHESTRATOR_STATE_SCHEMA_VERSION;
+  revision?: number;
   runId: string;
   task: string;
   repo: string;
@@ -60,6 +62,7 @@ export class OrchestratorStateRepository {
     const now = new Date().toISOString();
     return {
       schemaVersion: ORCHESTRATOR_STATE_SCHEMA_VERSION,
+      revision: 0,
       runId: input.runId,
       task: input.task,
       repo: input.repo,
@@ -77,8 +80,7 @@ export class OrchestratorStateRepository {
   save(state: OrchestratorRunState): OrchestratorRunState {
     const filePath = this.pathFor(state.runId);
     const next = { ...state, updatedAt: new Date().toISOString() };
-    writeJsonAtomic(filePath, next);
-    return next;
+    return writeJsonAtomicWithRevision(filePath, next, state.revision ?? 0);
   }
 }
 

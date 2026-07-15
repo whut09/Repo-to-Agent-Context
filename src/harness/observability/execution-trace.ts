@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
+import { readJsonDiagnostic, updateJsonAtomic, writeJsonAtomicWithRevision } from "../../core/atomic-store.js";
 import { runSafeCommand } from "../../core/safe-command.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
 import { traceIdForTask as sharedTraceIdForTask } from "../../core/task-id.js";
@@ -41,6 +42,7 @@ export interface ExecutionTraceStep {
 
 export interface ExecutionTrace {
   schemaVersion: 1;
+  revision?: number;
   id: string;
   task: string;
   agent?: string;
@@ -104,6 +106,7 @@ export function startExecutionTrace(root: string, task: string, options: TraceSt
   const now = new Date().toISOString();
   const trace: ExecutionTrace = {
     schemaVersion: 1,
+    revision: 0,
     id: options.id ?? traceIdForTask(task),
     task,
     agent: options.agent,
@@ -122,49 +125,48 @@ export function startExecutionTrace(root: string, task: string, options: TraceSt
       }
     ]
   };
-  writeExecutionTrace(root, trace);
-  return trace;
+  return updateJsonAtomic<ExecutionTrace>(executionTracePath(root, trace.id), (current) => (current ? { ...current, revision: current.revision ?? 0 } : trace));
 }
 
 export function appendExecutionTraceStep(root: string, traceId: string, input: TraceStepInput): ExecutionTrace {
-  const trace = readExecutionTrace(root, traceId);
-  if (!trace) {
-    throw new Error(`Execution trace not found: ${traceId}`);
-  }
-
-  const now = input.at ?? new Date().toISOString();
-  trace.steps.push({
-    id: `step-${String(trace.steps.length + 1).padStart(3, "0")}`,
-    at: now,
-    agent: input.agent ?? trace.agent,
-    action: input.action,
-    files: input.files ?? [],
-    reason: input.reason,
-    command: input.command,
-    test: input.test,
-    result: input.result,
-    output: input.output,
-    evidenceSource: input.evidenceSource ?? "manual",
-    capturedBy: input.capturedBy,
-    exitCode: input.exitCode,
-    startedAt: input.startedAt,
-    finishedAt: input.finishedAt,
-    stdoutHash: input.stdoutHash,
-    stderrHash: input.stderrHash,
-    stdoutPreview: input.stdoutPreview,
-    stderrPreview: input.stderrPreview,
-    stdoutTruncated: input.stdoutTruncated,
-    stderrTruncated: input.stderrTruncated,
-    stdoutRedacted: input.stdoutRedacted,
-    stderrRedacted: input.stderrRedacted,
-    workingTreeHashBefore: input.workingTreeHashBefore,
-    workingTreeHashAfter: input.workingTreeHashAfter
+  const filePath = executionTracePath(root, traceId);
+  return updateJsonAtomic<ExecutionTrace>(filePath, (current) => {
+    const trace = current ? { ...current, revision: current.revision ?? 0 } : null;
+    if (!trace) throw new Error(`Execution trace not found: ${traceId}`);
+    const now = input.at ?? new Date().toISOString();
+    trace.steps.push({
+      id: `step-${String(trace.steps.length + 1).padStart(3, "0")}`,
+      at: now,
+      agent: input.agent ?? trace.agent,
+      action: input.action,
+      files: input.files ?? [],
+      reason: input.reason,
+      command: input.command,
+      test: input.test,
+      result: input.result,
+      output: input.output,
+      evidenceSource: input.evidenceSource ?? "manual",
+      capturedBy: input.capturedBy,
+      exitCode: input.exitCode,
+      startedAt: input.startedAt,
+      finishedAt: input.finishedAt,
+      stdoutHash: input.stdoutHash,
+      stderrHash: input.stderrHash,
+      stdoutPreview: input.stdoutPreview,
+      stderrPreview: input.stderrPreview,
+      stdoutTruncated: input.stdoutTruncated,
+      stderrTruncated: input.stderrTruncated,
+      stdoutRedacted: input.stdoutRedacted,
+      stderrRedacted: input.stderrRedacted,
+      workingTreeHashBefore: input.workingTreeHashBefore,
+      workingTreeHashAfter: input.workingTreeHashAfter
+    });
+    trace.updatedAt = now;
+    trace.revision = (trace.revision ?? 0) + 1;
+    if (input.finalState) trace.finalState = input.finalState;
+    else if (trace.finalState === "planned") trace.finalState = "in_progress";
+    return trace;
   });
-  trace.updatedAt = now;
-  if (input.finalState) trace.finalState = input.finalState;
-  else if (trace.finalState === "planned") trace.finalState = "in_progress";
-  writeExecutionTrace(root, trace);
-  return trace;
 }
 
 export function runTraceCommand(root: string, traceId: string, input: TraceCommandRunInput): TraceCommandRunResult {
@@ -220,17 +222,17 @@ export function runTraceCommand(root: string, traceId: string, input: TraceComma
 export function readExecutionTrace(root: string, traceId: string): ExecutionTrace | null {
   const filePath = executionTracePath(root, traceId);
   if (!existsSync(filePath)) return null;
-  try {
-    return JSON.parse(readFileSync(filePath, "utf8")) as ExecutionTrace;
-  } catch {
-    return null;
-  }
+  const result = readJsonDiagnostic<ExecutionTrace>(filePath);
+  if (result.status === "corrupt") throw new Error(`Unable to read execution trace ${traceId}: ${result.error}`);
+  if (result.status !== "ok") return null;
+  return { ...result.value, revision: result.value.revision ?? 0 };
 }
 
 export function writeExecutionTrace(root: string, trace: ExecutionTrace): string {
   const filePath = executionTracePath(root, trace.id);
   mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, `${JSON.stringify(trace, null, 2)}\n`, "utf8");
+  const persisted = writeJsonAtomicWithRevision(filePath, trace, trace.revision ?? 0);
+  trace.revision = persisted.revision;
   return filePath;
 }
 

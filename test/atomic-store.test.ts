@@ -1,0 +1,101 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, test } from "node:test";
+import { pathToFileURL } from "node:url";
+import { readJsonDiagnostic, RevisionConflictError, writeJsonAtomic, writeJsonAtomicWithRevision } from "../src/core/atomic-store.js";
+import { readExecutionTrace, startExecutionTrace } from "../src/harness/observability/execution-trace.js";
+
+const temporaryRoots: string[] = [];
+
+afterEach(() => {
+  for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+test("atomic write failure leaves the previous JSON readable", () => {
+  const root = createRoot();
+  const filePath = path.join(root, "state.json");
+  writeJsonAtomic(filePath, { value: "old" });
+  assert.throws(
+    () =>
+      writeJsonAtomic(
+        filePath,
+        { value: "new" },
+        {
+          beforeRename: () => {
+            throw new Error("simulated interruption");
+          }
+        }
+      ),
+    /simulated interruption/
+  );
+  assert.deepEqual(readJsonDiagnostic<{ value: string }>(filePath), { status: "ok", value: { value: "old" } });
+  assert.equal(
+    readdirSync(root).some((entry) => entry.includes(".tmp-")),
+    false
+  );
+});
+
+test("revision conflicts are detected instead of silently overwriting", () => {
+  const root = createRoot();
+  const filePath = path.join(root, "state.json");
+  writeJsonAtomicWithRevision(filePath, { schemaVersion: 1, revision: 0, value: "first" }, 0);
+  assert.throws(
+    () => writeJsonAtomicWithRevision(filePath, { schemaVersion: 1, revision: 1, value: "stale" }, 0),
+    (error: unknown) => error instanceof RevisionConflictError && error.actualRevision === 1
+  );
+});
+
+test("corrupt JSON produces an explicit diagnostic", () => {
+  const root = createRoot();
+  const filePath = path.join(root, "broken.json");
+  writeFileSync(filePath, "{broken", "utf8");
+  const result = readJsonDiagnostic(filePath);
+  assert.equal(result.status, "corrupt");
+  if (result.status === "corrupt") assert.match(result.error, /Unexpected|expected|JSON/i);
+});
+
+test("concurrent trace appends retain every step", async () => {
+  const root = createRoot();
+  const trace = startExecutionTrace(root, "concurrent trace");
+  const workerPath = path.join(root, "append-worker.mjs");
+  const traceModule = pathToFileURL(path.resolve("src/harness/observability/execution-trace.ts")).href;
+  writeFileSync(
+    workerPath,
+    `import { appendExecutionTraceStep } from ${JSON.stringify(traceModule)};\nconst [root, traceId, prefix] = process.argv.slice(2);\nfor (let index = 0; index < 10; index += 1) appendExecutionTraceStep(root, traceId, { action: prefix + index, result: "passed" });\n`,
+    "utf8"
+  );
+  await Promise.all([runAppendWorker(workerPath, root, trace.id, "a-"), runAppendWorker(workerPath, root, trace.id, "b-")]);
+  const finalTrace = readExecutionTrace(root, trace.id);
+  assert.equal(finalTrace?.steps.length, 21);
+  assert.equal(new Set(finalTrace?.steps.map((step) => step.id)).size, 21);
+});
+
+test("Windows-style nested paths and temporary files are handled safely", () => {
+  const root = createRoot();
+  const filePath = path.join(root, "nested", "windows-style.json");
+  writeJsonAtomic(filePath, { ok: true });
+  assert.deepEqual(JSON.parse(readFileSync(filePath, "utf8")), { ok: true });
+  assert.deepEqual(readJsonDiagnostic(filePath).status, "ok");
+});
+
+function createRoot(): string {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-atomic-"));
+  temporaryRoots.push(root);
+  return root;
+}
+
+function runAppendWorker(workerPath: string, root: string, traceId: string, prefix: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--import", "tsx", workerPath, root, traceId, prefix], { stdio: "pipe" });
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`Trace append worker exited ${code}: ${stderr}`))));
+  });
+}

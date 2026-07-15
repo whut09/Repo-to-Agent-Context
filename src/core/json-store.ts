@@ -1,14 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { readJsonDiagnostic, writeJsonAtomic as writeAtomicJson } from "./atomic-store.js";
 
 export function readJsonFile<T>(filePath: string): T | null {
-  if (!existsSync(filePath)) return null;
-  return JSON.parse(readFileSync(filePath, "utf8")) as T;
+  const result = readJsonDiagnostic<T>(filePath);
+  if (result.status === "missing") return null;
+  if (result.status === "corrupt") throw new Error(`Unable to read JSON file ${filePath}: ${result.error}`);
+  return result.value;
 }
 
 export function writeJsonAtomic<T>(filePath: string, value: T): void {
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  const temporaryPath = `${filePath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  renameSync(temporaryPath, filePath);
+  writeAtomicJson(filePath, value as object);
 }

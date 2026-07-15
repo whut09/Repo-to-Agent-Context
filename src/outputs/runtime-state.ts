@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { readJsonDiagnostic, writeJsonAtomicWithRevision } from "../core/atomic-store.js";
 import type { ContextPackage } from "../core/types.js";
 import { runGit } from "../core/git.js";
 
@@ -37,6 +37,8 @@ export interface RuntimeNextAction {
 }
 
 export interface RunStateSnapshot {
+  schemaVersion?: 1;
+  revision?: number;
   state: RunState;
   previousState?: RunState;
   taskId: string;
@@ -78,18 +80,15 @@ export interface RuntimeStateInput {
 
 export function readRunState(root: string, taskId: string): RunStateSnapshot | null {
   const filePath = runStatePath(root, taskId);
-  if (!existsSync(filePath)) return null;
-  try {
-    return JSON.parse(readFileSync(filePath, "utf8")) as RunStateSnapshot;
-  } catch {
-    return null;
-  }
+  const result = readJsonDiagnostic<RunStateSnapshot>(filePath);
+  if (result.status === "missing") return null;
+  if (result.status === "corrupt") throw new Error(`Unable to read runtime state ${taskId}: ${result.error}`);
+  return { ...result.value, schemaVersion: result.value.schemaVersion ?? 1, revision: result.value.revision ?? 0 };
 }
 
 export function writeRunState(root: string, snapshot: RunStateSnapshot): string {
   const filePath = runStatePath(root, snapshot.taskId);
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+  writeJsonAtomicWithRevision(filePath, { ...snapshot, schemaVersion: 1 }, snapshot.revision ?? 0);
   return filePath;
 }
 
@@ -128,6 +127,8 @@ export function buildRunStateSnapshot(context: ContextPackage, input: RuntimeSta
   const nextAction = nextActionFor(input);
   const state = stateFor(input, nextAction);
   return {
+    schemaVersion: 1,
+    revision: previous?.revision ?? 0,
     state,
     ...(previous?.state ? { previousState: previous.state } : {}),
     taskId: input.taskId,
