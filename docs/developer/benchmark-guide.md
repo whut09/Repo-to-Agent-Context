@@ -66,7 +66,7 @@ Do not create a baseline from mock results or fabricate real-agent values. Promo
 
 ## CI Operation
 
-`.github/workflows/ci.yml` runs only the fast deterministic layer. `.github/workflows/benchmark-real.yml` runs nightly or through `workflow_dispatch` and obtains executor commands exclusively from repository secrets:
+`.github/workflows/ci.yml` runs only the fast deterministic layer. `.github/workflows/benchmark-real.yml` is manual-only and obtains executor commands exclusively from repository secrets. Enable a schedule only after configuring the matching executor command secret:
 
 - `OPENCODE_BENCHMARK_COMMAND`
 - `CODEX_BENCHMARK_COMMAND`

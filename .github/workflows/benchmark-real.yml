@@ -32,9 +32,6 @@ on:
         description: Optional comma-separated modes
         required: false
         type: string
-  schedule:
-    - cron: "23 2 * * *"
-
 permissions:
   contents: read
 
