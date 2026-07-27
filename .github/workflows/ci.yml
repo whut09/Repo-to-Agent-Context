@@ -14,7 +14,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: [20]
     env:
-      ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
       ELECTRON_GET_USE_PROXY: "true"
     steps:
       - uses: actions/checkout@v4
