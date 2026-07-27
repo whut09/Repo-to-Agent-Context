@@ -44,7 +44,7 @@
     "docs:cli:check": "tsx scripts/generate-cli-docs.ts --check",
     "test": "npm run test:core",
     "pretest:core": "npm run package-info:generate",
-    "test:core": "tsx --test test/*.test.ts",
+    "test:core": "node scripts/run-tests.mjs",
     "test:windows": "tsx --test test/safe-command.test.ts test/task-args.test.ts test/opencode-launcher.test.ts",
     "benchmark": "tsx src/cli/index.ts benchmark benchmarks --top-k 8",
     "benchmark:agent": "tsx src/cli/index.ts benchmark-agent benchmarks --executor mock --dry-run",
