@@ -69,6 +69,24 @@ OpenCode++ 继续使用 OpenCode 原生 TUI，不做 Desktop 替代，也不嵌�
 
 详见 [TUI 粘贴指南](docs/tui-paste.md)。
 
+## 官方 OpenCode Desktop 集成
+
+已经安装官方 OpenCode Desktop 时，需要先从当前源码构建并全局安装 OpenCode++ CLI，再为每个目标仓库初始化一次：
+
+```powershell
+cd E:\codex\opencode-plusplus
+npm ci
+npm run build
+npm install --global .
+
+cd E:\projects\your-project
+opencode-plusplus desktop init .
+```
+
+然后在官方 OpenCode Desktop 中重新打开该仓库。Desktop 会加载 `.opencode/plugins/opencode-plusplus.ts`，正常聊天即可获得命令/路径 Guard、执行证据和空闲增量验证，不需要从 `opencode-plusplus` 启动 TUI。
+
+该命令发布到 npm 后也可以使用 `npm install --global opencode-plusplus@latest`。完整的升级、卸载、生成文件策略和 Windows `PATH` 排障请阅读 [官方 OpenCode Desktop 安装与使用指南](docs/integrations/opencode-desktop.zh-CN.md)。
+
 ## Desktop MVP
 
 OpenCode++ Desktop 是实验性桌面入口，代码位于 `apps/desktop`，适合不想使用 OpenCode TUI / 命令行的用户。做 Desktop 的主要原因，是 OpenCode TUI 在 Windows / 终端环境里复制粘贴、多行任务输入、长文本编辑和输出查看体验不稳定；尤其是从网页、文档或 issue 里复制大段任务时，容易出现换行、引号、快捷键和焦点问题。
@@ -99,6 +117,7 @@ OpenCode++ Desktop 是实验性桌面入口，代码位于 `apps/desktop`，适�
 首页主路径只推荐 `opencode-plusplus`。批处理 Harness Mode、CI-like executor、手动 `verify / policy / impact`、MCP 和 retrieval 等内核能力保留给高级用户：
 
 - [OpenCode Transparent Sidecar Mode](docs/integrations/opencode-sidecar.md)
+- [官方 OpenCode Desktop 安装与使用](docs/integrations/opencode-desktop.zh-CN.md)
 - [Desktop MVP](docs/desktop.md)
 - [Executor CLI Integration](docs/integrations/executor-cli.md)
 - [CLI Reference](docs/reference/cli-reference.md)

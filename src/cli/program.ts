@@ -4,6 +4,7 @@ import { OPENCODE_PLUSPLUS_PACKAGE_VERSION } from "../core/package-info.js";
 import { resolveDefaultCommandArgs } from "./default-command.js";
 import { registerBenchmarkCommands } from "./commands/benchmark.js";
 import { registerContextCommands } from "./commands/context.js";
+import { registerDesktopCommands } from "./commands/desktop.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerGuardCommands } from "./commands/guards.js";
 import { registerMemoryCommands } from "./commands/memory.js";
@@ -41,6 +42,7 @@ export function createCliProgram(invokedName = "opencode-plusplus"): Command {
 
   registerTuiCommand(program, invokedName);
   registerTuiInputCommands(program);
+  registerDesktopCommands(program);
   registerSidecarCommands(program);
   registerReportCommand(program);
   registerStatusCommand(program);

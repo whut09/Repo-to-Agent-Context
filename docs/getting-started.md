@@ -41,6 +41,14 @@ The sidecar listens for `tool.execute.before`, `tool.execute.after`, `file.edite
 
 For the full interactive flow, generated files, and mode comparison, read [OpenCode Transparent Sidecar Mode](integrations/opencode-sidecar.md).
 
+If you already use the official OpenCode Desktop, install the CLI globally and prepare each target repository without launching the TUI:
+
+```bash
+opencode-plusplus desktop init .
+```
+
+Then reopen the repository in OpenCode Desktop. See the detailed [OpenCode Desktop installation guide](integrations/opencode-desktop.zh-CN.md).
+
 The latest sidecar result is written to:
 
 ```txt

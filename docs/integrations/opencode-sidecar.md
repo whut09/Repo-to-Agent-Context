@@ -18,9 +18,11 @@ OpenCode++ generates `.opencode/plugins/opencode-plusplus.ts` inside the selecte
 Initialize the repository before opening it in Desktop:
 
 ```bash
-opencode-plusplus tui . --dry-run
+opencode-plusplus desktop init .
 opencode-plusplus sidecar verify .
 ```
+
+For source installation, Windows setup, upgrades, generated-file policy, and troubleshooting, read [在官方 OpenCode Desktop 中使用 OpenCode++](opencode-desktop.zh-CN.md).
 
 The generated runtime supports both the legacy OpenCode hook shape and the current plugin API, where `tool.execute.before` receives tool metadata as the first argument and tool arguments as `output.args`. `callID` is used to correlate before/after evidence.
 
@@ -132,6 +134,7 @@ The generated OpenCode plugin listens for:
 
 ```bash
 opencode-plusplus
+opencode-plusplus desktop init .
 opencode-plusplus --pure
 opencode-plusplus status
 opencode-plusplus report
@@ -171,8 +174,7 @@ opencode-plusplus sidecar verify .
 If the plugin is stale or missing, rerun:
 
 ```bash
-opencode-plusplus tui . --force-plugin --dry-run
-opencode-plusplus
+opencode-plusplus desktop init . --force
 ```
 
 If you want to use OpenCode without OpenCode++ for a session:
