@@ -17,8 +17,7 @@ Current boundary: this is not a fully autonomous coding agent. It is a context, 
 ```mermaid
 flowchart TD
   User["User"] --> CLI["opencode-plusplus"]
-  CLI --> TUI["OpenCode TUI"]
-  TUI --> Plugin[".opencode/plugins/opencode-plusplus.ts"]
+  Desktop["Official OpenCode Desktop"] --> Plugin["User-level OpenCode++ plugin"]
 
   Plugin --> Before["tool.execute.before"]
   Plugin --> After["tool.execute.after"]

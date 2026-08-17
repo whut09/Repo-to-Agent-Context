@@ -41,14 +41,13 @@ function renderCliReference(root: Command, commands: Command[]): string {
 
 ## Recommended Commands
 
-\`opencode-plusplus\` is the user-facing product entrypoint. Use it for daily OpenCode-style interactive coding:
+\`opencode-plusplus\` is the advanced CLI entrypoint for diagnostics, repository context, and batch Harness workflows. Daily interactive coding happens in the official OpenCode Desktop application:
 
 \`\`\`bash
-opencode-plusplus
-opencode-plusplus report
-opencode-plusplus status
-opencode-plusplus doctor
-opencode-plusplus --pure
+opencode-plusplus status .
+opencode-plusplus doctor .
+opencode-plusplus oc run "task" .
+opencode-plusplus oc report --last
 \`\`\`
 
 The same binary also exposes advanced / kernel commands for scriptable context, verification, and harness workflows:
@@ -67,7 +66,7 @@ ${commands.map((command) => `| \`${fullName(command)}\` | ${escapeTable(command.
 
 ## Sidecar Evidence Note
 
-\`opencode-plusplus sidecar record-tool\` is an internal post-execution evidence recorder used by the OpenCode sidecar \`tool.execute.after\` hook. The sidecar normally calls it with \`--input-json <path>\` so long stdout/stderr is not exposed through command-line arguments. It writes \`.agent-context/traces/opencode-sidecar-events.jsonl\`, \`.agent-context/traces/tool-evidence/opencode-tool-*.json\`, and \`.agent-context/traces/opencode-session-<id>.json\` with command, exit code when available, timestamps, stdout/stderr hashes, sanitized/truncated output previews, working-tree hashes, and touched files. Missing exit code is recorded as \`unknown\`, not success.
+\`opencode-plusplus sidecar record-tool\` is an internal post-execution evidence recorder used by the OpenCode sidecar \`tool.execute.after\` hook. The current global plugin calls the shared service in-process, so long stdout/stderr is never passed through command-line arguments. It writes \`.agent-context/traces/opencode-sidecar-events.jsonl\`, \`.agent-context/traces/tool-evidence/opencode-tool-*.json\`, and \`.agent-context/traces/opencode-session-<id>.json\` with command, exit code when available, timestamps, stdout/stderr hashes, sanitized/truncated output previews, working-tree hashes, and touched files. Missing exit code is recorded as \`unknown\`, not success.
 
 ## Generated Help
 

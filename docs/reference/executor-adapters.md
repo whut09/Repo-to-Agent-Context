@@ -4,17 +4,16 @@ Executor adapters let OpenCode++ treat external code agents as replaceable codin
 
 ## Maturity
 
-| Executor / Adapter                        | Maturity   | Notes                                                                                |
-| ----------------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
-| `mock`                                    | Stable     | Deterministic demo and CI executor.                                                  |
-| `opencode-plusplus` OpenCode TUI launcher | Foundation | Starts OpenCode TUI after context, command, agent, and sidecar plugin preflight.     |
-| OpenCode preset                           | Foundation | OpenCode++ `opencode` / `oc` subcommands with the default `opencode run` command.    |
-| generic `--executor-command`              | Foundation | Calls scriptable CLIs such as OpenCode, Codex, Claude Code, Cursor, and MiMoCode.    |
-| OpenCode event normalizer                 | Foundation | Supports `opencode run --format json`, transcript files, and stdout/stderr fallback. |
-| MiMoCode native normalizer                | Planned    | Native event format support is planned.                                              |
-| Codex JSONL normalizer                    | Planned    | Current path is the generic command adapter.                                         |
-| Claude Code transcript normalizer         | Planned    | Current path is the generic command adapter.                                         |
-| Cursor native adapter                     | Planned    | Current path is docs, MCP, and generic command hooks.                                |
+| Executor / Adapter                | Maturity   | Notes                                                                                |
+| --------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
+| `mock`                            | Stable     | Deterministic demo and CI executor.                                                  |
+| OpenCode preset                   | Foundation | OpenCode++ `opencode` / `oc` subcommands with the default `opencode run` command.    |
+| generic `--executor-command`      | Foundation | Calls scriptable CLIs such as OpenCode, Codex, Claude Code, Cursor, and MiMoCode.    |
+| OpenCode event normalizer         | Foundation | Supports `opencode run --format json`, transcript files, and stdout/stderr fallback. |
+| MiMoCode native normalizer        | Planned    | Native event format support is planned.                                              |
+| Codex JSONL normalizer            | Planned    | Current path is the generic command adapter.                                         |
+| Claude Code transcript normalizer | Planned    | Current path is the generic command adapter.                                         |
+| Cursor native adapter             | Planned    | Current path is docs, MCP, and generic command hooks.                                |
 
 ## Generic Command
 

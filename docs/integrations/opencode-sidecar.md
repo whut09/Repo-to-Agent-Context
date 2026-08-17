@@ -1,186 +1,54 @@
-# OpenCode Transparent Sidecar Mode
+# OpenCode Global Sidecar
 
-OpenCode Transparent Sidecar Mode is the default `opencode-plusplus` experience. Users keep working in the normal OpenCode TUI while OpenCode++ runs as a quiet reliability layer around the session.
+OpenCode++ is a global OpenCode plugin for the official OpenCode Desktop application. The installer places the bundled plugin in the user OpenCode configuration directory; it does not patch Desktop binaries or add a second desktop shell.
 
-OpenCode++ does not replace OpenCode. OpenCode reads, edits, and runs tools; OpenCode++ prepares repository context, installs the sidecar plugin, records execution evidence, blocks unsafe commands or paths, and writes verification reports.
-
-## OpenCode Desktop
-
-The current OpenCode Desktop is a client for the same OpenCode server/plugin lifecycle. OpenCode++ therefore integrates at the project plugin boundary instead of patching the Desktop renderer or replacing the Desktop updater.
-
-OpenCode++ generates `.opencode/plugins/opencode-plusplus.ts` inside the selected repository. When that repository is opened in OpenCode Desktop, the same plugin can:
-
-- block dangerous commands and protected paths before execution;
-- capture tool arguments, exit status, sanitized output hashes, session IDs, call IDs, and working-tree hashes;
-- run debounced verification after edits and idle sessions;
-- expose the latest Sidecar decision through `.agent-context/sidecar/latest.md` and Harness run reports through `.agent-context/orchestrator/<run-id>/orchestrator.json`.
-
-Initialize the repository before opening it in Desktop:
-
-```bash
-opencode-plusplus desktop init .
-opencode-plusplus sidecar verify .
-```
-
-For source installation, Windows setup, upgrades, generated-file policy, and troubleshooting, read [在官方 OpenCode Desktop 中使用 OpenCode++](opencode-desktop.zh-CN.md).
-
-The generated runtime supports both the legacy OpenCode hook shape and the current plugin API, where `tool.execute.before` receives tool metadata as the first argument and tool arguments as `output.args`. `callID` is used to correlate before/after evidence.
-
-The plugin does not inject an Electron window or modify OpenCode Desktop binaries. A future companion package can add a native Desktop panel through a documented Desktop extension point, but the current stable boundary is the project plugin plus MCP/CLI reports. This keeps OpenCode Desktop upgrades independent from OpenCode++ release upgrades.
-
-## User Experience
-
-Install OpenCode++ and OpenCode globally:
-
-```bash
-npm i -g opencode-plusplus opencode-ai
-```
-
-Then enter the repository where you want the sidecar:
-
-```bash
-cd your-repo
-opencode-plusplus
-```
-
-`opencode-plusplus` runs preflight, prints a compact readiness summary, and then launches OpenCode:
-
-```txt
-OpenCode++ sidecar ready
-- Context: ready (.agent-context already exists)
-- Plugin: ready (.opencode/plugins/opencode-plusplus.ts generated)
-- Report: .agent-context/sidecar/latest.md
-
-Launching OpenCode...
-```
-
-Then use OpenCode normally:
-
-```txt
-Fix the login timeout bug.
-Add tests for this module.
-Refactor this function while preserving behavior.
-```
-
-The sidecar stays quiet by default. It only surfaces a TUI message when a blocker or forbidden gate is detected.
-
-## Workflow
+## Runtime Boundary
 
 ```mermaid
-flowchart TD
-  User["User"] --> CLI["opencode-plusplus"]
-  CLI --> TUI["OpenCode TUI"]
-  TUI --> Plugin[".opencode/plugins/opencode-plusplus.ts"]
-
-  Plugin --> Before["tool.execute.before"]
-  Plugin --> After["tool.execute.after"]
-  Plugin --> Idle["session.idle"]
-
-  Before --> CommandGuard["Command Guard"]
-  Before --> BoundaryGuard["Boundary Guard"]
-  After --> EvidenceRecorder["Evidence Recorder"]
-  Idle --> IncrementalVerify["Incremental Verify"]
-
-  CommandGuard --> Latest[".agent-context/sidecar/latest.md"]
-  BoundaryGuard --> Latest
-  EvidenceRecorder --> Latest
-  IncrementalVerify --> Latest
-
-  Latest --> Report["opencode-plusplus report"]
-  Latest --> Status["opencode-plusplus status"]
-  Latest --> Doctor["opencode-plusplus doctor"]
+flowchart LR
+  User["User"] --> Desktop["Official OpenCode Desktop"]
+  Desktop --> Plugin["User-level OpenCode++ plugin"]
+  Plugin --> Guard["Command and path Guard"]
+  Plugin --> Evidence["Tool evidence recorder"]
+  Plugin --> Verify["Idle incremental verifier"]
+  Guard --> Artifacts[".agent-context artifacts"]
+  Evidence --> Artifacts
+  Verify --> Artifacts
 ```
 
-```txt
-opencode-plusplus
-  -> preflight
-  -> ensure .agent-context
-  -> ensure .opencode plugin / commands / agent profile
-  -> launch OpenCode TUI
-  -> listen for OpenCode events
-  -> record tool evidence
-  -> dirty/debounced sidecar verify
-  -> write latest report
-```
+The plugin hooks `tool.execute.before`, `tool.execute.after`, `file.edited`, `file.watcher.updated`, and `session.idle`. It blocks dangerous commands and protected paths before execution, records sanitized evidence after execution, and runs the shared verification stack after a dirty session becomes idle.
 
-The generated OpenCode plugin listens for:
+## Control Surface
 
-- `tool.execute.before`: blocks dangerous commands, hallucinated package scripts / Makefile targets, protected paths, and secret paths.
-- `tool.execute.after`: records command, exit code when available, timestamps, stdout/stderr hashes, sanitized and truncated output previews, working-tree hashes, and touched files. Large output is passed to `record-tool` through a JSON evidence file instead of command-line arguments.
-- `file.edited` and `file.watcher.updated`: marks the repository dirty.
-- `session.idle`: runs dirty/debounced incremental verification.
+The plugin exposes three tools:
 
-## Generated Files
+- `opencode_plusplus_status`
+- `opencode_plusplus_enable`
+- `opencode_plusplus_disable`
 
-```txt
-.opencode/plugins/opencode-plusplus.ts
-.opencode/commands/opencode-plusplus.md
-.opencode/commands/opencode-plusplus-verify.md
-.opencode/agents/opencode-plusplus.md
-.agent-context/sidecar/latest.json
-.agent-context/sidecar/latest.md
-.agent-context/sidecar/policy.md
-.agent-context/sidecar/task-verify.md
-.agent-context/sidecar/hallucination.md
-.agent-context/sidecar/regression.md
-.agent-context/traces/opencode-sidecar-events.jsonl
-.agent-context/traces/tool-evidence/opencode-tool-*.json
-.agent-context/traces/opencode-session-<id>.json
-```
+The installer also registers `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off`. OpenCode Desktop invokes these through its normal chat and command UI. The plugin remains loaded while disabled so status and re-enable remain available.
 
-`.agent-context/traces/opencode-sidecar-events.jsonl` is the low-level event stream. `.agent-context/traces/tool-evidence/opencode-tool-*.json` stores sanitized after-tool evidence payloads used by `record-tool`; it does not store raw long stdout/stderr. `.agent-context/traces/opencode-session-<id>.json` is the normalized execution trace consumed by Evidence Guard and Policy Engine.
+## Repository Artifacts
 
-## Common Commands
+The plugin writes runtime evidence and reports under `.agent-context/`, including sidecar events, traces, policy output, and the latest verification report. These files are local runtime artifacts and should normally stay out of commits. Stable generated context may be committed according to the repository policy.
+
+## Batch Harness
+
+The Desktop plugin and the harness-led executor are separate paths. Use the batch flow when OpenCode++ should own the bounded loop:
 
 ```bash
-opencode-plusplus
-opencode-plusplus desktop init .
-opencode-plusplus --pure
-opencode-plusplus status
-opencode-plusplus report
-opencode-plusplus doctor
-opencode-plusplus sidecar verify
+opencode-plusplus oc run "fix the login timeout bug" . --max-loops 3
+opencode-plusplus oc report --last
 ```
 
-`opencode-plusplus --pure` launches plain OpenCode without generating context or injecting the sidecar.
-
-`opencode-plusplus status` checks whether the sidecar plugin, event log, and latest report exist.
-
-`opencode-plusplus report` opens `.agent-context/sidecar/latest.md`.
-
-`opencode-plusplus doctor` checks OpenCode, auth, git, context, sidecar plugin readiness, and CLI/plugin version consistency.
-
-`opencode-plusplus sidecar verify` runs the shared guard stack and writes the latest sidecar report. It is also what the plugin runs automatically on idle when the repository is dirty.
-
-## Difference From Batch Mode
-
-| Mode                | Command                                      | Best for                                                   | Who drives the loop                                             |
-| ------------------- | -------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------- |
-| Transparent Sidecar | `opencode-plusplus`                          | Daily OpenCode-style chat coding                           | OpenCode drives editing; OpenCode++ quietly guards and verifies |
-| Batch Harness       | `opencode-plusplus oc run "task"`            | Benchmark, CI-like runs, scripted repair, repeatable demos | OpenCode++ drives plan / execute / evaluate / repair            |
-| Core Harness        | `opencode-plusplus verify/policy/impact/...` | Advanced manual verification and automation                | User or CI calls specific guard commands                        |
-
-Transparent Sidecar mode optimizes for a natural interactive coding experience. Batch Harness mode optimizes for repeatability and stronger OpenCode++ control.
+The batch path produces explicit `finalize`, `repair`, `repack`, `block`, `rollback`, or `human-review` decisions. The Desktop plugin provides transparent protection for the active chat session.
 
 ## Troubleshooting
 
-```bash
-opencode-plusplus doctor
-opencode-plusplus status
-opencode-plusplus report
-opencode-plusplus sidecar verify .
+Check that the global plugin exists, then fully restart Desktop:
+
+```powershell
+Test-Path "$env:USERPROFILE\.config\opencode\plugins\opencode-plusplus.js"
 ```
 
-If the plugin is stale or missing, rerun:
-
-```bash
-opencode-plusplus desktop init . --force
-```
-
-If you want to use OpenCode without OpenCode++ for a session:
-
-```bash
-opencode-plusplus --pure
-```
-
-If copy/paste feels intercepted inside the OpenCode TUI, use your terminal-level paste shortcut, such as `Ctrl+Shift+V`, right-click paste, or the terminal menu. OpenCode++ launches OpenCode with inherited stdio so terminal clipboard handling stays outside the sidecar.
+Use the in-Desktop status tool first. For repository artifacts, inspect `.agent-context/sidecar/latest.md` or run `opencode-plusplus sidecar verify .` from a terminal.

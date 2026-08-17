@@ -13,22 +13,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         node: [20]
-    env:
-      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
-      ELECTRON_GET_USE_PROXY: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - name: Cache Electron binaries
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.ELECTRON_CACHE }}
-          key: electron-${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            electron-${{ runner.os }}-node-${{ matrix.node }}-
       - run: npm ci
       - run: npm run check
       - run: npm run lint
@@ -38,7 +28,7 @@ jobs:
       - run: npm run build
       - name: Verify release packages
         run: npm run release:verify
-      - name: Windows command and launcher regression tests
+      - name: Windows command and installer regression tests
         if: runner.os == 'Windows'
         run: npm run test:windows
       - name: Benchmarks

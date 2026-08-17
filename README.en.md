@@ -2,195 +2,72 @@
 
 [中文](README.md) | English
 
-**A reliability enhancement layer that adds context, boundaries, evidence, verification, and repair loops to OpenCode.**
+**A reliability plugin and harness for the official OpenCode Desktop application.**
 
-OpenCode++ is not affiliated with, endorsed by, or built by the OpenCode team. OpenCode remains the coding agent runtime; OpenCode++ adds an external reliability harness, sidecar, and verification gates.
-
-```txt
-OpenCode chats, reads code, edits files, and runs commands.
-OpenCode++ provides context, boundaries, evidence, gates, impact analysis, and repair/finalize reports.
-```
+OpenCode++ does not patch OpenCode Desktop. It uses the user-level OpenCode plugin boundary to provide command guards, tool evidence, context verification, policy gates, and repair-loop reports.
 
 ## 30-Second Start
 
-Install OpenCode++ and OpenCode globally from your local terminal:
+1. Install and open the official OpenCode Desktop application.
+2. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
+3. Double-click the EXE, then fully restart OpenCode Desktop.
+4. Open a repository in Desktop and start a chat.
 
-```bash
-npm i -g opencode-plusplus opencode-ai
+The installer writes only to the current user's OpenCode configuration directory and does not require administrator privileges. Daily use does not require this repository's CLI or a separate OpenCode++ desktop shell.
+
+## Desktop Controls
+
+Once loaded, the plugin exposes these tools in OpenCode:
+
+```text
+opencode_plusplus_status
+opencode_plusplus_enable
+opencode_plusplus_disable
 ```
 
-Then enter the target repository where you want OpenCode++ to run:
+It also registers these slash commands:
 
-```bash
-cd your-repo
-opencode-plusplus
+```text
+/opencode-plusplus-status
+/opencode-plusplus-on
+/opencode-plusplus-off
 ```
 
-Then chat like you normally would in OpenCode:
+When enabled, OpenCode++ checks dangerous commands and protected paths before execution, records exit codes, sanitized output summaries, sessions, and working-tree hashes after execution, and runs incremental verification when an edited session becomes idle. Disabling it keeps the control tools available while pausing protection and verification.
 
-```txt
-Fix the login timeout bug.
-Add tests for this module.
-Refactor this function while preserving behavior.
+See [OpenCode Desktop installation and usage](docs/integrations/opencode-desktop.zh-CN.md) for installation, upgrade, uninstall, and troubleshooting details.
+
+## Advanced Harness
+
+Use the CLI when OpenCode++ should own a bounded batch loop:
+
+```powershell
+opencode-plusplus oc run "fix the login timeout and add a regression test" . --max-loops 3
+opencode-plusplus oc report --last
+opencode-plusplus verify --diff .
+opencode-plusplus policy . --base main --fail-on required
 ```
 
-OpenCode++ runs quietly around the chat loop:
+CLI, MCP, and the Desktop plugin share the same Guard, Evidence, Policy, Decision, and Loop Engineering implementations. Batch mode produces explicit `finalize`, `repair`, `repack`, `block`, `rollback`, or `human-review` decisions.
 
-- initializes and refreshes repository context
-- checks edit boundaries
-- blocks dangerous or hallucinated commands
-- blocks protected / secret paths before execution
-- records sidecar events, command results, and verification evidence
-- incrementally verifies the current diff on idle
-- runs the shared contracts / hallucination / regression / impact / tests / policy guard stack
-- reports impact and regression risk
-- writes the latest verification report
+## Build From Source
 
-It stays quiet by default and only interrupts the TUI when blockers are found.
-
-## Daily Commands
-
-```bash
-opencode-plusplus          # OpenCode chat mode with the OpenCode++ sidecar
-opencode-plusplus report   # show the latest sidecar check
-opencode-plusplus status   # show whether the sidecar is active
-opencode-plusplus doctor   # diagnose OpenCode / auth / git / context / plugin version
-opencode-plusplus --pure   # plain OpenCode without OpenCode++
+```powershell
+npm ci
+npm run check
+npm run build
+npm run build:installer:windows
 ```
 
-`opencode-plusplus` runs preflight, ensures `.agent-context`, writes `.opencode/plugins/opencode-plusplus.ts`, prepares OpenCode commands/agent files, prints a compact 3-line readiness summary, then opens the OpenCode TUI for the current repository. The sidecar listens for `tool.execute.before`, `tool.execute.after`, `file.edited`, and `session.idle`: it blocks dangerous or hallucinated commands before execution, records command result evidence after tool execution, and runs dirty/debounced incremental verification when OpenCode becomes idle.
-
-```mermaid
-flowchart TD
-  User["User"] --> CLI["opencode-plusplus"]
-  CLI --> TUI["OpenCode TUI"]
-  TUI --> Plugin[".opencode/plugins/opencode-plusplus.ts"]
-
-  Plugin --> Before["tool.execute.before"]
-  Plugin --> After["tool.execute.after"]
-  Plugin --> Idle["session.idle"]
-
-  Before --> CommandGuard["Command Guard"]
-  Before --> BoundaryGuard["Boundary Guard"]
-  After --> EvidenceRecorder["Evidence Recorder"]
-  Idle --> IncrementalVerify["Incremental Verify"]
-
-  CommandGuard --> Latest[".agent-context/sidecar/latest.md"]
-  BoundaryGuard --> Latest
-  EvidenceRecorder --> Latest
-  IncrementalVerify --> Latest
-
-  Latest --> Report["opencode-plusplus report"]
-  Latest --> Status["opencode-plusplus status"]
-  Latest --> Doctor["opencode-plusplus doctor"]
-```
-
-## Windows / TUI Long Input
-
-OpenCode++ keeps using the native OpenCode TUI. It does not build a Desktop replacement and does not embed the TUI. Use one of three input methods for long text:
-
-1. Direct input: type short prompts directly in OpenCode TUI.
-2. `/editor`: run `opencode-plusplus setup-editor` first. On Windows it persists user-level `EDITOR` with `code --wait`, then `cursor --wait`, then `notepad`. Then use `/editor` or `Ctrl+X E` in the TUI.
-3. `/clip`: run `opencode-plusplus install-commands` to install `.opencode/commands/clip.md`, copy long text, run `opencode-plusplus clip`, then invoke `/clip` in the TUI. The payload is stored at `.opencode-plusplus/clipboard/latest.md`.
-
-See [TUI paste guide](docs/tui-paste.md).
-
-## Desktop MVP
-
-OpenCode++ Desktop is an experimental desktop entry point in `apps/desktop` for users who do not want to work through the OpenCode TUI or command line. The main reason for the desktop app is the copy/paste and long-input friction of terminal TUIs, especially on Windows: multiline tasks, quoted text, issue descriptions, and long command output are easier to handle in a normal desktop form and log panel.
-
-Current capabilities:
-
-- Select a repository.
-- Enter a task.
-- Call the OpenCode++ Harness.
-- Stream stdout/stderr in real time.
-- Stop the current task.
-- Open the orchestrator report.
-
-Current limitations:
-
-- Still depends on a locally available `opencode-plusplus` CLI.
-- No packaged exe yet.
-- No built-in diff viewer yet.
-- No multi-session support yet.
-- Does not replace OpenCode Desktop.
-
-Development run: build and link the root CLI first, then install dependencies, build, and start the Electron shell from `apps/desktop`. The Desktop MVP intentionally does not embed the OpenCode TUI; it calls `opencode-plusplus.cmd oc run --repo "<repo>" --max-loops 2 --stream-executor -- "<task>"`. OpenCode still acts as the executor; the desktop app provides a more reliable input/output surface and displays the OpenCode++ Harness result.
-
-See [Desktop MVP](docs/desktop.md) for setup and architecture details.
-
-## Advanced Usage
-
-The README main path intentionally recommends only `opencode-plusplus`. Batch Harness Mode, CI-like executors, manual `verify / policy / impact`, MCP, and retrieval commands are still available for advanced users:
-
-- [Desktop MVP](docs/desktop.md)
-- [OpenCode Transparent Sidecar Mode](docs/integrations/opencode-sidecar.md)
-- [Executor CLI Integration](docs/integrations/executor-cli.md)
-- [CLI Reference](docs/reference/cli-reference.md)
-- [MCP Tools](docs/reference/mcp-tools.md)
-
-## Relationship To Related Projects
-
-| Project                       | Main role                                    | Relationship to OpenCode++                                                     |
-| ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
-| Codex / Claude Code / Cursor  | Read, edit, and run code                     | Executors; OpenCode++ adds external validation and constraints                 |
-| OpenCode / MiMoCode           | Open-source coding agent runtime / assistant | Priority executor targets; OpenCode++ adds harness gates                       |
-| CodeGraph                     | Code graph, symbols, call graph, MCP         | Optional deep code-intelligence backend                                        |
-| OpenHarness / Oh My OpenAgent | General agent harness / workflow             | Same broad harness space; OpenCode++ focuses on coding-agent reliability loops |
-
-## What It Solves
-
-- OpenCode guesses entry files and modules because repository context is incomplete.
-- OpenCode over-edits generated files, lockfiles, CI, migrations, or unrelated modules.
-- OpenCode hallucinates APIs, commands, config keys, environment variables, or project conventions.
-- OpenCode claims tests passed without reliable exit-code, timestamp, or working-tree-hash evidence.
-- OpenCode makes changes whose downstream impact is invisible during review.
-- OpenCode reintroduces historical bugs or keeps repairing without a clear stop condition.
-
-## Current Maturity
-
-| Capability                                       | Current status   | Notes                                                                                                    |
-| ------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| `opencode-plusplus` OpenCode TUI launcher        | MVP              | Runs preflight, prints compact readiness, launches OpenCode TUI, and supports `--pure`                   |
-| OpenCode transparent sidecar plugin              | MVP              | Injects `.opencode/plugins/opencode-plusplus.ts` and listens for session/file/tool events                |
-| sidecar command guard                            | MVP+             | Blocks dangerous commands, unknown package scripts / Makefile targets, and protected / secret paths      |
-| sidecar post-tool evidence                       | Foundation       | Uses `tool.execute.after` to record exit code, timestamps, output hashes, and working-tree hashes        |
-| sidecar verify / shared guard stack              | Foundation       | Reuses contracts, hallucination, regression, impact, tests, and policy; needs more real-repo validation  |
-| `opencode-plusplus report/status/doctor`         | Foundation       | Reads sidecar reports, checks active state, and diagnoses OpenCode / auth / git / context                |
-| Electron Desktop MVP                             | MVP              | Selects a repo, runs harness-led tasks through the CLI, streams stdout/stderr, stops tasks, opens report |
-| batch OpenCode executor / `opencode-plusplus oc` | Foundation       | Best for benchmarks, CI-like runs, non-interactive tasks, and repeatable demos                           |
-| bounded harness-led orchestrator / `orchestrate` | Foundation       | Supports multi-loop artifacts, checkpoints, executor commands, and decision reports                      |
-| `build` / `AGENTS.md` / `.agent-context`         | Stable           | Stable repository context compiler and generated artifacts                                               |
-| task plan / pack / run                           | Stable           | Stable task context, boundaries, prompts, and trace files                                                |
-| TypeScript Compiler API analyzer                 | Stable           | Main TypeScript / JavaScript analyzer path is stable                                                     |
-| Python AST / optional Tree-sitter analyzer       | Foundation       | Python analyzer is usable; Tree-sitter remains optional                                                  |
-| Hallucination Guard                              | MVP              | Deterministic checks for missing files, commands, dependencies, config, and symbols                      |
-| Regression Guard / memory candidates             | MVP / Foundation | Structured regression memory and candidate flow are implemented                                          |
-| MCP stdio server + core tools                    | Foundation       | Core MCP tools work; end-to-end client integrations still need per-client validation                     |
-| MCP Agent Native Runtime tools                   | Experimental     | start/step/evaluate/repair/finalize remain experimental                                                  |
-| MiMoCode / Codex / Claude native normalizers     | Planned          | More real agent transcript / JSONL normalizers are planned                                               |
-| RAG export / retriever provider interface        | Foundation       | Export and provider interfaces are implemented                                                           |
-| direct LightRAG server sync                      | Planned          | Planned                                                                                                  |
-
-See the [documentation home](docs/README.md) for full maturity notes.
+The Windows installer is written to `release/opencode-plusplus-setup-win-x64.exe`. Node SEA embeds the global plugin so the EXE does not depend on a repository absolute path.
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md)
-- [Desktop MVP](docs/desktop.md)
-- [Positioning](docs/concepts/positioning.md)
+- [OpenCode Desktop installation and usage](docs/integrations/opencode-desktop.zh-CN.md)
+- [OpenCode Global Sidecar](docs/integrations/opencode-sidecar.md)
 - [Architecture](docs/concepts/architecture.md)
-- [Guard Modules](docs/concepts/guard-modules.md)
-- [Agent-led vs Harness-led](docs/concepts/integration-modes.md)
-- [Loop Engineering Code Path](docs/concepts/loop-engineering.md)
+- [Integration Modes](docs/concepts/integration-modes.md)
+- [Loop Engineering](docs/concepts/loop-engineering.md)
 - [CLI Reference](docs/reference/cli-reference.md)
-- [Generated Files and Commit Policy](docs/reference/generated-files.md)
-- [Artifacts Reference](docs/reference/artifacts.md)
-- [Executor Adapters](docs/reference/executor-adapters.md)
-- [Benchmark Guide](docs/developer/benchmark-guide.md)
-- [Roadmap](docs/roadmap.md)
-
-## Acknowledgements
-
-OpenCode++ is inspired by [OpenAI Codex](https://github.com/openai/codex), [OpenCode](https://github.com/anomalyco/opencode), [MiMo-Code](https://github.com/XiaomiMiMo/MiMo-Code), [CodeGraph](https://github.com/colbymchenry/codegraph), [Oh My OpenAgent](https://github.com/code-yeongyu/oh-my-openagent), [OpenHarness](https://github.com/HKUDS/OpenHarness), and [OpenClaw](https://github.com/openclaw/openclaw).
+- [MCP Tools](docs/reference/mcp-tools.md)
+- [Release Checklist](docs/release.md)

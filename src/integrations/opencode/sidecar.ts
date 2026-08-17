@@ -10,6 +10,7 @@ import { isGeneratedSidecarOutput, isSecretLike } from "./sidecar-path-guard.js"
 import { recordSidecarTool } from "./sidecar-evidence-recorder.js";
 import { checkSidecarCommand } from "./sidecar-command-guard.js";
 import { blockersFromGuardStack, runSidecarIncrementalVerifier, warningsFromGuardStack } from "./sidecar-incremental-verifier.js";
+import { defaultOpenCodePlusPlusPluginFile } from "./plugin-runtime/state.js";
 
 export interface OpenCodeSidecarEnsureOptions {
   force?: boolean;
@@ -176,7 +177,13 @@ export function ensureOpencodeSidecarPlugin(repo: string, options: OpenCodeSidec
 
 export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecarVerifyOptions = {}): Promise<OpenCodeSidecarVerifyResult> {
   const root = path.resolve(repo);
-  const pluginPath = options.pluginPath ? path.resolve(options.pluginPath) : path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
+  const globalPluginPath = defaultOpenCodePlusPlusPluginFile();
+  const globalPluginInstalled = options.pluginInstalled ?? (!options.pluginPath && existsSync(globalPluginPath));
+  const pluginPath = options.pluginPath
+    ? path.resolve(options.pluginPath)
+    : globalPluginInstalled
+      ? globalPluginPath
+      : path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
   const eventLogPath = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
   const latestJsonPath = path.join(root, ".agent-context", "sidecar", "latest.json");
   const latestMarkdownPath = path.join(root, ".agent-context", "sidecar", "latest.md");
@@ -186,12 +193,12 @@ export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecar
   checks.push(checkGitRepo(root));
   checks.push(checkExists(".agent-context", path.join(root, ".agent-context"), "OpenCode++ context directory exists"));
   checks.push(
-    options.pluginInstalled
+    globalPluginInstalled
       ? { name: "global-plugin", status: "pass", details: "OpenCode++ global plugin is installed" }
       : checkExists(path.relative(root, pluginPath), pluginPath, "OpenCode sidecar plugin exists")
   );
 
-  if (options.pluginInstalled) {
+  if (globalPluginInstalled) {
     checks.push({ name: "plugin-source", status: "pass", details: "plugin source is managed by the OpenCode++ user installation" });
   } else if (existsSync(pluginPath)) {
     const source = readFileSync(pluginPath, "utf8");

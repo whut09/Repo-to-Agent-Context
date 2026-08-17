@@ -26,9 +26,15 @@ export interface OpenCodePlusPlusPluginStatus {
 }
 
 export function defaultOpenCodePlusPlusStateFile(): string {
-  const configDir = process.env.OPENCODE_CONFIG_DIR;
-  const opencodeDir = configDir || path.join(process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config"), "opencode");
-  return path.join(opencodeDir, "opencode-plusplus", "state.json");
+  return path.join(defaultOpenCodeConfigDir(), "opencode-plusplus", "state.json");
+}
+
+export function defaultOpenCodeConfigDir(): string {
+  return process.env.OPENCODE_CONFIG_DIR || path.join(process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config"), "opencode");
+}
+
+export function defaultOpenCodePlusPlusPluginFile(): string {
+  return path.join(defaultOpenCodeConfigDir(), "plugins", "opencode-plusplus.js");
 }
 
 export function readOpenCodePlusPlusPluginStatus(stateFile = defaultOpenCodePlusPlusStateFile()): OpenCodePlusPlusPluginStatus {
@@ -84,10 +90,7 @@ export function readOpenCodePlusPlusPluginStatus(stateFile = defaultOpenCodePlus
   };
 }
 
-export function setOpenCodePlusPlusPluginEnabled(
-  enabled: boolean,
-  stateFile = defaultOpenCodePlusPlusStateFile()
-): OpenCodePlusPlusPluginStatus {
+export function setOpenCodePlusPlusPluginEnabled(enabled: boolean, stateFile = defaultOpenCodePlusPlusStateFile()): OpenCodePlusPlusPluginStatus {
   const current = readOpenCodePlusPlusPluginStatus(stateFile);
   const now = new Date().toISOString();
   writeJsonAtomicWithRevision(

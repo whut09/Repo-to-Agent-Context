@@ -13,7 +13,6 @@ This is the documentation map for OpenCode++. Start with the path that matches y
 | Use OpenCode chat with sidecar guards | [OpenCode Transparent Sidecar](integrations/opencode-sidecar.md)                                         |
 | Use the official OpenCode Desktop     | [OpenCode Desktop 安装与使用](integrations/opencode-desktop.zh-CN.md)                                    |
 | Prepare an npm release                | [Release Checklist](release.md)                                                                          |
-| Use the desktop MVP shell             | [Desktop MVP](desktop.md)                                                                                |
 | Integrate an executor CLI             | [Executor CLI Integration](integrations/executor-cli.md)                                                 |
 | Use MCP tools                         | [MCP Tools](reference/mcp-tools.md) and [MCP Troubleshooting](integrations/mcp-troubleshooting.md)       |
 | Understand generated files            | [Generated Files Policy](reference/generated-files.md) and [Artifacts Reference](reference/artifacts.md) |
@@ -47,7 +46,6 @@ Chinese concept pages:
 
 ## Integrations
 
-- [Desktop MVP](desktop.md)
 - [Codex MCP](integrations/codex-mcp.md)
 - [Claude Code MCP](integrations/claude-code-mcp.md)
 - [Cursor MCP](integrations/cursor-mcp.md)

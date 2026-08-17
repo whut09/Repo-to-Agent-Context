@@ -2,20 +2,15 @@
 
 Use this path when OpenCode++ should drive a bounded harness-led loop while an external coding agent performs edits.
 
-## OpenCode TUI Sidecar
+## OpenCode Batch Executor
 
 ```bash
-npm i -g opencode-ai
-git clone https://github.com/whut09/opencode-plusplus.git
-cd opencode-plusplus
-npm install
-npm run build
-npm link
+npm i -g opencode-ai opencode-plusplus
 cd your-repo
-opencode-plusplus
+opencode-plusplus oc run "fix login timeout bug" .
 ```
 
-`opencode-plusplus` starts the OpenCode TUI for the current repository after preflight and injects the OpenCode++ sidecar plugin. It is the default transparent chat mode for daily coding.
+The official OpenCode Desktop plugin is the default transparent chat path. This command is the batch executor path, where OpenCode++ owns the bounded loop and OpenCode performs edits.
 
 Read the full sidecar flow in [OpenCode Transparent Sidecar Mode](opencode-sidecar.md).
 

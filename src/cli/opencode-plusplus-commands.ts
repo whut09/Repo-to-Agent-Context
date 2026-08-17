@@ -3,6 +3,7 @@ import path from "node:path";
 import { getOpenCodePlusplusPackageVersion, OPENCODE_PLUSPLUS_PACKAGE_NAME } from "../core/package-info.js";
 import { runOpencodeDoctor, type OpencodeDoctorCheck } from "./opencode-preset.js";
 import { OPENCODE_SIDECAR_PLUGIN_PATH } from "../integrations/opencode/plugin-template.js";
+import { defaultOpenCodePlusPlusPluginFile, readOpenCodePlusPlusPluginStatus } from "../integrations/opencode/plugin-runtime/state.js";
 import { verifyOpencodeSidecar } from "../integrations/opencode/sidecar.js";
 
 export interface OpenCodePlusplusStatusReport {
@@ -42,8 +43,10 @@ export function readOpenCodePlusplusReport(repo = "."): { path: string; content:
 
 export function getOpenCodePlusplusStatus(repo = "."): OpenCodePlusplusStatusReport {
   const root = path.resolve(repo);
-  const pluginPath = path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
+  const globalPluginPath = defaultOpenCodePlusPlusPluginFile();
+  const pluginPath = existsSync(globalPluginPath) ? globalPluginPath : path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
   const pluginExists = existsSync(pluginPath);
+  const pluginStatus = readOpenCodePlusPlusPluginStatus();
   const contextPath = path.join(root, ".agent-context");
   const eventLogPath = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
   const latestPath = path.join(root, ".agent-context", "sidecar", "latest.json");
@@ -54,7 +57,7 @@ export function getOpenCodePlusplusStatus(repo = "."): OpenCodePlusplusStatusRep
 
   return {
     repo: root,
-    active: pluginExists && existsSync(contextPath),
+    active: pluginExists && (pluginPath === globalPluginPath ? pluginStatus.enabled : existsSync(contextPath)),
     pluginExists,
     contextExists: existsSync(contextPath),
     eventLogExists: existsSync(eventLogPath),
@@ -69,10 +72,16 @@ export async function runOpenCodePlusplusDoctor(repo = "."): Promise<OpenCodePlu
   const root = path.resolve(repo);
   const opencode = runOpencodeDoctor(root);
   const sidecar = await verifyOpencodeSidecar(root);
-  const sidecarPluginCheck = sidecar.checks.find((check) => check.name.endsWith("opencode-plusplus.ts"));
-  const pluginPath = path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
-  const versionCheck = buildOpenCodePlusplusVersionCheck(pluginPath);
+  const globalPluginPath = defaultOpenCodePlusPlusPluginFile();
+  const globalPluginExists = existsSync(globalPluginPath);
+  const pluginPath = globalPluginExists ? globalPluginPath : path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
+  const pluginStatus = readOpenCodePlusPlusPluginStatus();
+  const sidecarPluginCheck = sidecar.checks.find((check) => check.name === "global-plugin" || check.name.endsWith("opencode-plusplus.ts"));
+  const versionCheck = globalPluginExists
+    ? buildInstalledPluginVersionCheck(pluginStatus.version, pluginStatus.diagnostic)
+    : buildOpenCodePlusplusVersionCheck(pluginPath);
   const pluginExists = existsSync(pluginPath);
+  const globalPlugin = pluginPath === globalPluginPath;
   const hookChecks = sidecar.checks.filter((check) => ["file.edited hook", "session.idle hook", "tool.execute.after hook"].includes(check.name));
   const sidecarChecks: OpencodeDoctorCheck[] = [
     versionCheck,
@@ -85,14 +94,26 @@ export async function runOpenCodePlusplusDoctor(repo = "."): Promise<OpenCodePlu
           ? sidecarPluginCheck.details
           : pluginExists
             ? (sidecarPluginCheck?.details ?? "sidecar plugin check unavailable")
-            : `not generated yet; run \`opencode-plusplus\` to create ${OPENCODE_SIDECAR_PLUGIN_PATH}`
+            : globalPlugin
+              ? "global OpenCode plugin is not ready; run the Windows installer again"
+              : `not installed yet; run the Windows OpenCode++ installer or use \`opencode-plusplus opencode init\` for project helpers`
     },
     {
       id: "sidecar-hooks",
       label: "Sidecar hooks",
-      status: pluginExists ? (hookChecks.length > 0 && hookChecks.every((check) => check.status === "pass") ? "pass" : "fail") : "warn",
+      status: pluginExists
+        ? globalPlugin
+          ? sidecar.checks.some((check) => check.name === "plugin-source" && check.status === "pass")
+            ? "pass"
+            : "fail"
+          : hookChecks.length > 0 && hookChecks.every((check) => check.status === "pass")
+            ? "pass"
+            : "fail"
+        : "warn",
       details: pluginExists
-        ? "checks file.edited, session.idle, and tool.execute.after hooks"
+        ? globalPlugin
+          ? "global plugin bundle provides file, session, and tool hooks"
+          : "checks file.edited, session.idle, and tool.execute.after hooks"
         : "plugin not generated yet; hooks unavailable until first launch"
     },
     {
@@ -148,6 +169,15 @@ function buildOpenCodePlusplusVersionCheck(pluginPath: string): OpencodeDoctorCh
     details: generatedByCurrentCli
       ? `${cliVersion} (generated at ${metadata.generatedAt ?? "unknown"})`
       : `CLI ${cliVersion}; plugin ${pluginVersion}; generatedBy ${metadata.generatedBy ?? "unknown"}; generatedAt ${metadata.generatedAt ?? "unknown"}`
+  };
+}
+
+function buildInstalledPluginVersionCheck(version: string, diagnostic: string | null): OpencodeDoctorCheck {
+  return {
+    id: "opencode-plusplus-version",
+    label: "CLI/plugin version",
+    status: diagnostic ? "warn" : version === getOpenCodePlusplusPackageVersion() ? "pass" : "warn",
+    details: diagnostic ?? `CLI ${getOpenCodePlusplusPackageVersion()}; installed plugin ${version}`
   };
 }
 

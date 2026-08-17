@@ -18,11 +18,6 @@ Options:
   -h, --help                                     display help for command
 
 Commands:
-  tui [options] [repo]                           Launch OpenCode TUI with the OpenCode++ sidecar plugin.
-  setup-editor                                   Configure EDITOR for OpenCode TUI /editor input.
-  clip [repo]                                    Write clipboard or piped text to .opencode-plusplus/clipboard/latest.md.
-  install-commands [repo]                        Install OpenCode slash commands for OpenCode++ helpers.
-  desktop                                        Integrate OpenCode++ with the official OpenCode Desktop application.
   sidecar                                        Inspect and verify OpenCode++ sidecar integrations.
   report [options] [repo]                        Show the latest OpenCode++ sidecar report.
   status [options] [repo]                        Show whether the OpenCode++ OpenCode sidecar is active.
@@ -64,101 +59,6 @@ Commands:
   benchmark-agent [options] [benchmarkDir]       Run the deterministic agent benchmark proxy or a single executor comparison.
   benchmark-agent-real [options] [benchmarkDir]  Run repeated real-executor benchmarks; intended for manual or scheduled workflows.
   help [command]                                 display help for command
-```
-
-### `opencode-plusplus tui`
-
-```txt
-Usage: opencode-plusplus tui [options] [repo]
-
-Launch OpenCode TUI with the OpenCode++ sidecar plugin.
-
-Arguments:
-  repo            repository path (default: ".")
-
-Options:
-  --force-plugin  overwrite .opencode/plugins/opencode-plusplus.ts
-  --skip-context  do not generate .agent-context before launching OpenCode
-  --pure          launch plain OpenCode without OpenCode++ context or sidecar
-  --dry-run       run preflight and show what would launch without opening
-                  OpenCode
-  --json          print machine-readable launcher report
-  -h, --help      display help for command
-```
-
-### `opencode-plusplus setup-editor`
-
-```txt
-Usage: opencode-plusplus setup-editor [options]
-
-Configure EDITOR for OpenCode TUI /editor input.
-
-Options:
-  -h, --help  display help for command
-```
-
-### `opencode-plusplus clip`
-
-```txt
-Usage: opencode-plusplus clip [options] [repo]
-
-Write clipboard or piped text to .opencode-plusplus/clipboard/latest.md.
-
-Arguments:
-  repo        repository path (default: ".")
-
-Options:
-  -h, --help  display help for command
-```
-
-### `opencode-plusplus install-commands`
-
-```txt
-Usage: opencode-plusplus install-commands [options] [repo]
-
-Install OpenCode slash commands for OpenCode++ helpers.
-
-Arguments:
-  repo        repository path (default: ".")
-
-Options:
-  -h, --help  display help for command
-```
-
-### `opencode-plusplus desktop`
-
-```txt
-Usage: opencode-plusplus desktop [options] [command]
-
-Integrate OpenCode++ with the official OpenCode Desktop application.
-
-Options:
-  -h, --help             display help for command
-
-Commands:
-  init [options] [repo]  Prepare a repository for OpenCode++ inside OpenCode
-                         Desktop without launching the TUI.
-  help [command]         display help for command
-```
-
-### `opencode-plusplus desktop init`
-
-```txt
-Usage: opencode-plusplus desktop init [options] [repo]
-
-Prepare a repository for OpenCode++ inside OpenCode Desktop without launching
-the TUI.
-
-Arguments:
-  repo               repository path (default: ".")
-
-Options:
-  --force            overwrite the generated plugin, commands, and agent file
-  --skip-context     install the Desktop integration without generating
-                     .agent-context
-  --refresh-context  rebuild context even when .agent-context already exists
-  --json             print a machine-readable initialization report
-  -h, --help         display help for command
 ```
 
 ### `opencode-plusplus sidecar`

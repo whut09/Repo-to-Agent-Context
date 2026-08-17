@@ -7,7 +7,6 @@ import { buildContextPackage } from "../src/core/context-builder.js";
 import { runGit } from "../src/core/git.js";
 import { writeContextPackage } from "../src/outputs/renderers/writer.js";
 import { runOpenCodePlusplusDoctor } from "../src/cli/opencode-plusplus-commands.js";
-import { launchOpenCodeWithSidecar, renderOpenCodeLauncherPreflight } from "../src/integrations/opencode/launcher.js";
 import { OPENCODE_SIDECAR_PLUGIN_PATH, opencodeSidecarPluginTemplate } from "../src/integrations/opencode/plugin-template.js";
 import { exitCodeFromOutput, hashText, outputText } from "../src/integrations/opencode/plugin-runtime/evidence.js";
 import { commandFromTool, pathsFromTool } from "../src/integrations/opencode/plugin-runtime/paths.js";
@@ -19,76 +18,6 @@ import {
   writeOpencodeSidecarLatest
 } from "../src/integrations/opencode/sidecar.js";
 import { readExecutionTrace } from "../src/harness/observability/execution-trace.js";
-
-test("OpenCode launcher dry-run prepares sidecar context without opening the TUI", async () => {
-  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-opencode-launcher-"));
-  const bin = path.join(root, "bin");
-  const oldPath = process.env.PATH;
-  try {
-    mkdirSync(bin, { recursive: true });
-    writeFakeOpenCode(bin);
-    process.env.PATH = `${bin}${path.delimiter}${oldPath ?? ""}`;
-    writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node -e \"console.log('ok')\"" } }), "utf8");
-    runGit(root, ["init"]);
-    runGit(root, ["checkout", "-b", "main"]);
-    runGit(root, ["config", "user.email", "opencode-plusplus@example.com"]);
-    runGit(root, ["config", "user.name", "OpenCode Plus Plus"]);
-    runGit(root, ["add", "."]);
-    runGit(root, ["commit", "-m", "initial"]);
-
-    const result = await launchOpenCodeWithSidecar({ repo: root, skipContext: true, dryRun: true });
-
-    assert.equal(result.launched, false);
-    assert.equal(result.exitCode, 0);
-    assert.deepEqual(result.command, ["opencode", root]);
-    assert.equal(result.steps.find((step) => step.name === "opencode")?.status, "pass");
-    assert.equal(result.steps.find((step) => step.name === "git")?.status, "pass");
-    assert.equal(result.steps.find((step) => step.name === "context")?.status, "skipped");
-    assert.equal(result.steps.find((step) => step.name === "sidecar-plugin")?.status, "pass");
-    assert.equal(existsSync(path.join(root, ".opencode")), false);
-    assert.equal(existsSync(path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH)), false);
-  } finally {
-    process.env.PATH = oldPath;
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("OpenCode launcher emits a compact preflight before opening the TUI", async () => {
-  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-opencode-preflight-"));
-  const bin = path.join(root, "bin");
-  const oldPath = process.env.PATH;
-  const preflights: string[] = [];
-  try {
-    mkdirSync(bin, { recursive: true });
-    writeFakeOpenCode(bin);
-    process.env.PATH = `${bin}${path.delimiter}${oldPath ?? ""}`;
-    writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node -e 1" } }), "utf8");
-    runGit(root, ["init"]);
-    runGit(root, ["checkout", "-b", "main"]);
-    runGit(root, ["config", "user.email", "opencode-plusplus@example.com"]);
-    runGit(root, ["config", "user.name", "OpenCode Plus Plus"]);
-    runGit(root, ["add", "."]);
-    runGit(root, ["commit", "-m", "initial"]);
-
-    const result = await launchOpenCodeWithSidecar({
-      repo: root,
-      skipContext: true,
-      onPreflight: (preflight) => preflights.push(renderOpenCodeLauncherPreflight(preflight))
-    });
-
-    assert.equal(result.launched, true);
-    assert.equal(result.exitCode, 0);
-    assert.equal(preflights.length, 1);
-    assert.match(preflights[0] ?? "", /OpenCode\+\+ sidecar ready/);
-    assert.match(preflights[0] ?? "", /Context: skipped/);
-    assert.match(preflights[0] ?? "", /Plugin: ready/);
-    assert.match(preflights[0] ?? "", /Report: \.agent-context\/sidecar\/latest\.md/);
-    assert.match(preflights[0] ?? "", /Launching OpenCode/);
-  } finally {
-    process.env.PATH = oldPath;
-    rmSync(root, { recursive: true, force: true });
-  }
-});
 
 test("OpenCode sidecar plugin template uses the project plugin export shape", () => {
   const source = opencodeSidecarPluginTemplate("./runtime.js", { version: "1.2.3", generatedAt: "2026-06-20T00:00:00.000Z" });
@@ -199,7 +128,7 @@ test("OpenCode++ doctor treats a missing sidecar plugin as first-run warning", a
     assert.equal(report.checks.find((check) => check.id === "opencode-plusplus-version")?.status, "warn");
     assert.equal(report.checks.find((check) => check.id === "sidecar-plugin")?.status, "warn");
     assert.equal(report.checks.find((check) => check.id === "sidecar-hooks")?.status, "warn");
-    assert.match(report.checks.find((check) => check.id === "sidecar-plugin")?.details ?? "", /run `opencode-plusplus`/);
+    assert.match(report.checks.find((check) => check.id === "sidecar-plugin")?.details ?? "", /Windows OpenCode\+\+ installer/);
   } finally {
     process.env.PATH = oldPath;
     rmSync(root, { recursive: true, force: true });
