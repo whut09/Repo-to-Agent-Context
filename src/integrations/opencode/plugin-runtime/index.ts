@@ -1,23 +1,40 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { sanitizeToolOutput } from "../output-sanitizer.js";
+import { recordOpencodeSidecarTool } from "../sidecar.js";
 import { runCommandGuard } from "./command-guard.js";
-import { runOpenCodePlusPlusCli } from "./cli-runner.js";
 import { createSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
-import { exitCodeFromOutput, hashText, outputText, stableJson, toolKey } from "./evidence.js";
+import { exitCodeFromOutput, outputText, toolKey } from "./evidence.js";
 import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
+import {
+  defaultOpenCodePlusPlusStateFile,
+  readOpenCodePlusPlusPluginStatus,
+  renderOpenCodePlusPlusPluginStatus,
+  setOpenCodePlusPlusPluginEnabled
+} from "./state.js";
 import { currentSidecarWorkingTreeHash } from "./worktree-hash.js";
+
+export interface OpenCodePlusPlusSidecarOptions {
+  stateFile?: string;
+  pluginPath?: string;
+}
 
 export async function OpenCodePlusPlusSidecar(context: OpenCodeSidecarRuntimeContext): Promise<Record<string, unknown>> {
   return createOpenCodePlusPlusSidecar(context);
 }
 
-export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRuntimeContext): Promise<Record<string, unknown>> {
+export async function createOpenCodePlusPlusSidecar(
+  context: OpenCodeSidecarRuntimeContext,
+  options: OpenCodePlusPlusSidecarOptions = {}
+): Promise<Record<string, unknown>> {
   const recorder = createSidecarRecorder(context);
-  const idle = createIdleVerifier(context.directory, recorder);
+  const stateFile = options.stateFile ?? defaultOpenCodePlusPlusStateFile();
+  const idle = createIdleVerifier(context.directory, recorder, 2000, options.pluginPath);
   const toolStarts = new Map<string, { startedAt: string; workingTreeHashBefore: string }>();
+
+  function enabled(): boolean {
+    return readOpenCodePlusPlusPluginStatus(stateFile).enabled;
+  }
 
   function rememberToolStart(tool: unknown, args: unknown, callId?: string): void {
     toolStarts.set(hookKey(tool, args, callId), {
@@ -49,7 +66,7 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
       const stderrEvidence = sanitizeToolOutput(stderr);
       const payload = {
         tool: String(tool),
-        command,
+        command: command ?? undefined,
         exitCode,
         startedAt: started.startedAt,
         finishedAt,
@@ -66,15 +83,8 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
         stderrTruncated: stderrEvidence.truncated,
         stderrRedacted: stderrEvidence.redacted
       };
-      const inputJson = writeToolEvidenceInput(context.directory, tool, args, payload);
-
-      const cliArgs = ["sidecar", "record-tool", context.directory, "--json", "--input-json", inputJson];
-
-      const recordResult = runOpenCodePlusPlusCli(cliArgs, context.directory, { maxBuffer: 10 * 1024 * 1024 });
-      recorder.record("sidecar.record-tool", { tool, command, paths, exitCode: recordResult.status ?? 1 });
-      if ((recordResult.status ?? 1) !== 0) {
-        recorder.log("debug", "tool evidence record failed", { tool, command, status: recordResult.status ?? 1 });
-      }
+      recordOpencodeSidecarTool(context.directory, payload);
+      recorder.record("sidecar.record-tool", { tool, command, paths, exitCode: 0 });
     } catch (error) {
       recorder.log("debug", "tool evidence record failed", { message: error instanceof Error ? error.message : String(error) });
     }
@@ -82,21 +92,30 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
 
   return {
     name: "opencode-plusplus-sidecar",
+    tool: {
+      opencode_plusplus_enable: controlTool("Enable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(true, stateFile)),
+      opencode_plusplus_disable: controlTool("Disable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(false, stateFile)),
+      opencode_plusplus_status: controlTool("Show OpenCode++ installation and enabled status.", () => readOpenCodePlusPlusPluginStatus(stateFile))
+    },
     "tool.execute.before": async (input: unknown, output: unknown) => {
+      if (!enabled()) return;
       const normalized = normalizeToolExecuteBefore(input, output);
       rememberToolStart(normalized.tool, normalized.args, normalized.callId);
       runCommandGuard(context.directory, recorder, normalized.tool, normalized.args);
     },
     "tool.execute.after": async (input: unknown, output: unknown) => {
+      if (!enabled()) return;
       recordToolAfter(input, output);
     },
     event: async ({ event }: { event?: Record<string, unknown> }) => {
       const eventRecord = event ?? {};
       const type = eventRecord.type;
       if (type === "session.created") {
-        recorder.record("session.created");
+        recorder.record("session.created", { enabled: enabled() });
         recorder.log("debug", "sidecar active", { directory: context.directory, worktree: context.worktree });
       }
+
+      if (!enabled()) return;
 
       if (type === "file.edited") {
         const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
@@ -112,20 +131,22 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
 
       if (type === "session.idle") {
         recorder.record("session.idle");
-        idle.maybeVerifyOnIdle();
+        await idle.maybeVerifyOnIdle();
       }
+    }
+  };
+}
+
+function controlTool(description: string, action: () => ReturnType<typeof readOpenCodePlusPlusPluginStatus>): Record<string, unknown> {
+  return {
+    description,
+    args: {},
+    async execute(): Promise<string> {
+      return renderOpenCodePlusPlusPluginStatus(action());
     }
   };
 }
 
 function hookKey(tool: unknown, args: unknown, callId?: string): string {
   return callId ? `call:${callId}` : toolKey(tool, args);
-}
-
-function writeToolEvidenceInput(directory: string, tool: unknown, args: unknown, payload: Record<string, unknown>): string {
-  const dir = path.join(directory, ".agent-context", "traces", "tool-evidence");
-  mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `opencode-tool-${Date.now()}-${hashText(`${String(tool ?? "unknown")}:${stableJson(args)}`).slice(0, 12)}.json`);
-  writeFileSync(file, `${JSON.stringify(payload)}\n`, "utf8");
-  return file;
 }

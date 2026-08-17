@@ -16,6 +16,10 @@ export interface OpenCodeSidecarEnsureOptions {
   dryRun?: boolean;
 }
 
+export interface OpenCodeSidecarVerifyOptions {
+  pluginPath?: string;
+}
+
 export interface OpenCodeSidecarStep {
   name: string;
   status: "pass" | "warn" | "fail" | "skipped";
@@ -169,9 +173,9 @@ export function ensureOpencodeSidecarPlugin(repo: string, options: OpenCodeSidec
   return { name: "sidecar-plugin", status: "pass", details: `${OPENCODE_SIDECAR_PLUGIN_PATH} generated` };
 }
 
-export async function verifyOpencodeSidecar(repo = "."): Promise<OpenCodeSidecarVerifyResult> {
+export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecarVerifyOptions = {}): Promise<OpenCodeSidecarVerifyResult> {
   const root = path.resolve(repo);
-  const pluginPath = path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
+  const pluginPath = options.pluginPath ? path.resolve(options.pluginPath) : path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
   const eventLogPath = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
   const latestJsonPath = path.join(root, ".agent-context", "sidecar", "latest.json");
   const latestMarkdownPath = path.join(root, ".agent-context", "sidecar", "latest.md");

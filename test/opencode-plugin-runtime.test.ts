@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import { runOpenCodePlusPlusCli } from "../src/integrations/opencode/plugin-runtime/cli-runner.js";
 import { exitCodeFromOutput } from "../src/integrations/opencode/plugin-runtime/evidence.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "../src/integrations/opencode/plugin-runtime/hook-input.js";
@@ -17,6 +18,39 @@ test("OpenCode plugin normalizes current before hook arguments", () => {
   assert.deepEqual(result.args, { command: "npm test", description: "run tests" });
   assert.equal(result.sessionId, "session-1");
   assert.equal(result.callId, "call-1");
+});
+
+test("OpenCode plugin exposes persistent enable, disable, and status tools", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-state-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const tools = plugin.tool as Record<string, { execute: () => Promise<string> }>;
+
+    assert.match(await tools.opencode_plusplus_status.execute(), /Enabled: yes/);
+    assert.match(await tools.opencode_plusplus_disable.execute(), /Enabled: no/);
+    assert.equal(existsSync(stateFile), true);
+    assert.match(await tools.opencode_plusplus_status.execute(), /Enabled: no/);
+    assert.match(await tools.opencode_plusplus_enable.execute(), /Enabled: yes/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("disabled OpenCode plugin keeps controls available and skips command guards", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-disabled-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const tools = plugin.tool as Record<string, { execute: () => Promise<string> }>;
+    await tools.opencode_plusplus_disable.execute();
+
+    const before = plugin["tool.execute.before"] as (input: unknown, output: unknown) => Promise<void>;
+    await before({ tool: "shell", callID: "call-1" }, { args: { command: "git reset --hard" } });
+    assert.match(await tools.opencode_plusplus_status.execute(), /Enabled: no/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("OpenCode plugin keeps compatibility with legacy before hook arguments", () => {
