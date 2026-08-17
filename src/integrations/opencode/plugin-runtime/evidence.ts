@@ -33,8 +33,9 @@ export function exitCodeFromOutput(output: unknown): number | null {
   if (!output || typeof output !== "object") return null;
   const record = output as Record<string, unknown>;
   const properties = record.properties && typeof record.properties === "object" ? (record.properties as Record<string, unknown>) : {};
-  for (const key of ["exitCode", "status", "code"]) {
-    const value = record[key] ?? properties[key];
+  const metadata = record.metadata && typeof record.metadata === "object" ? (record.metadata as Record<string, unknown>) : {};
+  for (const key of ["exitCode", "exit", "status", "code"]) {
+    const value = record[key] ?? properties[key] ?? metadata[key];
     if (typeof value === "number") return value;
     if (typeof value === "string" && /^-?\d+$/.test(value)) return Number.parseInt(value, 10);
   }

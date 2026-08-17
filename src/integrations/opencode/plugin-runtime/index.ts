@@ -6,6 +6,7 @@ import { runCommandGuard } from "./command-guard.js";
 import { createSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
 import { exitCodeFromOutput, hashText, outputText, stableJson, toolKey } from "./evidence.js";
 import { createIdleVerifier } from "./idle-verify.js";
+import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
 import { currentSidecarWorkingTreeHash } from "./worktree-hash.js";
 
@@ -18,8 +19,8 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
   const idle = createIdleVerifier(context.directory, recorder);
   const toolStarts = new Map<string, { startedAt: string; workingTreeHashBefore: string }>();
 
-  function rememberToolStart(tool: unknown, args: unknown): void {
-    toolStarts.set(toolKey(tool, args), {
+  function rememberToolStart(tool: unknown, args: unknown, callId?: string): void {
+    toolStarts.set(hookKey(tool, args, callId), {
       startedAt: new Date().toISOString(),
       workingTreeHashBefore: currentSidecarWorkingTreeHash(context.directory)
     });
@@ -27,13 +28,12 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
 
   function recordToolAfter(input: unknown, output: unknown): void {
     try {
-      const inputRecord = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
-      const outputRecord = output && typeof output === "object" ? (output as Record<string, unknown>) : {};
-      const tool = inputRecord.tool ?? inputRecord.name ?? "unknown";
-      const args = inputRecord.args ?? inputRecord.arguments ?? {};
+      const normalized = normalizeToolExecuteAfter(input, output);
+      const tool = normalized.tool;
+      const args = normalized.args;
       const command = commandFromTool(tool, args);
       const paths = pathsFromTool(args);
-      const key = toolKey(tool, args);
+      const key = hookKey(tool, args, normalized.callId);
       const started = toolStarts.get(key) ?? {
         startedAt: new Date().toISOString(),
         workingTreeHashBefore: currentSidecarWorkingTreeHash(context.directory)
@@ -42,7 +42,7 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
 
       const finishedAt = new Date().toISOString();
       const exitCode = exitCodeFromOutput(output);
-      const sessionId = inputRecord.sessionID ?? inputRecord.sessionId ?? outputRecord.sessionID ?? outputRecord.sessionId;
+      const sessionId = normalized.sessionId;
       const stdout = outputText(output, ["stdout", "output", "text"]);
       const stderr = outputText(output, ["stderr", "error"]);
       const stdoutEvidence = sanitizeToolOutput(stdout);
@@ -87,9 +87,10 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
 
   return {
     name: "opencode-plusplus-sidecar",
-    "tool.execute.before": async ({ tool, args }: { tool: unknown; args: unknown }) => {
-      rememberToolStart(tool, args);
-      runCommandGuard(context.directory, recorder, tool, args);
+    "tool.execute.before": async (input: unknown, output: unknown) => {
+      const normalized = normalizeToolExecuteBefore(input, output);
+      rememberToolStart(normalized.tool, normalized.args, normalized.callId);
+      runCommandGuard(context.directory, recorder, normalized.tool, normalized.args);
     },
     "tool.execute.after": async (input: unknown, output: unknown) => {
       recordToolAfter(input, output);
@@ -120,6 +121,10 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
       }
     }
   };
+}
+
+function hookKey(tool: unknown, args: unknown, callId?: string): string {
+  return callId ? `call:${callId}` : toolKey(tool, args);
 }
 
 function writeToolEvidenceInput(directory: string, tool: unknown, args: unknown, payload: Record<string, unknown>): string {

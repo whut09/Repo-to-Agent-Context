@@ -4,6 +4,28 @@ OpenCode Transparent Sidecar Mode is the default `opencode-plusplus` experience.
 
 OpenCode++ does not replace OpenCode. OpenCode reads, edits, and runs tools; OpenCode++ prepares repository context, installs the sidecar plugin, records execution evidence, blocks unsafe commands or paths, and writes verification reports.
 
+## OpenCode Desktop
+
+The current OpenCode Desktop is a client for the same OpenCode server/plugin lifecycle. OpenCode++ therefore integrates at the project plugin boundary instead of patching the Desktop renderer or replacing the Desktop updater.
+
+OpenCode++ generates `.opencode/plugins/opencode-plusplus.ts` inside the selected repository. When that repository is opened in OpenCode Desktop, the same plugin can:
+
+- block dangerous commands and protected paths before execution;
+- capture tool arguments, exit status, sanitized output hashes, session IDs, call IDs, and working-tree hashes;
+- run debounced verification after edits and idle sessions;
+- expose the latest Sidecar decision through `.agent-context/sidecar/latest.md` and Harness run reports through `.agent-context/orchestrator/<run-id>/orchestrator.json`.
+
+Initialize the repository before opening it in Desktop:
+
+```bash
+opencode-plusplus tui . --dry-run
+opencode-plusplus sidecar verify .
+```
+
+The generated runtime supports both the legacy OpenCode hook shape and the current plugin API, where `tool.execute.before` receives tool metadata as the first argument and tool arguments as `output.args`. `callID` is used to correlate before/after evidence.
+
+The plugin does not inject an Electron window or modify OpenCode Desktop binaries. A future companion package can add a native Desktop panel through a documented Desktop extension point, but the current stable boundary is the project plugin plus MCP/CLI reports. This keeps OpenCode Desktop upgrades independent from OpenCode++ release upgrades.
+
 ## User Experience
 
 Install OpenCode++ and OpenCode globally:
