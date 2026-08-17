@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
 import type { OpenCodeSidecarRecorder } from "./events.js";
+import { runOpenCodePlusPlusCli } from "./cli-runner.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
 
 export function runCommandGuard(directory: string, recorder: OpenCodeSidecarRecorder, tool: unknown, args: unknown): void {
@@ -12,11 +12,7 @@ export function runCommandGuard(directory: string, recorder: OpenCodeSidecarReco
   else cliArgs.push("--command", "path-check");
   for (const file of paths) cliArgs.push("--path", file);
 
-  const check = spawnSync("opencode-plusplus", cliArgs, {
-    cwd: directory,
-    encoding: "utf8",
-    shell: process.platform === "win32"
-  });
+  const check = runOpenCodePlusPlusCli(cliArgs, directory);
   recorder.record("sidecar.check-command", { tool, command, paths, exitCode: check.status ?? 1 });
   if ((check.status ?? 1) !== 0) {
     const output = (check.stdout || check.stderr || "OpenCode++ blocked a command or protected path.").trim();

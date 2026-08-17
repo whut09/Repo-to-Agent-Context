@@ -5,7 +5,7 @@ export function gitOutput(directory: string, args: string[]): string {
   const result = spawnSync("git", args, {
     cwd: directory,
     encoding: "utf8",
-    shell: process.platform === "win32"
+    shell: false
   });
   return [
     `$ git ${args.join(" ")}`,

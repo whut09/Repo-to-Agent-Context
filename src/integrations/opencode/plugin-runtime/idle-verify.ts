@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { runOpenCodePlusPlusCli } from "./cli-runner.js";
 import type { OpenCodeSidecarRecorder } from "./events.js";
 
 export interface IdleVerifier {
@@ -35,11 +35,7 @@ export function createIdleVerifier(directory: string, recorder: OpenCodeSidecarR
     verifying = true;
     dirty = false;
     try {
-      const verify = spawnSync("opencode-plusplus", ["sidecar", "verify", directory, "--quiet"], {
-        cwd: directory,
-        encoding: "utf8",
-        shell: process.platform === "win32"
-      });
+      const verify = runOpenCodePlusPlusCli(["sidecar", "verify", directory, "--quiet"], directory);
       recorder.record("sidecar.verify", { exitCode: verify.status ?? 1 });
       if ((verify.status ?? 1) !== 0) {
         const output = (verify.stdout || verify.stderr || "OpenCode++ sidecar found blockers. Run opencode-plusplus report.").trim();

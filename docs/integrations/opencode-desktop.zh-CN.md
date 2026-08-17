@@ -1,6 +1,28 @@
 # 在官方 OpenCode Desktop 中使用 OpenCode++
 
-本指南面向已经安装官方 OpenCode Desktop 的 Windows 用户。OpenCode++ 不修改 Desktop 安装目录，也不替换其更新程序；它在目标代码仓库中安装一个 OpenCode 项目插件，并通过本机的 `opencode-plusplus` CLI 提供上下文、命令拦截、证据记录和增量验证。
+本指南面向已经安装官方 OpenCode Desktop 的 Windows 用户。OpenCode++ 不修改 Desktop 安装目录，也不替换其更新程序；它在目标代码仓库中安装一个 OpenCode 项目插件，并通过同一安装包中的运行时提供上下文、命令拦截、证据记录和增量验证。
+
+## 先区分两个目标
+
+### 只在 Desktop 中打开当前代码项目
+
+这种情况完全不需要命令行：
+
+1. 在 OpenCode Desktop 中打开项目列表或项目切换器。
+2. 选择打开文件夹/添加项目。
+3. 选择 `E:\codex\opencode-plusplus`。
+4. 新建会话后直接提问、读代码、修改文件和运行测试。
+
+这只代表“用 OpenCode Desktop 开发 OpenCode++ 源码”，不会自动启用 OpenCode++ 自己的 Guard、Evidence 和 Harness 能力。
+
+### 在 Desktop 中启用 OpenCode++ 增强能力
+
+OpenCode Desktop 是图形界面，但其插件系统当前不是图形化插件市场。OpenCode `1.17.13` 和当前官方插件文档只支持：
+
+- 在项目中放置 `.opencode/plugins/*.ts` 或 `.js`；
+- 在项目根 `opencode.json` 中配置 npm plugin。
+
+因此目前没有可点击的“安装 OpenCode++”按钮。项目插件需要一次性写入项目目录，并保证 OpenCode++ 后端可执行；完成后，聊天、读写文件、命令审批和结果查看仍然全部在 Desktop 界面中进行。下面的安装和 `desktop init` 只负责这一次后台注册，不是日常使用入口。
 
 这与仓库中的实验性 `apps/desktop` 不是同一个应用：
 
@@ -14,7 +36,7 @@ flowchart LR
   User["用户"] --> Desktop["官方 OpenCode Desktop"]
   Desktop --> Server["OpenCode Server"]
   Server --> Plugin["目标仓库 .opencode/plugins/opencode-plusplus.ts"]
-  Plugin --> CLI["全局 opencode-plusplus CLI"]
+  Plugin --> CLI["OpenCode++ package runtime"]
   CLI --> Context[".agent-context 上下文"]
   CLI --> Guards["命令与路径 Guard"]
   CLI --> Evidence["Trace 与 Evidence"]
@@ -33,7 +55,7 @@ Desktop 和 OpenCode TUI 使用同一个项目插件生命周期。插件在 Ope
 - Git，运行 `git --version` 检查。
 - 目标项目已经是 Git 仓库；尚未初始化时先运行 `git init`。
 
-OpenCode Desktop 自带的服务不能替代 `opencode-plusplus` CLI。项目插件会在后台调用该 CLI，因此必须把 CLI 安装到系统 `PATH`。
+`opencode-plusplus` 命令用于一次性初始化、升级和独立诊断。生成的项目插件在 Desktop 会话中会直接通过 Node.js 调用同一安装包的 `dist/cli/index.js`，不经过 Windows `.cmd` shell；日常聊天不需要手动运行 CLI。
 
 ## 安装 OpenCode++
 
@@ -110,6 +132,8 @@ opencode-plusplus desktop init . --json
 2. 使用 Desktop 的打开项目/文件夹功能，选择刚才执行 `desktop init` 的仓库根目录。
 3. 如果初始化前项目已经在 Desktop 中打开，请重新加载或关闭后重新打开，使 OpenCode Server 重新发现 `.opencode/plugins/opencode-plusplus.ts`。
 4. 正常新建会话并输入任务，不需要启用额外开关。
+
+完成一次初始化后，日常使用不需要从 `opencode-plusplus` 启动 OpenCode，也不需要使用终端 TUI。只有升级插件、查看独立诊断报告或排障时才需要再次运行 CLI。
 
 例如：
 
@@ -255,7 +279,7 @@ Get-Command opencode-plusplus
 npm prefix --global
 ```
 
-Windows 的 npm 全局可执行目录通常是 `%AppData%\npm`。确认该目录在用户 `PATH` 中，修改后重新启动 PowerShell 和 OpenCode Desktop。
+Windows 的 npm 全局可执行目录通常是 `%AppData%\npm`。确认该目录在用户 `PATH` 中，修改后重新启动 PowerShell。该设置用于初始化和诊断命令；Desktop 插件还需要 `node.exe` 可用。
 
 ### Desktop 没有加载插件
 
@@ -276,7 +300,7 @@ Test-Path .agent-context\traces\opencode-sidecar-events.jsonl
 opencode-plusplus status .
 ```
 
-仍不存在时，通常是项目未重新加载、插件 import 路径失效，或 Desktop 进程启动时没有继承包含 npm 全局目录的 `PATH`。修复 `PATH` 后重启 Desktop。
+仍不存在时，通常是项目未重新加载、插件 import 路径失效，或 Desktop 进程找不到 `node.exe`。确认 Node.js 在 `PATH` 中，然后重启 Desktop。
 
 ### 命令被阻断
 

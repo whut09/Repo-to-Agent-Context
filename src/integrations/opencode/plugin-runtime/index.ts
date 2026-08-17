@@ -1,8 +1,8 @@
-import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { sanitizeToolOutput } from "../output-sanitizer.js";
 import { runCommandGuard } from "./command-guard.js";
+import { runOpenCodePlusPlusCli } from "./cli-runner.js";
 import { createSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
 import { exitCodeFromOutput, hashText, outputText, stableJson, toolKey } from "./evidence.js";
 import { createIdleVerifier } from "./idle-verify.js";
@@ -70,12 +70,7 @@ export async function createOpenCodePlusPlusSidecar(context: OpenCodeSidecarRunt
 
       const cliArgs = ["sidecar", "record-tool", context.directory, "--json", "--input-json", inputJson];
 
-      const recordResult = spawnSync("opencode-plusplus", cliArgs, {
-        cwd: context.directory,
-        encoding: "utf8",
-        shell: process.platform === "win32",
-        maxBuffer: 10 * 1024 * 1024
-      });
+      const recordResult = runOpenCodePlusPlusCli(cliArgs, context.directory, { maxBuffer: 10 * 1024 * 1024 });
       recorder.record("sidecar.record-tool", { tool, command, paths, exitCode: recordResult.status ?? 1 });
       if ((recordResult.status ?? 1) !== 0) {
         recorder.log("debug", "tool evidence record failed", { tool, command, status: recordResult.status ?? 1 });

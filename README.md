@@ -71,7 +71,9 @@ OpenCode++ 继续使用 OpenCode 原生 TUI，不做 Desktop 替代，也不嵌�
 
 ## 官方 OpenCode Desktop 集成
 
-已经安装官方 OpenCode Desktop 时，需要先从当前源码构建并全局安装 OpenCode++ CLI，再为每个目标仓库初始化一次：
+如果只是想在官方 OpenCode Desktop 中开发本仓库，直接在 Desktop 的项目列表中选择“打开文件夹”，然后选择 `E:\codex\opencode-plusplus`，不需要命令行。
+
+如果还要在 Desktop 中启用 OpenCode++ 的 Guard、Evidence 和 Harness 能力，需要注意：当前 OpenCode Desktop 没有图形化插件市场，官方插件机制仍通过项目 `.opencode/plugins/` 或 `opencode.json` 加载。因此需要先从当前源码构建并全局安装一次后端，再为目标仓库注册项目插件：
 
 ```powershell
 cd E:\codex\opencode-plusplus
