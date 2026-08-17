@@ -1,5 +1,7 @@
 # Loop Engineering 源码链路
 
+[English](loop-engineering.md) | 中文
+
 这份文档按代码执行链路解释 OpenCode++ 如何从 Context Compiler 走向 Agent Harness Runtime 控制面。它不是只生成摘要文件，也不替代 Codex / Claude Code / Cursor / OpenCode / MiMoCode 写代码，而是把仓库状态、任务上下文、编辑边界、测试建议、影响分析、contracts、trace、freshness 和 loop decision 组合成一个静态但可验证的 Agent Runtime Loop 控制面。
 
 核心闭环是：
@@ -420,7 +422,7 @@ update
 explain
 ```
 
-因此这些能力不只是内部模块；它们已经通过 CLI 暴露。后续发布前仍需要继续用 `npm pack --dry-run` 和安装后 smoke test 确认 npm 产物包含最新 CLI、`dist/` 和 benchmark fixtures。
+因此这些能力不只是内部模块；它们已经通过 CLI 暴露。后续发布前仍需要继续用 npm pack --dry-run 和安装后 smoke test 确认 npm 产物包含最新 CLI、dist/ 和 LICENSE，同时确认 benchmark fixtures、agent-runs 和 .agent-context 不会进入包。
 
 ## 11. 一张闭环图
 

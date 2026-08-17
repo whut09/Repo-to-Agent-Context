@@ -1,5 +1,7 @@
 # Executor Adapters
 
+[中文](executor-adapters.zh-CN.md) | English
+
 Executor adapters let OpenCode++ treat external code agents as replaceable coding tools.
 
 ## Maturity

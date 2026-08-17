@@ -1,5 +1,7 @@
 # Guard Gate Schema
 
+[中文](guard-gate-schema.zh-CN.md) | English
+
 Guard modules emit normalized findings and gates.
 
 ```txt

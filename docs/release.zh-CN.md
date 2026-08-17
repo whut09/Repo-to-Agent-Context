@@ -16,6 +16,7 @@ npm run check
 npm run lint
 npm run format:check
 npm run docs:cli:check
+npm run docs:bilingual:check
 npm test
 npm run benchmark
 npm run benchmark:agent

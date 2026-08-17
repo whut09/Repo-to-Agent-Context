@@ -1,5 +1,7 @@
 # MCP Troubleshooting
 
+[中文](mcp-troubleshooting.zh-CN.md) | English
+
 ## Server Does Not Start
 
 Check that the package is built:

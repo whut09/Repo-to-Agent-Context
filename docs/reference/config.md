@@ -1,5 +1,7 @@
 # Configuration
 
+[中文](config.zh-CN.md) | English
+
 Default config file:
 
 ```txt

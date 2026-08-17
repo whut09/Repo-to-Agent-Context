@@ -1,5 +1,7 @@
 # Benchmark Guide
 
+[中文](benchmark-guide.zh-CN.md) | English
+
 OpenCode++ uses two benchmark layers. Their results answer different questions and must not be combined into one success-rate claim.
 
 ## Layer A: Fast Deterministic Benchmark

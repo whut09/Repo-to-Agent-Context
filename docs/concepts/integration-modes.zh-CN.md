@@ -1,5 +1,7 @@
 # 两套集成模式与入口隔离
 
+[English](integration-modes.md) | 中文
+
 OpenCode++ 支持两套互不混用的流程。区别不是“能不能用 AI”，而是控制边界放在哪里。
 
 两套流程都会使用 Guard 模块作为可靠性层：

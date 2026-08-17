@@ -1,5 +1,7 @@
 # Codex MCP Integration
 
+[中文](codex-mcp.zh-CN.md) | English
+
 This guide wires OpenCode++ into Codex through the stdio MCP server. The MCP flow is agent-led: Codex edits code, while OpenCode++ returns context, edit boundaries, evidence requirements, and loop decision reports.
 
 ## Configuration

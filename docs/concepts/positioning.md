@@ -1,5 +1,7 @@
 # Positioning
 
+[中文](positioning.zh-CN.md) | English
+
 OpenCode++ is an **external reliability harness for OpenCode**.
 
 OpenCode++ is not affiliated with, endorsed by, or built by the OpenCode team. OpenCode remains the coding agent runtime; OpenCode++ adds context, edit boundaries, execution evidence, policy gates, impact analysis, and repair/finalize decision reports around the OpenCode workflow.

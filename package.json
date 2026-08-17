@@ -37,6 +37,7 @@
     "format:check": "prettier --ignore-unknown --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.{ts,mjs}\" \"README*.md\" \"docs/**/*.md\" \"*.{json,yml,yaml,cjs,js}\" \".github/**/*.yml\" \".env.example\" \"benchmarks/README.md\" \"benchmarks/expected/*.json\" \"benchmarks/tasks/*.json\" \"benchmarks/agent-runs/*.json\" \"benchmarks/fixtures/**/*.json\"",
     "docs:cli": "tsx scripts/generate-cli-docs.ts",
     "docs:cli:check": "tsx scripts/generate-cli-docs.ts --check",
+    "docs:bilingual:check": "node scripts/check-docs-bilingual.mjs",
     "test": "npm run test:core",
     "pretest:core": "npm run package-info:generate",
     "test:core": "node scripts/run-tests.mjs",
@@ -47,7 +48,7 @@
     "pack:dry-run": "npm pack --dry-run --ignore-scripts",
     "pack:json": "npm pack --json --dry-run --ignore-scripts",
     "release:verify": "node scripts/verify-release.mjs",
-    "prepublishOnly": "npm run clean:build && npm run check && npm run lint && npm run format:check && npm run docs:cli:check && npm test && npm run benchmark && npm run benchmark:agent && npm run build && npm run release:verify"
+    "prepublishOnly": "npm run clean:build && npm run check && npm run lint && npm run format:check && npm run docs:cli:check && npm run docs:bilingual:check && npm test && npm run benchmark && npm run benchmark:agent && npm run build && npm run release:verify"
   },
   "engines": {
     "node": ">=20"

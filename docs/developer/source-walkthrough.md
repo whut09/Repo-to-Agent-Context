@@ -1,5 +1,7 @@
 # Source Walkthrough
 
+[中文](source-walkthrough.zh-CN.md) | English
+
 For the detailed code-path explanation, read [Loop Engineering](../concepts/loop-engineering.md).
 
 High-level flow:

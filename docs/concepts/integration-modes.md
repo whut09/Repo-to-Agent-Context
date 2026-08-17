@@ -1,5 +1,7 @@
 # Integration Modes and Entry Isolation
 
+[中文](integration-modes.zh-CN.md) | English
+
 OpenCode++ supports two separate flows. The difference is not whether AI is used; the difference is where the control boundary sits.
 
 In both flows, Guard modules provide the reliability layer:

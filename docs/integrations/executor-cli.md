@@ -1,5 +1,7 @@
 # Executor CLI Integration
 
+[中文](executor-cli.zh-CN.md) | English
+
 Use this path when OpenCode++ should drive a bounded harness-led loop while an external coding agent performs edits.
 
 ## OpenCode Batch Executor

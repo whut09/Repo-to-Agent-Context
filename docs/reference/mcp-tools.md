@@ -1,5 +1,7 @@
 # MCP Tools
 
+[中文](mcp-tools.zh-CN.md) | English
+
 `opencode-plusplus-mcp` exposes OpenCode++ through stdio MCP.
 
 ## Foundation Tools

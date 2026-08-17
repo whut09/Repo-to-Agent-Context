@@ -1,52 +1,53 @@
 # Release Checklist
 
-OpenCode++ publishes one npm package for the CLI and MCP runtime. The Windows OpenCode plugin is distributed as a release EXE installer.
+[中文](release.zh-CN.md) | English
 
-Benchmark fixtures, benchmark agent runs, repository documentation, source assets, and local runtime artifacts are not included in the npm package.
+OpenCode++ publishes two runtime deliverables:
 
-The recommended Desktop install path is:
+- the npm package for CLI, MCP, Harness, and shared runtime code;
+- the Windows EXE for the user-level official OpenCode Desktop plugin.
 
-```bash
-Download and double-click `opencode-plusplus-setup-win-x64.exe`, then restart OpenCode Desktop.
-```
+Benchmark fixtures, agent runs, repository documentation, local runtime artifacts, and stale build output must not enter the npm package.
 
-## Release Gate
+## Full Gate
 
-Run the full gate before publishing a new version:
-
-```bash
+```powershell
 npm run check
 npm run lint
 npm run format:check
 npm run docs:cli:check
+npm run docs:bilingual:check
 npm test
 npm run benchmark
 npm run benchmark:agent
 npm run build
 npm run release:verify
+npm run build:installer:windows
 ```
 
-CI already runs the same baseline. `prepublishOnly` cleans and rebuilds the core package, then validates its `npm pack --json` manifest. The installer build is a separate Windows release job and never depends on local stale `dist` files.
+## npm Package
 
-The root `package.json` version is the single version source. `npm run package-info:generate` generates the runtime constants and synchronizes the Desktop workspace and lock-file package versions. CLI, MCP, freshness manifests, and generated OpenCode plugins all consume the generated runtime version.
+The root package.json version is the single version source. package-info:generate creates runtime constants used by CLI, MCP, freshness, and the plugin bundle.
 
-## Manual Checks
+Confirm that npm pack contains dist, README files, config examples, package metadata, and LICENSE. It must not contain node_modules, benchmark fixtures, agent-runs, local cache, .agent-context, release EXEs, or stale Desktop/TUI output.
 
-- Confirm `package.json` has the intended package name and version.
-- Confirm `README.md` and `README.en.md` use the npm install path.
-- Run `npm run release:verify` and inspect the reported file counts and packed sizes.
-- Confirm the core package does not contain `assets/`, `benchmarks/`, or `.agent-context/`.
-- Confirm the tarball does not include local dependency folders such as `node_modules/`.
-- Confirm the tarball does not include generated local caches such as `.agent-context/cache/`.
-- Smoke test the packed tarball in a temporary directory before publishing when possible.
-- After publishing, confirm the published version with `npm view opencode-plusplus version`.
+## Windows EXE
 
-## Publish Command
+Build on Windows with Node.js 20+. Node SEA and postject embed the bundled global plugin. The release must include:
 
-Publishing requires an npm account with permission to publish `opencode-plusplus`:
+- opencode-plusplus-setup-win-x64.exe;
+- opencode-plusplus-setup-win-x64.exe.sha256;
+- release notes that state the supported architecture, per-user install boundary, restart requirement, and unsigned SmartScreen behavior.
 
-```bash
-npm publish
-```
+Smoke test with an isolated --config-dir:
 
-For packages that require two-factor authentication, use a one-time password or a granular access token with publish permission and 2FA bypass enabled.
+1. install and inspect status JSON;
+2. verify plugin and three commands exist;
+3. disable and confirm enabled=false;
+4. enable and confirm enabled=true;
+5. load or syntax-check the installed plugin;
+6. uninstall and confirm only owned files are removed.
+
+## Publish Verification
+
+After publishing, verify npm version, GitHub tag, Release assets, EXE digest, asset size, and origin/main commit. A clean checkout must reproduce both npm package checks and the installer build without relying on local dist or release files.

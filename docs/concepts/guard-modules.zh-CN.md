@@ -1,5 +1,7 @@
 # Guard Modules
 
+[English](guard-modules.md) | 中文
+
 OpenCode++ 的 Guard 模块是围绕 Code Agent 失败模式设计的外挂可靠性组件。每个 Guard 都把一种常见工程问题映射成可检查输入、生成物、gate 行为和决策报告。
 
 统一模型：

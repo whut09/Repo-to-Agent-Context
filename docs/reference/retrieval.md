@@ -1,5 +1,7 @@
 # Retrieval Providers
 
+[中文](retrieval.zh-CN.md) | English
+
 OpenCode++ retrieval is a provider protocol, not a single RAG framework.
 
 ## Providers

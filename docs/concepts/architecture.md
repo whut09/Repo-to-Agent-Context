@@ -1,5 +1,7 @@
 # Architecture
 
+[中文](architecture.zh-CN.md) | English
+
 OpenCode++ is a problem-driven enhancement layer for coding agents. It does not replace Codex, OpenCode, Claude Code, Cursor, or MiMoCode as the coding agent; it adds context enhancement, edit boundaries, regression guards, impact analysis, test-evidence validation, and repair/finalize decision reports around them.
 
 The core product is no longer just documentation generation or context-pack compilation. It is a static but verifiable Agent Reliability Layer:

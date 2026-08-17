@@ -1,5 +1,7 @@
 # Cursor MCP Integration
 
+[中文](cursor-mcp.zh-CN.md) | English
+
 This guide connects Cursor to OpenCode++ through the stdio MCP server. Cursor remains the editor and coding agent; OpenCode++ provides task-aware context, edit boundaries, evidence gates, and loop decision reports.
 
 ## Configuration

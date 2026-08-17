@@ -1,5 +1,7 @@
 # OpenCode MCP Integration
 
+[中文](opencode-mcp.zh-CN.md) | English
+
 This guide connects OpenCode to OpenCode++ through the stdio MCP server. OpenCode remains the coding runtime; OpenCode++ supplies task context, edit boundaries, evidence checks, and repair/finalize decision reports.
 
 ## Configuration

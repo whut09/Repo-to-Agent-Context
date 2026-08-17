@@ -1,5 +1,7 @@
 # Artifacts Reference
 
+[中文](artifacts.zh-CN.md) | English
+
 OpenCode++ writes human-readable Markdown and machine-readable JSON.
 
 For whether each generated file should be committed, see [Generated Files and Commit Policy](generated-files.md).

@@ -1,5 +1,7 @@
 # Runtime State Machine
 
+[中文](runtime-state-machine.zh-CN.md) | English
+
 Runtime state is written under:
 
 ```txt

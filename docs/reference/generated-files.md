@@ -1,5 +1,7 @@
 # Generated Files and Commit Policy
 
+[中文](generated-files.zh-CN.md) | English
+
 OpenCode++ writes both stable repository context and local runtime evidence. These files do not all belong in git.
 
 Default rule:

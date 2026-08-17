@@ -1,5 +1,7 @@
 # Loop Engineering Code Path
 
+[中文](loop-engineering.zh-CN.md) | English
+
 OpenCode++ is moving from a context compiler into an Agent Harness Runtime Control Plane. The core loop is:
 
 ```txt

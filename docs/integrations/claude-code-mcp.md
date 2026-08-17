@@ -1,5 +1,7 @@
 # Claude Code MCP Integration
 
+[中文](claude-code-mcp.zh-CN.md) | English
+
 This guide connects Claude Code to OpenCode++ as an MCP reliability backend. Claude Code performs code edits; OpenCode++ returns repository context, boundaries, evidence requirements, and loop decision reports.
 
 ## Configuration
