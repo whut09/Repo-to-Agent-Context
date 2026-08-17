@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { getOpenCodePlusplusPackageVersion, OPENCODE_PLUSPLUS_PACKAGE_NAME } from "../core/package-info.js";
 import { runOpencodeDoctor, type OpencodeDoctorCheck } from "./opencode-preset.js";
-import { OPENCODE_SIDECAR_PLUGIN_PATH } from "../integrations/opencode/plugin-template.js";
+import { OPENCODE_SIDECAR_PLUGIN_PATH } from "../integrations/opencode/sidecar.js";
 import { defaultOpenCodePlusPlusPluginFile, readOpenCodePlusPlusPluginStatus } from "../integrations/opencode/plugin-runtime/state.js";
 import { verifyOpencodeSidecar } from "../integrations/opencode/sidecar.js";
 

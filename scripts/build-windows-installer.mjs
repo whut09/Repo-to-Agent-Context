@@ -54,10 +54,25 @@ writeFileSync(
 );
 run(process.execPath, ["--experimental-sea-config", seaConfig]);
 copyFileSync(process.execPath, executable);
-run(process.execPath, [path.join(root, "node_modules/postject/dist/cli.js"), executable, "NODE_SEA_BLOB", seaBlob, "--sentinel-fuse", "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"]);
+run(process.execPath, [
+  path.join(root, "node_modules/postject/dist/cli.js"),
+  executable,
+  "NODE_SEA_BLOB",
+  seaBlob,
+  "--sentinel-fuse",
+  "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
+]);
 
 const checksum = spawnSync("certutil.exe", ["-hashfile", executable, "SHA256"], { encoding: "utf8" });
-const digest = checksum.status === 0 ? checksum.stdout.split(/\r?\n/).slice(1).find((line) => /^[0-9a-f ]{64,}$/i.test(line.trim()))?.replace(/\s+/g, "").toLowerCase() : undefined;
+const digest =
+  checksum.status === 0
+    ? checksum.stdout
+        .split(/\r?\n/)
+        .slice(1)
+        .find((line) => /^[0-9a-f ]{64,}$/i.test(line.trim()))
+        ?.replace(/\s+/g, "")
+        .toLowerCase()
+    : undefined;
 if (!digest) throw new Error(`Unable to calculate SHA256 for ${executable}: ${checksum.stderr || checksum.stdout}`);
 writeFileSync(`${executable}.sha256`, `${digest}  ${path.basename(executable)}\n`, "utf8");
 console.log(`Built ${executable}`);

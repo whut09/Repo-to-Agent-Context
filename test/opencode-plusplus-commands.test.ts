@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getOpenCodePlusplusStatus, readOpenCodePlusplusReport, renderOpenCodePlusplusStatus } from "../src/cli/opencode-plusplus-commands.js";
-import { ensureOpencodeSidecarPlugin, verifyOpencodeSidecar, writeOpencodeSidecarLatest } from "../src/integrations/opencode/sidecar.js";
+import { verifyOpencodeSidecar, writeOpencodeSidecarLatest } from "../src/integrations/opencode/sidecar.js";
 
 test("opencode-plusplus report reads the latest sidecar markdown report", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-opencode-plusplus-report-"));
@@ -24,10 +24,27 @@ test("opencode-plusplus report reads the latest sidecar markdown report", () => 
 
 test("opencode-plusplus status reports active sidecar signals", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-opencode-plusplus-status-"));
+  const oldConfigDir = process.env.OPENCODE_CONFIG_DIR;
   try {
+    const configDir = path.join(root, "opencode-config");
+    process.env.OPENCODE_CONFIG_DIR = configDir;
     mkdirSync(path.join(root, ".agent-context", "traces"), { recursive: true });
-    ensureOpencodeSidecarPlugin(root);
-    const verify = await verifyOpencodeSidecar(root);
+    mkdirSync(path.join(configDir, "plugins"), { recursive: true });
+    mkdirSync(path.join(configDir, "opencode-plusplus"), { recursive: true });
+    writeFileSync(path.join(configDir, "plugins", "opencode-plusplus.js"), "module.exports = async () => ({});\n", "utf8");
+    writeFileSync(
+      path.join(configDir, "opencode-plusplus", "state.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        revision: 1,
+        enabled: true,
+        version: "0.2.0",
+        installedAt: "2026-08-17T00:00:00.000Z",
+        updatedAt: "2026-08-17T00:00:00.000Z"
+      }),
+      "utf8"
+    );
+    const verify = await verifyOpencodeSidecar(root, { pluginInstalled: true });
     writeOpencodeSidecarLatest(verify);
 
     const status = getOpenCodePlusplusStatus(root);
@@ -38,6 +55,8 @@ test("opencode-plusplus status reports active sidecar signals", async () => {
     assert.equal(status.latestExists, true);
     assert.match(renderOpenCodePlusplusStatus(status), /Sidecar: active/);
   } finally {
+    if (oldConfigDir === undefined) delete process.env.OPENCODE_CONFIG_DIR;
+    else process.env.OPENCODE_CONFIG_DIR = oldConfigDir;
     rmSync(root, { recursive: true, force: true });
   }
 });

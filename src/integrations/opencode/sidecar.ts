@@ -1,10 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { writeJsonAtomic, writeTextAtomic } from "../../core/atomic-store.js";
 import { collectWorkingTreeFiles, runGit } from "../../core/git.js";
 import type { ExecutionTrace, ExecutionTraceStep } from "../../harness/observability/execution-trace.js";
 import type { ChangeImpactReport } from "../../outputs/impact.js";
-import { OPENCODE_SIDECAR_PLUGIN_PATH, opencodeSidecarPluginTemplate } from "./plugin-template.js";
 import { renderCommandCheck, renderLatestMarkdown, renderToolRecord, renderVerifyReport } from "./sidecar-report-renderer.js";
 import { isGeneratedSidecarOutput, isSecretLike } from "./sidecar-path-guard.js";
 import { recordSidecarTool } from "./sidecar-evidence-recorder.js";
@@ -12,21 +11,12 @@ import { checkSidecarCommand } from "./sidecar-command-guard.js";
 import { blockersFromGuardStack, runSidecarIncrementalVerifier, warningsFromGuardStack } from "./sidecar-incremental-verifier.js";
 import { defaultOpenCodePlusPlusPluginFile } from "./plugin-runtime/state.js";
 
-export interface OpenCodeSidecarEnsureOptions {
-  force?: boolean;
-  dryRun?: boolean;
-}
-
 export interface OpenCodeSidecarVerifyOptions {
   pluginPath?: string;
   pluginInstalled?: boolean;
 }
 
-export interface OpenCodeSidecarStep {
-  name: string;
-  status: "pass" | "warn" | "fail" | "skipped";
-  details: string;
-}
+export const OPENCODE_SIDECAR_PLUGIN_PATH = ".opencode/plugins/opencode-plusplus.ts";
 
 export interface OpenCodeSidecarVerifyCheck {
   name: string;
@@ -153,26 +143,6 @@ export interface OpenCodeSidecarToolRecordResult {
   };
   trace: ExecutionTrace;
   step: ExecutionTraceStep;
-}
-
-export function ensureOpencodeSidecarPlugin(repo: string, options: OpenCodeSidecarEnsureOptions = {}): OpenCodeSidecarStep {
-  const root = path.resolve(repo);
-  const filePath = path.join(root, OPENCODE_SIDECAR_PLUGIN_PATH);
-  if (existsSync(filePath) && !options.force) {
-    return { name: "sidecar-plugin", status: "pass", details: `${OPENCODE_SIDECAR_PLUGIN_PATH} already exists` };
-  }
-
-  if (options.dryRun) {
-    return {
-      name: "sidecar-plugin",
-      status: existsSync(filePath) ? "warn" : "pass",
-      details: existsSync(filePath) ? `${OPENCODE_SIDECAR_PLUGIN_PATH} would be overwritten with --force` : `${OPENCODE_SIDECAR_PLUGIN_PATH} would be generated`
-    };
-  }
-
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, opencodeSidecarPluginTemplate(), "utf8");
-  return { name: "sidecar-plugin", status: "pass", details: `${OPENCODE_SIDECAR_PLUGIN_PATH} generated` };
 }
 
 export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecarVerifyOptions = {}): Promise<OpenCodeSidecarVerifyResult> {
