@@ -1,5 +1,7 @@
 node_modules/
 dist/
+release/
+.installer-build/
 coverage/
 .next/
 .turbo/

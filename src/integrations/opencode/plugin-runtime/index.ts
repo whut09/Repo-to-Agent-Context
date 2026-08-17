@@ -17,6 +17,7 @@ import { currentSidecarWorkingTreeHash } from "./worktree-hash.js";
 export interface OpenCodePlusPlusSidecarOptions {
   stateFile?: string;
   pluginPath?: string;
+  pluginInstalled?: boolean;
 }
 
 export async function OpenCodePlusPlusSidecar(context: OpenCodeSidecarRuntimeContext): Promise<Record<string, unknown>> {
@@ -29,7 +30,7 @@ export async function createOpenCodePlusPlusSidecar(
 ): Promise<Record<string, unknown>> {
   const recorder = createSidecarRecorder(context);
   const stateFile = options.stateFile ?? defaultOpenCodePlusPlusStateFile();
-  const idle = createIdleVerifier(context.directory, recorder, 2000, options.pluginPath);
+  const idle = createIdleVerifier(context.directory, recorder, 2000, options.pluginPath, options.pluginInstalled);
   const toolStarts = new Map<string, { startedAt: string; workingTreeHashBefore: string }>();
 
   function enabled(): boolean {

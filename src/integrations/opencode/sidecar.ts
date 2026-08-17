@@ -18,6 +18,7 @@ export interface OpenCodeSidecarEnsureOptions {
 
 export interface OpenCodeSidecarVerifyOptions {
   pluginPath?: string;
+  pluginInstalled?: boolean;
 }
 
 export interface OpenCodeSidecarStep {
@@ -184,9 +185,15 @@ export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecar
 
   checks.push(checkGitRepo(root));
   checks.push(checkExists(".agent-context", path.join(root, ".agent-context"), "OpenCode++ context directory exists"));
-  checks.push(checkExists(path.relative(root, pluginPath), pluginPath, "OpenCode sidecar plugin exists"));
+  checks.push(
+    options.pluginInstalled
+      ? { name: "global-plugin", status: "pass", details: "OpenCode++ global plugin is installed" }
+      : checkExists(path.relative(root, pluginPath), pluginPath, "OpenCode sidecar plugin exists")
+  );
 
-  if (existsSync(pluginPath)) {
+  if (options.pluginInstalled) {
+    checks.push({ name: "plugin-source", status: "pass", details: "plugin source is managed by the OpenCode++ user installation" });
+  } else if (existsSync(pluginPath)) {
     const source = readFileSync(pluginPath, "utf8");
     checks.push(checkSource("plugin-export", source, /OpenCodePlusPlusSidecar/, "exports OpenCodePlusPlusSidecar"));
     checks.push(checkSource("file.edited hook", source, /createOpenCodePlusPlusSidecar|file\.edited/, "delegates file.edited handling to the sidecar runtime"));

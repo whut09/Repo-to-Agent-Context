@@ -6,7 +6,13 @@ export interface IdleVerifier {
   maybeVerifyOnIdle: () => Promise<void>;
 }
 
-export function createIdleVerifier(directory: string, recorder: OpenCodeSidecarRecorder, debounceMs = 2000, pluginPath?: string): IdleVerifier {
+export function createIdleVerifier(
+  directory: string,
+  recorder: OpenCodeSidecarRecorder,
+  debounceMs = 2000,
+  pluginPath?: string,
+  pluginInstalled = false
+): IdleVerifier {
   let dirty = false;
   let verifying = false;
   let lastVerifyAt = 0;
@@ -35,7 +41,7 @@ export function createIdleVerifier(directory: string, recorder: OpenCodeSidecarR
     verifying = true;
     dirty = false;
     try {
-      const verify = await verifyOpencodeSidecar(directory, { pluginPath });
+      const verify = await verifyOpencodeSidecar(directory, { pluginPath, pluginInstalled });
       writeOpencodeSidecarLatest(verify);
       recorder.record("sidecar.verify", { exitCode: verify.ok ? 0 : 1 });
       if (!verify.ok) {

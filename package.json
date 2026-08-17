@@ -27,6 +27,7 @@
     "build": "npm run build:core && npm run build:desktop",
     "build:core": "tsc -p tsconfig.json && node scripts/ensure-bin-executable.mjs",
     "build:desktop": "npm run build --workspace @opencode-plusplus/desktop",
+    "build:installer:windows": "node scripts/build-windows-installer.mjs",
     "predev": "npm run package-info:generate",
     "dev": "tsx src/cli/index.ts",
     "premcp": "npm run package-info:generate",
@@ -89,7 +90,9 @@
     "@eslint/js": "^9.39.4",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.9.1",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.4",
+    "postject": "^1.0.0-alpha.6",
     "prettier": "^3.8.4",
     "tsx": "^4.20.6",
     "typescript-eslint": "^8.61.0"

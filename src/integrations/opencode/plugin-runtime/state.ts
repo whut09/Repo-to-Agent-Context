@@ -26,8 +26,9 @@ export interface OpenCodePlusPlusPluginStatus {
 }
 
 export function defaultOpenCodePlusPlusStateFile(): string {
-  const configRoot = process.env.OPENCODE_CONFIG_DIR || process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config");
-  return path.join(configRoot, "opencode", "opencode-plusplus", "state.json");
+  const configDir = process.env.OPENCODE_CONFIG_DIR;
+  const opencodeDir = configDir || path.join(process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config"), "opencode");
+  return path.join(opencodeDir, "opencode-plusplus", "state.json");
 }
 
 export function readOpenCodePlusPlusPluginStatus(stateFile = defaultOpenCodePlusPlusStateFile()): OpenCodePlusPlusPluginStatus {
