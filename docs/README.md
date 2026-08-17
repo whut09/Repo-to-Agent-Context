@@ -1,68 +1,61 @@
 # OpenCode++ Documentation
 
-This is the documentation map for OpenCode++. Start with the path that matches your role.
+[中文目录](README.zh-CN.md) | English
 
-## Reader Paths
+OpenCode++ is Windows-first: install the plugin for the official OpenCode Desktop with the release EXE, then use status, enable, and disable from the chat UI. CLI and MCP are advanced automation surfaces, not a second Desktop application.
 
-| I want to...                          | Read                                                                                                     |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Try the tool in 5 minutes             | [Getting Started](getting-started.md)                                                                    |
-| Understand the product positioning    | [Positioning](concepts/positioning.md)                                                                   |
-| Understand the runtime architecture   | [Architecture](concepts/architecture.md)                                                                 |
-| Choose Agent-led or Harness-led usage | [Integration Modes](concepts/integration-modes.md)                                                       |
-| Use OpenCode chat with sidecar guards | [OpenCode Transparent Sidecar](integrations/opencode-sidecar.md)                                         |
-| Use the official OpenCode Desktop     | [OpenCode Desktop 安装与使用](integrations/opencode-desktop.zh-CN.md)                                    |
-| Prepare an npm release                | [Release Checklist](release.md)                                                                          |
-| Integrate an executor CLI             | [Executor CLI Integration](integrations/executor-cli.md)                                                 |
-| Use MCP tools                         | [MCP Tools](reference/mcp-tools.md) and [MCP Troubleshooting](integrations/mcp-troubleshooting.md)       |
-| Understand generated files            | [Generated Files Policy](reference/generated-files.md) and [Artifacts Reference](reference/artifacts.md) |
-| Extend or debug the runtime           | [Developer Docs](#developer-docs)                                                                        |
+## Start Here
+
+| Goal                                               | Document                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Install, upgrade, disable, or uninstall on Windows | [OpenCode Desktop on Windows](integrations/opencode-desktop.md)                       |
+| Understand the plugin and its hard boundaries      | [Windows plugin architecture and boundaries](concepts/windows-plugin-architecture.md) |
+| Start in five minutes                              | [Getting Started](getting-started.md)                                                 |
+| Understand the global event-driven runtime         | [OpenCode Global Sidecar](integrations/opencode-sidecar.md)                           |
+| Understand context, guards, evidence, and loops    | [Architecture](concepts/architecture.md)                                              |
+| Choose agent-led or harness-led usage              | [Integration Modes](concepts/integration-modes.md)                                    |
+| Operate the CLI                                    | [CLI Reference](reference/cli-reference.md)                                           |
+| Configure evidence trust                           | [Configuration](reference/config.md)                                                  |
+| Build and publish releases                         | [Release Checklist](release.md)                                                       |
 
 ## Concepts
 
-- [Positioning](concepts/positioning.md): why this is a reliability layer, not another coding agent.
-- [Architecture](concepts/architecture.md): scanner, indexer, graph, guards, runtime, integrations.
-- [Guard Modules](concepts/guard-modules.md): Context, Boundary, Evidence, Impact, Hallucination, Regression, Loop.
-- [Integration Modes](concepts/integration-modes.md): Agent-led vs Harness-led entry points.
-- [Loop Engineering](concepts/loop-engineering.md): source-level walkthrough of the loop path.
+- [Positioning](concepts/positioning.md)
+- [Windows Plugin Architecture](concepts/windows-plugin-architecture.md)
+- [Architecture](concepts/architecture.md)
+- [Guard Modules](concepts/guard-modules.md)
+- [Integration Modes](concepts/integration-modes.md)
+- [Loop Engineering](concepts/loop-engineering.md)
 
-Chinese concept pages:
+## Windows and Integrations
 
-- [Guard Modules 中文](concepts/guard-modules.zh-CN.md)
-- [两套集成模式](concepts/integration-modes.zh-CN.md)
-- [Loop Engineering 源码链路](concepts/loop-engineering.zh-CN.md)
-
-## Reference
-
-- [CLI Reference](reference/cli-reference.md)
-- [CLI Help Snapshot](reference/cli-help-snapshot.md)
-- [MCP Tools](reference/mcp-tools.md)
-- [Generated Files and Commit Policy](reference/generated-files.md)
-- [Artifacts](reference/artifacts.md)
-- [Configuration](reference/config.md)
-- [Executor Adapters](reference/executor-adapters.md)
-- [Retrieval Providers](reference/retrieval.md)
-- [Release Checklist](release.md)
-
-## Integrations
-
+- [OpenCode Desktop on Windows](integrations/opencode-desktop.md)
+- [OpenCode Global Sidecar](integrations/opencode-sidecar.md)
+- [OpenCode MCP](integrations/opencode-mcp.md)
 - [Codex MCP](integrations/codex-mcp.md)
 - [Claude Code MCP](integrations/claude-code-mcp.md)
 - [Cursor MCP](integrations/cursor-mcp.md)
-- [OpenCode Transparent Sidecar](integrations/opencode-sidecar.md)
-- [OpenCode Desktop 安装与使用](integrations/opencode-desktop.zh-CN.md)
-- [OpenCode MCP](integrations/opencode-mcp.md)
 - [Executor CLI](integrations/executor-cli.md)
 - [MCP Troubleshooting](integrations/mcp-troubleshooting.md)
 
-## Developer Docs
+## Developer Documentation
 
 - [Source Walkthrough](developer/source-walkthrough.md)
 - [Runtime State Machine](developer/runtime-state-machine.md)
 - [Guard Gate Schema](developer/guard-gate-schema.md)
 - [Benchmark Guide](developer/benchmark-guide.md)
 
-## Roadmap
+## Reference
 
+- [CLI Reference](reference/cli-reference.md)
+- [CLI Help Snapshot](reference/cli-help-snapshot.md)
+- [MCP Tools](reference/mcp-tools.md)
+- [Configuration](reference/config.md)
+- [Artifacts](reference/artifacts.md)
+- [Generated Files](reference/generated-files.md)
+- [Executor Adapters](reference/executor-adapters.md)
+- [Retrieval Providers](reference/retrieval.md)
+- [Release Checklist](release.md)
 - [Roadmap](roadmap.md)
-- [Roadmap 中文](roadmap.zh-CN.md)
+
+Each maintained English page has a Chinese page next to it with the .zh-CN.md suffix. The CLI help snapshot is generated canonical output; the Chinese CLI reference explains the same command groups and links to that snapshot.

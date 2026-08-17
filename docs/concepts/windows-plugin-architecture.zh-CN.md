@@ -1,0 +1,86 @@
+# Windows 插件架构与边界
+
+[English](windows-plugin-architecture.md) | 中文
+
+本文是 Windows Desktop 集成的原理和边界说明。OpenCode++ 包含两个相关产品：面向交互式会话的用户级 OpenCode 插件，以及面向显式自动化的仓库 Harness。两者共享领域实现，但不共享控制权。
+
+## 系统模型
+
+```mermaid
+flowchart TD
+  EXE["Windows EXE 安装器"] --> Config["用户 OpenCode 配置"]
+  Config --> Plugin["内置全局插件"]
+  Desktop["官方 OpenCode Desktop"] --> Plugin
+  Plugin --> Hooks["OpenCode hook 事件"]
+  Hooks --> Runtime["插件运行时"]
+  Runtime --> Guard["命令/路径 Guard"]
+  Runtime --> Evidence["Trace/Evidence 记录器"]
+  Runtime --> Idle["空闲验证器"]
+  Guard --> Repo["目标仓库"]
+  Evidence --> Repo
+  Idle --> Repo
+  Repo --> Artifacts[".agent-context artifact"]
+  CLI["CLI / MCP Harness"] --> Repo
+```
+
+## 安装边界
+
+EXE 是当前用户级安装器。它把内置插件、三个命令 markdown、状态文件和安装清单写入当前 OpenCode 配置目录，写入使用项目的原子存储。安装器不需要管理员权限，不修改 Desktop 二进制，不替换更新器，不修改凭据，也不安装操作系统服务。
+
+插件使用 Node SEA 构建并嵌入运行时代码。运行时不能导入源代码仓库，也不能依赖全局安装的 OpenCode++ 包。EXE 较大是因为包含 Node runtime 和内置插件，不是第二个 Desktop 应用。
+
+## 插件边界
+
+OpenCode 负责模型、聊天界面、工具调度、认证、进程生命周期和事件投递。OpenCode++ 只负责插件回调以及由回调产生的仓库 artifact：
+
+| 边界 | OpenCode 负责          | OpenCode++ 负责                                 |
+| ---- | ---------------------- | ----------------------------------------------- |
+| 界面 | 聊天、设置、会话显示   | 由 OpenCode 展示的工具和 Slash Command          |
+| 执行 | 模型和工具调用         | 工具前命令/路径检查、工具后证据记录             |
+| 状态 | 插件加载、会话生命周期 | 启用状态、revision、trace、policy、sidecar 报告 |
+| 仓库 | 源代码和用户工作流     | .agent-context 运行时输出                       |
+| 安全 | 宿主进程权限           | 确定性 Guard finding，不是 OS 沙箱              |
+
+## 启用状态
+
+状态文件是用户级且带版本的。enabled 为 false 时插件仍加载，前后 hook 提前返回，但三个控制工具继续可用。状态文件损坏或版本不支持时，保护逻辑默认保持启用并返回诊断，不会静默关闭 Guard。
+
+## 事件与证据流程
+
+1. tool.execute.before 规范化宿主输入，检查命令和路径。
+2. 运行时记录开始时间和 working-tree hash。
+3. tool.execute.after 规范化输出，在可用时记录退出码，脱敏密钥并记录 hash/预览。
+4. file.edited 或 file.watcher.updated 标记会话 dirty。
+5. session.idle 为当前仓库启动增量验证。
+6. Sidecar 报告和 trace 通过原子方式写入 .agent-context。
+
+如果宿主没有暴露命令、退出码、路径或 session id，运行时记录 unknown 或 partial，不伪造证据。
+
+## Harness 边界
+
+CLI/MCP Harness 是独立控制面。它可以生成 context、调用 executor、收集 diff、评估 policy 和 Guard Gate，并选择 finalize、repair、repack、block、rollback 或 human-review。Desktop 插件不会启动多轮 executor，也不会对用户工作树执行破坏性回滚。
+
+入口决定权限：
+
+- Desktop 插件：事件驱动、交互式，宿主持有执行权。
+- Agent-led CLI/MCP：外部 Agent 持有执行权，OpenCode++ 返回报告和约束。
+- Harness-led CLI：OpenCode++ 持有有界编排权，外部 Agent 仍是实际改代码的 executor。
+
+## 非目标
+
+- 不再提供第二个 Electron 或 TUI 应用。
+- 不 patch 或注入 OpenCode Desktop 二进制。
+- 不替代操作系统沙箱或杀毒软件。
+- 不声称命令通过就等于语义正确。
+- 不自动提交、推送、合并或破坏性回滚用户工作树。
+
+## Windows 故障处理
+
+| 故障                     | 预期行为                                                          |
+| ------------------------ | ----------------------------------------------------------------- |
+| 安装时 OpenCode 仍在运行 | 关闭并重启，让插件模块重新加载。                                  |
+| 使用自定义配置目录       | 设置 OPENCODE_CONFIG_DIR 或传 EXE --config-dir。                  |
+| 状态 JSON 损坏           | 安装器返回诊断，不静默覆盖。                                      |
+| SmartScreen 警告         | 先核对发布的 SHA256；发布二进制未做商业代码签名。                 |
+| 存在旧项目插件           | 删除 .opencode/plugins/opencode-plusplus.ts，避免 hook 重复。     |
+| 其他程序编辑文件         | Sidecar 无法观察所有外部编辑，应运行 CLI verify 或 Harness 评估。 |

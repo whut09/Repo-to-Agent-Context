@@ -1,6 +1,8 @@
 # OpenCode Global Sidecar
 
-OpenCode++ is a global OpenCode plugin for the official OpenCode Desktop application. The installer places the bundled plugin in the user OpenCode configuration directory; it does not patch Desktop binaries or add a second desktop shell.
+[中文](opencode-sidecar.zh-CN.md) | English
+
+OpenCode++ is a global plugin for the official OpenCode Desktop application on Windows. The installer puts a bundled CommonJS plugin in the user's OpenCode configuration directory. Normal interactive use does not require the source repository or the OpenCode++ CLI.
 
 ## Runtime Boundary
 
@@ -11,44 +13,39 @@ flowchart LR
   Plugin --> Guard["Command and path Guard"]
   Plugin --> Evidence["Tool evidence recorder"]
   Plugin --> Verify["Idle incremental verifier"]
-  Guard --> Artifacts[".agent-context artifacts"]
+  Guard --> Artifacts["Repository .agent-context artifacts"]
   Evidence --> Artifacts
   Verify --> Artifacts
 ```
 
-The plugin hooks `tool.execute.before`, `tool.execute.after`, `file.edited`, `file.watcher.updated`, and `session.idle`. It blocks dangerous commands and protected paths before execution, records sanitized evidence after execution, and runs the shared verification stack after a dirty session becomes idle.
+The plugin handles `tool.execute.before`, `tool.execute.after`, `file.edited`, `file.watcher.updated`, and `session.idle`. OpenCode still owns model execution, tool dispatch, UI, authentication, and process lifecycle.
 
 ## Control Surface
 
-The plugin exposes three tools:
+The plugin exposes `opencode_plusplus_status`, `opencode_plusplus_enable`, and `opencode_plusplus_disable` plus matching Slash Commands. A disabled plugin remains loaded and only bypasses Guard, evidence capture, and idle verification. This lets the user inspect status and re-enable without reinstalling.
 
-- `opencode_plusplus_status`
-- `opencode_plusplus_enable`
-- `opencode_plusplus_disable`
+## Evidence and Artifacts
 
-The installer also registers `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off`. OpenCode Desktop invokes these through its normal chat and command UI. The plugin remains loaded while disabled so status and re-enable remain available.
+After a tool call, the plugin records sanitized previews and hashes instead of unrestricted output. It records an exit code when the host supplies one; otherwise the result is `unknown`. It records before/after working-tree hashes and changed paths when available. Reports and traces are written under the current repository's `.agent-context/` through the shared atomic store.
 
-## Repository Artifacts
+The sidecar is an evidence collection and verification layer. It is not a replacement for unit tests, code review, CI, an OS sandbox, or a security boundary against other applications.
 
-The plugin writes runtime evidence and reports under `.agent-context/`, including sidecar events, traces, policy output, and the latest verification report. These files are local runtime artifacts and should normally stay out of commits. Stable generated context may be committed according to the repository policy.
+## Relation to the Batch Harness
 
-## Batch Harness
+The Desktop sidecar is session-local and event-driven. The CLI/MCP Harness can own a bounded multi-iteration flow:
 
-The Desktop plugin and the harness-led executor are separate paths. Use the batch flow when OpenCode++ should own the bounded loop:
-
-```bash
-opencode-plusplus oc run "fix the login timeout bug" . --max-loops 3
-opencode-plusplus oc report --last
+```powershell
+opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor opencode --max-loops 3 --fail-on required
 ```
 
-The batch path produces explicit `finalize`, `repair`, `repack`, `block`, `rollback`, or `human-review` decisions. The Desktop plugin provides transparent protection for the active chat session.
+Both paths share Guard, Evidence, Policy, and decision implementations. Only the harness-led path owns executor invocation and terminal loop decisions.
 
 ## Troubleshooting
 
-Check that the global plugin exists, then fully restart Desktop:
+1. Fully restart OpenCode after installation or upgrade.
+2. Check the active config directory and plugin file with `--status --json`.
+3. Call `opencode_plusplus_status` from a new session.
+4. Inspect `.agent-context/sidecar/latest.md` after a file edit and idle event.
+5. Remove a legacy `.opencode/plugins/opencode-plusplus.ts` project plugin.
 
-```powershell
-Test-Path "$env:USERPROFILE\.config\opencode\plugins\opencode-plusplus.js"
-```
-
-Use the in-Desktop status tool first. For repository artifacts, inspect `.agent-context/sidecar/latest.md` or run `opencode-plusplus sidecar verify .` from a terminal.
+See [Windows installation and usage](opencode-desktop.md) for installer paths and lifecycle.

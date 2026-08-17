@@ -2,55 +2,78 @@
 
 [中文](README.md) | English
 
-**A reliability plugin and harness for the official OpenCode Desktop application.**
+**A Windows plugin, evidence layer, and harness for the official OpenCode Desktop application.**
 
-OpenCode++ does not patch OpenCode Desktop. It uses the user-level OpenCode plugin boundary to provide command guards, tool evidence, context verification, policy gates, and repair-loop reports.
+OpenCode++ does not modify or replace the official OpenCode Desktop application, and it does not install a second desktop shell. The Windows EXE installs a self-contained global plugin, three control commands, and a state file in the current user's OpenCode configuration directory. Daily use stays inside the OpenCode Desktop chat interface.
 
-## 30-Second Start
+## Five-Minute Install
 
-1. Install and open the official OpenCode Desktop application.
-2. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
-3. Double-click the EXE, then fully restart OpenCode Desktop.
-4. Open a repository in Desktop and start a chat.
+1. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
+2. Fully exit OpenCode Desktop.
+3. Double-click the EXE and wait for the completion message.
+4. Reopen OpenCode Desktop, open the target repository, and start a session.
+5. Call `opencode_plusplus_status` in chat or enter `/opencode-plusplus-status`.
 
-The installer writes only to the current user's OpenCode configuration directory and does not require administrator privileges. Daily use does not require this repository's CLI or a separate OpenCode++ desktop shell.
+The installer writes only to the current Windows user directory and does not require administrator privileges. The default location is `%USERPROFILE%\.config\opencode`; `OPENCODE_CONFIG_DIR` or `XDG_CONFIG_HOME` is honored when OpenCode uses a custom configuration directory.
 
-## Desktop Controls
+## Controls Inside OpenCode
 
-Once loaded, the plugin exposes these tools in OpenCode:
+| Action      | Plugin tool                 | Slash Command               |
+| ----------- | --------------------------- | --------------------------- |
+| Show status | `opencode_plusplus_status`  | `/opencode-plusplus-status` |
+| Enable      | `opencode_plusplus_enable`  | `/opencode-plusplus-on`     |
+| Disable     | `opencode_plusplus_disable` | `/opencode-plusplus-off`    |
+
+When enabled, the plugin checks dangerous commands, unknown scripts, and protected paths before tool execution; records exit codes, redacted output, sessions, and working-tree hashes after execution; and runs incremental verification when a session becomes idle. Disabling pauses protection, evidence, and idle verification while keeping the controls available.
+
+## Principles and Boundaries
+
+- The EXE does not modify the OpenCode Desktop binary, installation directory, renderer, updater, or account login.
+- The current OpenCode plugin API has no public third-party settings-panel extension point, so enable/disable/status are exposed through plugin tools and Slash Commands.
+- The plugin observes only OpenCode-exposed tools and events. It is not an operating-system sandbox and cannot stop another program from editing files.
+- Guards enforce command and path boundaries, not a complete security audit. Opaque tool arguments may produce evidence or warnings instead of a block.
+- Evidence is redacted and truncated. It proves what the system captured; it does not prove complete business coverage.
+- Repository runtime reports are written to `.agent-context/`. Uninstalling the plugin does not delete historical artifacts.
+
+Read [Windows plugin architecture and boundaries](docs/concepts/windows-plugin-architecture.md) for the complete model.
+
+## Installation and Repository Files
+
+User-level installation files:
 
 ```text
-opencode_plusplus_status
-opencode_plusplus_enable
-opencode_plusplus_disable
+%USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
+%USERPROFILE%\.config\opencode\opencode-plusplus\state.json
 ```
 
-It also registers these slash commands:
+Harness files in the target repository live under `.agent-context/` and include context, trace, evidence, policy, guard, loop, and orchestrator artifacts. They are not OpenCode Desktop installation files.
 
-```text
-/opencode-plusplus-status
-/opencode-plusplus-on
-/opencode-plusplus-off
-```
+## Upgrade, Disable, and Uninstall
 
-When enabled, OpenCode++ checks dangerous commands and protected paths before execution, records exit codes, sanitized output summaries, sessions, and working-tree hashes after execution, and runs incremental verification when an edited session becomes idle. Disabling it keeps the control tools available while pausing protection and verification.
+- **Upgrade**: exit OpenCode, download the newer EXE, and double-click it. The installer replaces plugin and command files while preserving a valid enabled state.
+- **Temporarily disable**: use `/opencode-plusplus-off`; restore it with `/opencode-plusplus-on`.
+- **Uninstall**: run the EXE with `--uninstall`. It removes only OpenCode++ plugin, command, state, and manifest files, not `.agent-context/`.
+- **Check status**: run the EXE with `--status --json`, or call the status tool in OpenCode.
 
-See [OpenCode Desktop installation and usage](docs/integrations/opencode-desktop.zh-CN.md) for installation, upgrade, uninstall, and troubleshooting details.
+## Advanced Harness and CLI
 
-## Advanced Harness
-
-Use the CLI when OpenCode++ should own a bounded batch loop:
+The CLI is not the daily Desktop entry point. It is used for CI, repository context generation, diagnostics, MCP, and harness-led batch runs:
 
 ```powershell
-opencode-plusplus oc run "fix the login timeout and add a regression test" . --max-loops 3
-opencode-plusplus oc report --last
+opencode-plusplus build .
 opencode-plusplus verify --diff .
 opencode-plusplus policy . --base main --fail-on required
+opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor mock --max-loops 3
 ```
 
-CLI, MCP, and the Desktop plugin share the same Guard, Evidence, Policy, Decision, and Loop Engineering implementations. Batch mode produces explicit `finalize`, `repair`, `repack`, `block`, `rollback`, or `human-review` decisions.
+CLI, MCP, and the Desktop plugin share Guard, Evidence, Policy, Decision, and Loop Engineering implementations, but their control boundaries differ: the Desktop plugin observes the current OpenCode session, while the harness-led CLI owns bounded execution, collection, and termination decisions.
 
-## Build From Source
+## Build the Windows EXE
+
+Requires Windows, Node.js 20+, and npm:
 
 ```powershell
 npm ci
@@ -59,15 +82,18 @@ npm run build
 npm run build:installer:windows
 ```
 
-The Windows installer is written to `release/opencode-plusplus-setup-win-x64.exe`. Node SEA embeds the global plugin so the EXE does not depend on a repository absolute path.
+The outputs are `release/opencode-plusplus-setup-win-x64.exe` and its `.sha256` file. Node SEA and `postject` embed the plugin in the EXE, so it does not depend on an absolute path to this repository.
 
 ## Documentation
 
-- [OpenCode Desktop installation and usage](docs/integrations/opencode-desktop.zh-CN.md)
-- [OpenCode Global Sidecar](docs/integrations/opencode-sidecar.md)
+- [Windows installation and usage](docs/integrations/opencode-desktop.md)
+- [Windows plugin architecture and boundaries](docs/concepts/windows-plugin-architecture.md)
+- [Global sidecar runtime](docs/integrations/opencode-sidecar.md)
 - [Architecture](docs/concepts/architecture.md)
-- [Integration Modes](docs/concepts/integration-modes.md)
+- [Integration modes](docs/concepts/integration-modes.md)
 - [Loop Engineering](docs/concepts/loop-engineering.md)
-- [CLI Reference](docs/reference/cli-reference.md)
-- [MCP Tools](docs/reference/mcp-tools.md)
-- [Release Checklist](docs/release.md)
+- [CLI reference](docs/reference/cli-reference.md)
+- [Configuration reference](docs/reference/config.md)
+- [Release checklist](docs/release.md)
+
+License: [MIT](LICENSE).

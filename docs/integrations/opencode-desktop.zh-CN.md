@@ -1,81 +1,92 @@
-# 在官方 OpenCode Desktop 中使用 OpenCode++
+# Windows 官方 OpenCode Desktop 安装与使用
 
-OpenCode++ 现在以官方 OpenCode 插件形式集成到 Desktop。仓库不修改 OpenCode Desktop 的安装目录或更新器，也不再提供单独的桌面外壳。
+[English](opencode-desktop.md) | 中文
+
+OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录接入。它不修改 Desktop 可执行文件、renderer、更新器、账户系统或安装目录，也不安装第二个 Desktop 外壳。
 
 ## 安装
 
-1. 从 GitHub Release 下载 `opencode-plusplus-setup-win-x64.exe`。
-2. 双击运行安装器，等待出现安装完成提示。
-3. 完全退出并重新打开 OpenCode Desktop。
-4. 在 Desktop 中打开需要使用 OpenCode++ 的仓库，创建或重新加载聊天会话。
+1. 完全退出 OpenCode Desktop。
+2. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
+3. 双击 EXE，不需要管理员权限。
+4. 重新打开 OpenCode Desktop，打开一个仓库。
+5. 调用 `opencode_plusplus_status` 或输入 `/opencode-plusplus-status`。
 
-安装器只写入当前 Windows 用户目录，不需要管理员权限：
-
-```text
-%USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
-%USERPROFILE%\.config\opencode\opencode-plusplus\state.json
-```
-
-如果 OpenCode 使用了自定义配置目录，安装器会使用 `OPENCODE_CONFIG_DIR`；也可以用安装器的 `--config-dir` 参数指定目录。
-
-## 在 Desktop 中使用
-
-安装并重启后，OpenCode++ 会作为全局插件加载。日常操作全部在 OpenCode Desktop 界面内完成：
-
-- `opencode_plusplus_status`：查看安装版本、启用状态和状态文件位置。
-- `opencode_plusplus_enable`：启用命令 Guard、工具证据和空闲验证。
-- `opencode_plusplus_disable`：暂停 Guard、工具证据和空闲验证；状态工具仍然可用。
-
-也可以在聊天输入框中使用这些命令：
+安装器写入：
 
 ```text
-/opencode-plusplus-status
-/opencode-plusplus-on
-/opencode-plusplus-off
+<OpenCode 配置目录>\plugins\opencode-plusplus.js
+<OpenCode 配置目录>\commands\opencode-plusplus-on.md
+<OpenCode 配置目录>\commands\opencode-plusplus-off.md
+<OpenCode 配置目录>\commands\opencode-plusplus-status.md
+<OpenCode 配置目录>\opencode-plusplus\state.json
+<OpenCode 配置目录>\opencode-plusplus\installation.json
 ```
 
-这些命令由 OpenCode 调用对应插件工具，不会打开终端。开关状态保存到用户配置目录，重启 Desktop 后仍然保留。
+默认配置目录是 `%USERPROFILE%\.config\opencode`。运行时优先使用 `OPENCODE_CONFIG_DIR`，也支持 `XDG_CONFIG_HOME`。隔离测试安装可以传 `--config-dir <path>`。
 
-## 运行效果
+## 在 Desktop 内使用
 
-启用后，插件会在当前仓库中：
+| 操作     | OpenCode 工具               | Slash Command               |
+| -------- | --------------------------- | --------------------------- |
+| 查看状态 | `opencode_plusplus_status`  | `/opencode-plusplus-status` |
+| 启用     | `opencode_plusplus_enable`  | `/opencode-plusplus-on`     |
+| 禁用     | `opencode_plusplus_disable` | `/opencode-plusplus-off`    |
 
-- 在工具执行前阻止危险命令、未知脚本和受保护路径；
-- 在工具执行后记录退出码、输出摘要、调用会话和 working-tree hash；
-- 在编辑后进入空闲状态时运行增量验证；
-- 将 Sidecar 报告和 Harness artifact 写入仓库的 `.agent-context/`。
+禁用是暂停，不是卸载。插件仍保持加载，因此状态和重新启用仍可用。安装或升级后必须完全重启 OpenCode，让宿主重新加载插件模块。
 
-OpenCode++ 不提供单独的 Desktop 设置页。当前 OpenCode 插件 API 没有公开第三方设置面板扩展点，因此控制入口放在 OpenCode 自己支持的插件工具和 slash command 中。这些入口在官方 Desktop 中可见并可操作。
+## 插件做什么
 
-## 验证安装
+启用时，插件会：
 
-最直接的验证方式是在 Desktop 新建会话并输入：
+- 在工具执行前检查命令语法、已知 package script、危险 Shell 操作、受保护路径和疑似密钥路径；
+- 在工具执行后记录工具、命令、退出码、时间、变更路径、working-tree hash 以及脱敏/截断输出；
+- 把 trace 和事件 artifact 写入当前仓库的 `.agent-context/`；
+- 在文件编辑且会话进入 idle 后运行共享增量验证栈；
+- 通过普通 OpenCode 插件工具提供状态、启用和禁用控制。
 
-```text
-调用 opencode_plusplus_status，返回 OpenCode++ 当前状态。
+## 插件不能做什么
+
+- 不能增加原生 OpenCode Desktop 设置页面；OpenCode++ 不假设存在公开的第三方设置面板 API。
+- 不能给进程提供操作系统级沙箱，也不能控制其他应用做出的编辑。
+- 不能仅凭命令退出码证明业务语义正确。
+- 不能保证完全识别不透明的工具参数。
+- 不会自动提交、推送、合并或破坏性回滚用户工作树。
+
+## 升级
+
+关闭 OpenCode Desktop 后运行新 EXE。安装器原子替换内置插件和命令文件，更新 `installation.json`，并保留现有有效启用状态。
+
+如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。
+
+## 卸载
+
+```powershell
+opencode-plusplus-setup-win-x64.exe --uninstall
 ```
 
-预期结果包含 `Enabled: yes` 和当前版本。然后可以输入 `/opencode-plusplus-off`，再次调用状态工具确认变为 `Enabled: no`，最后输入 `/opencode-plusplus-on` 恢复。
+卸载只删除安装器写入的文件，不删除仓库 `.agent-context/`、源代码、OpenCode Desktop 或其他插件。
 
-## 安装器命令行选项
-
-双击是推荐方式。排障或自动化时，可在 PowerShell 中使用同一个 EXE：
+## 排障
 
 ```powershell
 opencode-plusplus-setup-win-x64.exe --status --json
 opencode-plusplus-setup-win-x64.exe --disable --json
 opencode-plusplus-setup-win-x64.exe --enable --json
-opencode-plusplus-setup-win-x64.exe --uninstall --json
+opencode-plusplus-setup-win-x64.exe --config-dir "C:\Temp\opencode-config" --status --json
 ```
 
-卸载只删除 OpenCode++ 自己写入的插件、slash command 和状态文件，不删除仓库的 `.agent-context/`，也不影响 OpenCode Desktop 本身。
+如果工具没有出现：
 
-## 从源码构建安装器
+1. 完全退出并重启 OpenCode；
+2. 确认插件文件位于 OpenCode 当前实际使用的配置目录；
+3. 新建仓库会话；
+4. 使用 EXE 的 `--status --json`；
+5. 删除遗留的项目级插件。
 
-仓库维护者可以在 Windows、Node.js 20+ 环境中构建：
+## 从源码构建
+
+Windows + Node.js 20+ 环境下执行：
 
 ```powershell
 npm ci
@@ -83,24 +94,4 @@ npm run check
 npm run build:installer:windows
 ```
 
-输出文件为 `release/opencode-plusplus-setup-win-x64.exe` 及对应的 `.sha256` 文件。构建使用 Node SEA 和 `postject`，插件代码会嵌入安装器，不依赖本机仓库路径。
-
-## 常见问题
-
-### Desktop 没有看到工具
-
-完全退出 OpenCode Desktop 后重新启动。确认插件文件存在：
-
-```powershell
-Test-Path "$env:USERPROFILE\.config\opencode\plugins\opencode-plusplus.js"
-```
-
-如果配置目录不是默认位置，检查 `OPENCODE_CONFIG_DIR`，然后重新运行安装器。
-
-### 旧项目插件导致重复执行
-
-升级前曾运行过项目初始化命令的仓库，可能存在 `.opencode/plugins/opencode-plusplus.ts`。全局插件安装后应删除这个旧项目入口，再重新打开仓库，避免同一工具 hook 被加载两次。
-
-### 如何只临时关闭
-
-在 Desktop 聊天中调用 `opencode_plusplus_disable` 或 `/opencode-plusplus-off`。这不会卸载插件，之后可以用 `opencode_plusplus_enable` 恢复。
+输出为 `release/opencode-plusplus-setup-win-x64.exe` 和 SHA256 文件。Node SEA 把全局插件嵌入 EXE，运行时不依赖源代码仓库。发布二进制未做商业代码签名，遇到 SmartScreen 提示时应先核对 Release SHA256。
