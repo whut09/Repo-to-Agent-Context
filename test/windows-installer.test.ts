@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { getOpenCodePlusplusPackageVersion } from "../src/core/package-info.js";
 import {
   getWindowsOpenCodePluginStatus,
   installWindowsOpenCodePlugin,
@@ -36,6 +37,7 @@ test("Windows installer writes the global plugin and removes legacy prompt comma
     assert.equal(getWindowsOpenCodePluginStatus(configDir).enabled, false);
     const upgraded = installWindowsOpenCodePlugin(payload, configDir);
     assert.equal(upgraded.enabled, false);
+    assert.equal(JSON.parse(readFileSync(upgraded.paths.stateFile, "utf8")).version, getOpenCodePlusplusPackageVersion());
 
     const removed = uninstallWindowsOpenCodePlugin(configDir);
     assert.equal(removed.pluginExists, false);

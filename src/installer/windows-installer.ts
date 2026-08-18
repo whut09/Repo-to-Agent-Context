@@ -60,7 +60,8 @@ export function installWindowsOpenCodePlugin(payload: WindowsInstallerPayload, c
 
   const existingState = readJsonDiagnostic<Record<string, unknown>>(paths.stateFile);
   if (existingState.status === "corrupt") throw new Error(`Cannot install over corrupt state file: ${existingState.error}`);
-  if (existingState.status !== "ok") setOpenCodePlusPlusPluginEnabled(true, paths.stateFile);
+  const enabled = existingState.status === "ok" ? existingState.value.enabled !== false : true;
+  setOpenCodePlusPlusPluginEnabled(enabled, paths.stateFile);
   writeJsonAtomic(paths.manifestFile, {
     schemaVersion: WINDOWS_INSTALLER_SCHEMA_VERSION,
     revision: Date.now(),
