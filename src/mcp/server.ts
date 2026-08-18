@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Internal dev/test surface. Not the product entry point: end users install the
+// Desktop plugin from the release EXE. This MCP server stays for development,
+// CI, and compatibility with external agent hosts that speak MCP.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
