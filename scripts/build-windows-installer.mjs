@@ -1,6 +1,6 @@
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -9,10 +9,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const staging = path.join(root, ".installer-build");
 const release = path.join(root, "release");
 const pluginPath = path.join(staging, "opencode-plusplus-plugin.cjs");
-const installerEntry = path.join(staging, "installer-entry.cjs");
-const installerBundle = path.join(staging, "installer.cjs");
-const seaConfig = path.join(staging, "sea-config.json");
-const seaBlob = path.join(staging, "sea-prep.blob");
+const pluginGzipPath = path.join(staging, "opencode-plusplus-plugin.cjs.gz");
+const installerTemplate = path.join(root, "src/installer/windows-installer.cs");
+const installerSource = path.join(staging, "windows-installer.generated.cs");
 const executable = path.join(release, "opencode-plusplus-setup-win-x64.exe");
 
 rmSync(staging, { recursive: true, force: true });
@@ -32,6 +31,7 @@ await build({
   format: "cjs",
   target: "node20",
   outfile: pluginPath,
+  minify: true,
   legalComments: "none"
 });
 
@@ -41,38 +41,23 @@ if (pluginExports.length !== 1 || typeof pluginExports[0] !== "function") {
   throw new Error("Bundled plugin must expose exactly one OpenCode plugin function.");
 }
 
-const pluginGzipBase64 = gzipSync(readFileSync(pluginPath)).toString("base64");
-writeFileSync(
-  installerEntry,
-  `const { runWindowsInstaller } = require(${JSON.stringify(path.join(root, "src/installer/windows-installer.ts"))});\n` +
-    `runWindowsInstaller(process.argv.slice(1), { pluginGzipBase64: ${JSON.stringify(pluginGzipBase64)} });\n`,
-  "utf8"
-);
+const pluginGzip = gzipSync(readFileSync(pluginPath), { level: 9 });
+writeFileSync(pluginGzipPath, pluginGzip);
+const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+writeFileSync(installerSource, readFileSync(installerTemplate, "utf8").replaceAll("__PACKAGE_VERSION__", packageVersion), "utf8");
 
-await build({
-  entryPoints: [installerEntry],
-  bundle: true,
-  platform: "node",
-  format: "cjs",
-  target: "node20",
-  outfile: installerBundle,
-  legalComments: "none"
-});
-
-writeFileSync(
-  seaConfig,
-  JSON.stringify({ main: installerBundle, output: seaBlob, disableExperimentalSEAWarning: true, useSnapshot: false, useCodeCache: false }, null, 2),
-  "utf8"
-);
-run(process.execPath, ["--experimental-sea-config", seaConfig]);
-copyFileSync(process.execPath, executable);
-run(process.execPath, [
-  path.join(root, "node_modules/postject/dist/cli.js"),
-  executable,
-  "NODE_SEA_BLOB",
-  seaBlob,
-  "--sentinel-fuse",
-  "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
+const csc = findCsc();
+run(csc, [
+  "/nologo",
+  "/target:exe",
+  "/optimize+",
+  "/platform:x64",
+  "/utf8output",
+  `/out:${executable}`,
+  `/resource:${pluginGzipPath},OpenCodePlusPlus.Plugin.gz`,
+  "/reference:System.Web.Extensions.dll",
+  "/reference:System.Windows.Forms.dll",
+  installerSource
 ]);
 
 const checksum = spawnSync("certutil.exe", ["-hashfile", executable, "SHA256"], { encoding: "utf8" });
@@ -88,7 +73,19 @@ const digest =
 if (!digest) throw new Error(`Unable to calculate SHA256 for ${executable}: ${checksum.stderr || checksum.stdout}`);
 writeFileSync(`${executable}.sha256`, `${digest}  ${path.basename(executable)}\n`, "utf8");
 console.log(`Built ${executable}`);
+console.log(`Installer size ${statSync(executable).size} bytes; compressed plugin ${pluginGzip.length} bytes`);
 console.log(`SHA256 ${digest}`);
+
+function findCsc() {
+  const windows = process.env.WINDIR || process.env.SystemRoot || "C:\\Windows";
+  const candidates = [
+    path.join(windows, "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe"),
+    path.join(windows, "Microsoft.NET", "Framework", "v4.0.30319", "csc.exe")
+  ];
+  const compiler = candidates.find(existsSync);
+  if (!compiler) throw new Error(".NET Framework C# compiler was not found. Windows 10/11 with .NET Framework 4.x is required.");
+  return compiler;
+}
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit" });
