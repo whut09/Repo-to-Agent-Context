@@ -2,13 +2,13 @@ import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const staging = path.join(root, ".installer-build");
 const release = path.join(root, "release");
-const pluginPath = path.join(staging, "opencode-plusplus-plugin.js");
+const pluginPath = path.join(staging, "opencode-plusplus-plugin.cjs");
 const installerEntry = path.join(staging, "installer-entry.cjs");
 const installerBundle = path.join(staging, "installer.cjs");
 const seaConfig = path.join(staging, "sea-config.json");
@@ -20,7 +20,13 @@ mkdirSync(staging, { recursive: true });
 mkdirSync(release, { recursive: true });
 
 await build({
-  entryPoints: [path.join(root, "src/integrations/opencode/global-plugin.ts")],
+  stdin: {
+    contents:
+      'import { OpenCodePlusPlusGlobalPlugin } from "./src/integrations/opencode/global-plugin.ts";\n' + "module.exports = OpenCodePlusPlusGlobalPlugin;\n",
+    resolveDir: root,
+    sourcefile: "opencode-plusplus-plugin-entry.ts",
+    loader: "ts"
+  },
   bundle: true,
   platform: "node",
   format: "cjs",
@@ -28,6 +34,12 @@ await build({
   outfile: pluginPath,
   legalComments: "none"
 });
+
+const pluginModule = await import(`${pathToFileURL(pluginPath).href}?build=${Date.now()}`);
+const pluginExports = [...new Set(Object.values(pluginModule))];
+if (pluginExports.length !== 1 || typeof pluginExports[0] !== "function") {
+  throw new Error("Bundled plugin must expose exactly one OpenCode plugin function.");
+}
 
 const pluginGzipBase64 = gzipSync(readFileSync(pluginPath)).toString("base64");
 writeFileSync(

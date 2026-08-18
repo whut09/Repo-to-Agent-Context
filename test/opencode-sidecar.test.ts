@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { buildContextPackage } from "../src/core/context-builder.js";
 import { runGit } from "../src/core/git.js";
+import { getOpenCodePlusplusPackageVersion } from "../src/core/package-info.js";
 import { writeContextPackage } from "../src/outputs/renderers/writer.js";
 import { runOpenCodePlusplusDoctor } from "../src/cli/opencode-plusplus-commands.js";
 import { exitCodeFromOutput, hashText, outputText } from "../src/integrations/opencode/plugin-runtime/evidence.js";
@@ -54,7 +55,8 @@ test("OpenCode++ doctor reports CLI/plugin version consistency", async () => {
 
     assert.equal(versionCheck?.status, "pass");
     assert.equal(versionCheck?.label, "CLI/plugin version");
-    assert.match(versionCheck?.details ?? "", /CLI 0\.2\.0; installed plugin 0\.2\.0/);
+    const version = getOpenCodePlusplusPackageVersion();
+    assert.equal(versionCheck?.details, `CLI ${version}; installed plugin ${version}`);
   } finally {
     process.env.PATH = oldPath;
     restoreEnvironment("OPENCODE_CONFIG_DIR", oldConfigDir);
@@ -66,10 +68,12 @@ test("OpenCode++ doctor treats a missing sidecar plugin as first-run warning", a
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-doctor-first-run-"));
   const bin = path.join(root, "bin");
   const oldPath = process.env.PATH;
+  const oldConfigDir = process.env.OPENCODE_CONFIG_DIR;
   try {
     mkdirSync(bin, { recursive: true });
     writeFakeOpenCode(bin);
     process.env.PATH = `${bin}${path.delimiter}${oldPath ?? ""}`;
+    process.env.OPENCODE_CONFIG_DIR = path.join(root, "missing-opencode-config");
     mkdirSync(path.join(root, ".agent-context"), { recursive: true });
     writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node -e 1" } }), "utf8");
     runGit(root, ["init"]);
@@ -88,6 +92,7 @@ test("OpenCode++ doctor treats a missing sidecar plugin as first-run warning", a
     assert.match(report.checks.find((check) => check.id === "sidecar-plugin")?.details ?? "", /Windows OpenCode\+\+ installer/);
   } finally {
     process.env.PATH = oldPath;
+    restoreEnvironment("OPENCODE_CONFIG_DIR", oldConfigDir);
     rmSync(root, { recursive: true, force: true });
   }
 });
@@ -288,12 +293,13 @@ function writeFakeOpenCode(bin: string): void {
 
 function writeGlobalPluginFixture(configDir: string): void {
   const now = "2026-08-17T00:00:00.000Z";
+  const version = getOpenCodePlusplusPackageVersion();
   mkdirSync(path.join(configDir, "plugins"), { recursive: true });
   mkdirSync(path.join(configDir, "opencode-plusplus"), { recursive: true });
   writeFileSync(path.join(configDir, "plugins", "opencode-plusplus.js"), "module.exports = async () => ({});\n", "utf8");
   writeFileSync(
     path.join(configDir, "opencode-plusplus", "state.json"),
-    JSON.stringify({ schemaVersion: 1, revision: 1, enabled: true, version: "0.2.0", installedAt: now, updatedAt: now }),
+    JSON.stringify({ schemaVersion: 1, revision: 1, enabled: true, version, installedAt: now, updatedAt: now }),
     "utf8"
   );
 }
