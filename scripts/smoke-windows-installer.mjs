@@ -23,12 +23,12 @@ try {
   mkdirSync(path.dirname(legacyCommands[0]), { recursive: true });
   for (const commandFile of legacyCommands) writeFileSync(commandFile, "legacy prompt command", "utf8");
 
-  const installed = runInstaller(["--config-dir", configDir, "--json"]);
+  const installed = runInstaller(["--config-dir", configDir, "--skip-host-patch", "--json"]);
   assert.equal(installed.action, "installed");
   assert.equal(installed.version, packageVersion);
-  assert.equal(installed.commandsInstalled, 0);
+  assert.equal(installed.commandsInstalled, 3);
   assert.equal(
-    legacyCommands.every((commandFile) => !existsSync(commandFile)),
+    legacyCommands.every((commandFile) => existsSync(commandFile)),
     true
   );
 
@@ -40,11 +40,11 @@ try {
   const hooks = await pluginExports[0]({ directory: root, worktree: root, project: {} });
   assert.deepEqual(Object.keys(hooks.tool).sort(), ["opencode_plusplus_disable", "opencode_plusplus_enable", "opencode_plusplus_status"]);
 
-  assert.equal(runInstaller(["--config-dir", configDir, "--disable", "--json"]).enabled, false);
-  assert.equal(runInstaller(["--config-dir", configDir, "--json"]).enabled, false);
+  assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--disable", "--json"]).enabled, false);
+  assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--json"]).enabled, false);
   assert.equal(JSON.parse(readFileSync(path.join(configDir, "opencode-plusplus", "state.json"), "utf8")).version, packageVersion);
-  assert.equal(runInstaller(["--config-dir", configDir, "--enable", "--json"]).enabled, true);
-  assert.equal(runInstaller(["--config-dir", configDir, "--uninstall", "--json"]).pluginExists, false);
+  assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--enable", "--json"]).enabled, true);
+  assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--uninstall", "--json"]).pluginExists, false);
   assert.equal(existsSync(pluginFile), false);
 
   console.log(`Windows installer smoke test passed (${statSync(executable).size} bytes).`);

@@ -51,12 +51,7 @@ export function installWindowsOpenCodePlugin(payload: WindowsInstallerPayload, c
 
   mkdirSync(path.dirname(paths.pluginFile), { recursive: true });
   writeTextAtomic(paths.pluginFile, plugin);
-  // OpenCode Markdown commands are prompt templates, so installing them would
-  // send the control request to the model instead of executing local state.
-  // Remove files from older installers during upgrade, but do not recreate them.
-  for (const commandFile of paths.commandFiles) {
-    if (existsSync(commandFile)) rmSync(commandFile, { force: true });
-  }
+  for (const [index, commandFile] of paths.commandFiles.entries()) writeTextAtomic(commandFile, nativeCommandFiles()[index] ?? nativeCommandFiles()[2]);
 
   const existingState = readJsonDiagnostic<Record<string, unknown>>(paths.stateFile);
   if (existingState.status === "corrupt") throw new Error(`Cannot install over corrupt state file: ${existingState.error}`);
@@ -68,7 +63,7 @@ export function installWindowsOpenCodePlugin(payload: WindowsInstallerPayload, c
     version: getOpenCodePlusplusPackageVersion(),
     installedAt: new Date().toISOString(),
     plugin: WINDOWS_PLUGIN_FILE,
-    commands: []
+    commands: paths.commandFiles.map((file) => path.basename(file))
   });
   return makeReport("installed", paths, "OpenCode++ was installed for the current Windows user.");
 }
@@ -141,6 +136,14 @@ function defaultOpenCodeConfigDir(): string {
 function argumentValue(argv: string[], name: string): string | undefined {
   const index = argv.indexOf(name);
   return index >= 0 ? argv[index + 1] : undefined;
+}
+
+function nativeCommandFiles(): string[] {
+  return [
+    "---\ndescription: OpenCode++ enable (local, no model)\n---\n\nEnable OpenCode++ locally.\n",
+    "---\ndescription: OpenCode++ disable (local, no model)\n---\n\nDisable OpenCode++ locally.\n",
+    "---\ndescription: OpenCode++ status (local, no model)\n---\n\nShow OpenCode++ local status.\n"
+  ];
 }
 
 function removeEmptyDirectory(directory: string): void {
