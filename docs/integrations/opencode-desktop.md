@@ -2,7 +2,7 @@
 
 [中文](opencode-desktop.zh-CN.md) | English
 
-OpenCode++ integrates with the official OpenCode Desktop through its user-level plugin directory. It does not patch the Desktop executable, renderer, updater, account system, or installation directory.
+OpenCode++ integrates with the official OpenCode Desktop through its user-level plugin directory and a narrowly scoped host patch. The patch only intercepts three OpenCode++ command names in the bundled `SessionPrompt.command` handler; it does not modify the renderer, updater, account system, authentication, or unrelated application logic.
 
 ## Install
 
@@ -18,6 +18,9 @@ The installer writes:
 <OpenCode config>\plugins\opencode-plusplus.js
 <OpenCode config>\opencode-plusplus\state.json
 <OpenCode config>\opencode-plusplus\installation.json
+<OpenCode config>\commands\opencode-plusplus-on.md
+<OpenCode config>\commands\opencode-plusplus-off.md
+<OpenCode config>\commands\opencode-plusplus-status.md
 ```
 
 The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONFIG_DIR` takes precedence; `XDG_CONFIG_HOME` is also honored by the runtime. For an isolated installation, pass `--config-dir <path>`.
@@ -30,9 +33,17 @@ The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONF
 | Enable      | `opencode_plusplus_enable`    | `opencode-plusplus-setup-win-x64.exe --enable`  |
 | Disable     | `opencode_plusplus_disable`   | `opencode-plusplus-setup-win-x64.exe --disable` |
 
-OpenCode Markdown Slash Commands are prompt templates. They are sent to the selected model and cannot directly execute local plugin code or render a native status panel. OpenCode++ therefore does not install `/opencode-plusplus-status`, `/opencode-plusplus-on`, or `/opencode-plusplus-off`. The Desktop tools are available to the agent, so asking the agent to use one still involves a model turn. Use the EXE commands when status or control must be local and model-free.
+OpenCode Markdown commands normally are prompt templates, but the installer patches the host command dispatcher for these exact names. When the patch is active, `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off` are intercepted before template expansion and directly read or update the local state file. They append a local assistant result to the current session and do not call the model or execute a shell command. Other Markdown commands retain normal OpenCode behavior.
 
 Disable is a pause, not an uninstall. The plugin remains loaded so status and enable remain available. Install and upgrade require a full OpenCode restart because the host must reload the plugin module.
+
+## Patch Boundary
+
+- The installer requires a supported Desktop bundle containing the expected `SessionPrompt.command` marker.
+- OpenCode must be fully closed while installing or uninstalling because `app.asar` is replaced atomically.
+- The original `app.asar` is saved beside the bundle as `app.asar.opencode-plusplus.original` and restored on uninstall.
+- If OpenCode updates and replaces `app.asar`, the native commands disappear until the installer is run again. The installer detects the missing marker and creates a new backup before patching the new bundle.
+- An unsupported or changed bundle is rejected without writing the command files.
 
 ## What the Plugin Does
 
@@ -46,7 +57,7 @@ When enabled, the plugin:
 
 ## What It Cannot Do
 
-- It cannot add a native OpenCode Desktop settings page; OpenCode++ does not assume a public third-party settings-panel API.
+- It cannot add a native OpenCode Desktop settings page; the native command patch is intentionally limited to the three slash commands.
 - It cannot sandbox processes or control edits made by another application.
 - It cannot prove semantic correctness from a command exit code alone.
 - It cannot guarantee that opaque tool arguments are fully classified.
@@ -54,7 +65,7 @@ When enabled, the plugin:
 
 ## Upgrade
 
-Close OpenCode Desktop and run the newer EXE. The installer atomically replaces the bundled plugin, removes legacy prompt-command files from older releases, updates `installation.json`, and preserves an existing valid enabled state.
+Close OpenCode Desktop and run the newer EXE. The installer updates the bundled plugin, verifies or reapplies the host command patch, writes the three command menu entries, updates `installation.json`, and preserves an existing valid enabled state.
 
 If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice.
 
@@ -81,7 +92,8 @@ If the tools do not appear:
 2. verify that the plugin file exists in the active OpenCode config directory;
 3. start a new repository session;
 4. run the EXE with `--status --json`;
-5. remove the legacy project plugin if present.
+5. remove the legacy project plugin if present;
+6. run the installer again after every OpenCode Desktop update.
 
 ## Build From Source
 

@@ -4,7 +4,7 @@
 
 **A Windows plugin, evidence layer, and harness for the official OpenCode Desktop application.**
 
-OpenCode++ does not modify or replace the official OpenCode Desktop application, and it does not install a second desktop shell. The Windows EXE installs a self-contained global plugin and state file in the current user's OpenCode configuration directory. Daily coding stays inside OpenCode Desktop.
+OpenCode++ does not replace the official OpenCode Desktop application, and it does not install a second desktop shell. The Windows EXE installs a self-contained global plugin and state file in the current user's OpenCode configuration directory, then applies a narrow host patch for three exact OpenCode++ command names. Daily coding stays inside OpenCode Desktop.
 
 ## Five-Minute Install
 
@@ -24,14 +24,14 @@ The installer writes only to the current Windows user directory and does not req
 | Enable      | `opencode_plusplus_enable`    | `--enable`              |
 | Disable     | `opencode_plusplus_disable`   | `--disable`             |
 
-OpenCode Slash Commands are model prompt templates, not local plugin commands. OpenCode++ no longer installs control Slash Commands. Run `opencode-plusplus-setup-win-x64.exe --status|--enable|--disable` when control must be local and model-free.
+OpenCode Slash Commands are normally model prompt templates. The installer patches the host dispatcher for three exact OpenCode++ command names, so `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off` read or update local state without a model turn when the patch is active. Other Slash Commands are unchanged. The EXE flags remain available for control outside Desktop.
 
 When enabled, the plugin checks dangerous commands, unknown scripts, and protected paths before tool execution; records exit codes, redacted output, sessions, and working-tree hashes after execution; and runs incremental verification when a session becomes idle. Disabling pauses protection, evidence, and idle verification while keeping the controls available.
 
 ## Principles and Boundaries
 
-- The EXE does not modify the OpenCode Desktop binary, installation directory, renderer, updater, or account login.
-- The current OpenCode plugin API has no public third-party settings panel or model-free direct-command extension point. Desktop tools are model-mediated; the EXE provides direct local control.
+- The EXE only modifies the marker-checked command dispatcher in `app.asar`, keeps a restorable backup, and does not modify the renderer, updater, or account login.
+- The current OpenCode plugin API has no public third-party settings panel or model-free direct-command extension point. The host patch supplies only three explicit local commands; Desktop tools remain model-mediated.
 - The plugin observes only OpenCode-exposed tools and events. It is not an operating-system sandbox and cannot stop another program from editing files.
 - Guards enforce command and path boundaries, not a complete security audit. Opaque tool arguments may produce evidence or warnings instead of a block.
 - Evidence is redacted and truncated. It proves what the system captured; it does not prove complete business coverage.

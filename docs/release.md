@@ -5,7 +5,7 @@
 OpenCode++ publishes two runtime deliverables:
 
 - the npm package for CLI, MCP, Harness, and shared runtime code;
-- the Windows EXE for the user-level official OpenCode Desktop plugin.
+- the Windows EXE for the user-level official OpenCode Desktop plugin and its marker-checked native command patch.
 
 Benchmark fixtures, agent runs, repository documentation, local runtime artifacts, and stale build output must not enter the npm package.
 
@@ -42,12 +42,13 @@ Build on Windows with Node.js 20+ and .NET Framework 4.x build tools. esbuild mi
 Smoke test with an isolated --config-dir:
 
 1. install and inspect status JSON;
-2. verify the plugin exists and legacy prompt-command files do not;
+2. verify the plugin, three native command menu files, and the host patch exist;
 3. disable and confirm enabled=false;
 4. enable and confirm enabled=true;
 5. load or syntax-check the installed plugin;
 6. uninstall and confirm only owned files are removed.
-7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget.
+7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget;
+8. on a supported Desktop install, verify the patched `app.asar` is readable and uninstall restores the original bundle.
 
 ## Publish Verification
 

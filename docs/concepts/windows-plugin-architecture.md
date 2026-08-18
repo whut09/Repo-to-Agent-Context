@@ -25,9 +25,9 @@ flowchart TD
 
 ## Installation Boundary
 
-The EXE is a per-user installer. It writes the bundled plugin, a state file, and an installation manifest below the active OpenCode config directory. Writes use the project's atomic store. Upgrades remove the three legacy prompt-command files from v0.2.0. The installer does not require Administrator permission, patch the Desktop binary, replace the updater, modify credentials, or install an operating-system service.
+The EXE is a per-user installer. It writes the bundled plugin, state, installation manifest, and three command menu files below the active OpenCode config directory. It also applies a narrow, marker-checked patch to the bundled `SessionPrompt.command` dispatcher so those exact commands run locally without a model turn. The original `app.asar` is backed up and restored on uninstall. The installer does not replace the updater, modify credentials, or install an operating-system service.
 
-esbuild produces a minified CommonJS plugin, then the build compresses it into a small .NET Framework installer. The installer uses the .NET Framework 4.x runtime included with supported Windows 10/11 systems; it does not bundle Node.js, Electron, OpenCode, or the source checkout. The v0.2.1 installer is about 3.5 MiB and expands the plugin into the OpenCode configuration directory during installation.
+esbuild produces a minified CommonJS plugin, then the build compresses it into a small .NET Framework installer. The installer uses the .NET Framework 4.x runtime included with supported Windows 10/11 systems; it does not bundle Node.js, Electron, OpenCode, or the source checkout. The v0.2.2 installer is about 3.5 MiB and expands the plugin into the OpenCode configuration directory during installation.
 
 ## Plugin Boundary
 
@@ -45,7 +45,7 @@ OpenCode owns the model, chat UI, tool dispatch, authentication, process lifecyc
 
 The state file is user-scoped and versioned. The plugin remains loaded when enabled is false. Before and after hooks return early, while the three control tools continue to operate. A corrupt or unsupported state file fails closed for protection: the runtime keeps protection enabled and returns a diagnostic instead of silently disabling the guard.
 
-OpenCode Markdown commands are model prompt templates, not direct plugin callbacks. The public plugin hooks do not currently provide a model-free status command or third-party settings panel. The installer EXE therefore owns direct local status and enable/disable operations.
+OpenCode Markdown commands are normally model prompt templates, not direct plugin callbacks. The host patch adds a narrow exception for three exact command names; the injected branch reads or updates the OpenCode++ state and appends a local result before normal template handling. It does not provide a general third-party settings panel or change unrelated commands.
 
 ## Event and Evidence Flow
 
@@ -71,7 +71,7 @@ The entry point determines authority:
 ## Non-Goals
 
 - No second Electron or TUI application.
-- No patching or injection into OpenCode Desktop binaries.
+- No modification of unrelated Desktop code; the installer only changes the marker-checked `SessionPrompt.command` dispatcher and can restore the original `app.asar`.
 - No operating-system sandbox or antivirus replacement.
 - No claim that a passing command proves semantic correctness.
 - No automatic commit, push, merge, or destructive rollback of the user's worktree.

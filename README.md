@@ -4,7 +4,7 @@
 
 **面向官方 OpenCode Desktop 的 Windows 插件、证据层和 Harness。**
 
-OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌面外壳。Windows EXE 只把一个自包含的全局插件和状态文件安装到当前用户的 OpenCode 配置目录。安装之后，日常编码仍在 OpenCode Desktop 中完成。
+OpenCode++ 不替换官方 OpenCode Desktop，也不安装第二个桌面外壳。Windows EXE 把自包含的全局插件和状态文件安装到当前用户配置目录，并对内置命令分发器增加只匹配三个 OpenCode++ 命令名的窄范围补丁。安装之后，日常编码仍在 OpenCode Desktop 中完成。
 
 ## 五分钟安装
 
@@ -24,13 +24,13 @@ OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌�
 | 启用     | `opencode_plusplus_enable`  | `--enable`        |
 | 禁用     | `opencode_plusplus_disable` | `--disable`       |
 
-OpenCode Slash Command 是发给模型的 Prompt Template，不是本地插件命令。OpenCode++ 不再安装控制类 Slash Command。需要完全不调用模型时，运行 `opencode-plusplus-setup-win-x64.exe --status|--enable|--disable`。
+OpenCode Slash Command 默认是发给模型的 Prompt Template。安装器会对三个精确的 OpenCode++ 命令名安装宿主分发器补丁，因此 `/opencode-plusplus-status`、`/opencode-plusplus-on` 和 `/opencode-plusplus-off` 在补丁有效时直接读写本地状态，不调用模型；其他 Slash Command 不受影响。EXE 参数仍可在 Desktop 外直接控制状态。
 
 启用时，插件在工具执行前检查危险命令、未知脚本和受保护路径；工具执行后记录退出码、脱敏输出、会话和 working-tree hash；会话空闲时运行增量验证。禁用只暂停保护、证据和空闲验证，控制工具仍然可用。
 
 ## 原理和边界
 
-- EXE 不修改 OpenCode Desktop 二进制、安装目录、renderer、更新器或账户登录。
+- EXE 只修改 OpenCode Desktop `app.asar` 中经过特征检查的命令分发器，并在旁边备份原文件；不修改安装器、renderer、更新器或账户登录。
 - 当前 OpenCode 插件 API 没有公开的第三方设置面板或无需模型的直接命令扩展点；Desktop 工具会经过模型，本地直接控制由 EXE 提供。
 - 插件只观察 OpenCode 暴露的工具和事件，不是操作系统级沙箱，不能阻止其他程序修改文件。
 - Guard 是命令和路径边界，不等同于完整安全审计；不透明的工具参数可能只能产生证据或告警。

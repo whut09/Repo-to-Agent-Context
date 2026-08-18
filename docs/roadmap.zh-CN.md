@@ -37,7 +37,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 
 - 对支持的 OpenCode Desktop 版本做兼容测试并记录插件 API 版本；
 - 增加真实 Desktop smoke test，覆盖工具注册、hook input、控制命令和 idle verify；
-- 跟踪 OpenCode 插件 API 变化，但不 patch Desktop 二进制；
+- 跟踪 OpenCode bundle 变化，保持经过特征检查的原生命令补丁兼容；
 - 只有 OpenCode 提供稳定第三方扩展点后，才考虑原生设置面板。
 
 ### P2：Windows 运维
@@ -58,7 +58,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 ## 不会改变的边界
 
 - 不做第二个 OpenCode Desktop 外壳；
-- 不 patch OpenCode binary、renderer、updater 或认证；
+- 不修改无关的 OpenCode binary、renderer、updater 或认证；Windows 安装器只允许修改文档规定的命令分发器，并支持恢复原始 bundle；
 - 不声称命令成功就等于语义正确；
 - 不静默 commit、push、merge 或 destructive reset 用户工作树；
 - 保护关闭后，Desktop 控制工具仍然可用。

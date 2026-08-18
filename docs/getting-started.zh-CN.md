@@ -20,7 +20,7 @@ OpenCode++ 的主要使用方式是作为插件运行在官方 OpenCode Desktop 
 3. 完成重要编辑后等待会话空闲，在 `.agent-context/sidecar/latest.md` 查看报告。
 4. 只有明确需要无 Guard 会话时才使用 EXE 的 `--disable` 或禁用工具，完成后重新启用。
 
-OpenCode Slash Command 是模型 Prompt，不是插件的直接回调。OpenCode++ 不安装控制类 Slash Command。Desktop 工具会经过模型；EXE 的状态、启用和禁用参数在本地直接执行，不调用模型。
+OpenCode Slash Command 默认是模型 Prompt。安装器会补丁三个精确的 OpenCode++ 命令，使它们在 Desktop 中直接本地执行，不经过模型。Desktop 工具仍然经过模型；EXE 的状态、启用和禁用参数也可以在 Desktop 外本地执行。
 
 ## 高级 CLI
 

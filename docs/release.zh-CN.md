@@ -5,9 +5,9 @@
 OpenCode++ 发布两个运行时交付物：
 
 - npm 包：CLI、MCP、Harness 和共享运行时；
-- Windows EXE：官方 OpenCode Desktop 的用户级全局插件安装器。
+- Windows EXE：官方 OpenCode Desktop 的用户级全局插件安装器，以及经过特征检查的原生命令补丁。
 
-benchmark fixture、agent-runs、仓库文档、源代码资产和本地运行时文件不应进入 npm 包。Windows EXE 不修改 Desktop 二进制，安装后需要重启 OpenCode。
+benchmark fixture、agent-runs、仓库文档、源代码资产和本地运行时文件不应进入 npm 包。Windows EXE 只修改文档规定且经过特征检查的命令分发器，安装后需要重启 OpenCode。
 
 ## 发布前检查
 
@@ -25,7 +25,7 @@ npm run release:verify
 npm run build:installer:windows
 ```
 
-Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x 构建工具环境执行。esbuild 压缩插件，gzip 生成 payload，再由 Windows C# 编译器嵌入 EXE 并生成 .sha256。发布前运行 `npm run test:installer:windows`，验证安装、status、disable、enable、插件加载、uninstall 和 12 MiB 体积上限。
+Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x 构建工具环境执行。esbuild 压缩插件，gzip 生成 payload，再由 Windows C# 编译器嵌入 EXE 并生成 .sha256。发布前运行 `npm run test:installer:windows`，验证安装、status、disable、enable、插件加载、三个命令文件、uninstall 和 12 MiB 体积上限；还要在支持的 Desktop 上确认补丁后的 `app.asar` 可读取，卸载可恢复原始 bundle。
 
 ## 版本和包边界
 

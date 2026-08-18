@@ -20,7 +20,7 @@ The installer is per-user, does not need Administrator permission, and writes to
 3. After a meaningful edit, wait for the session to become idle and inspect `.agent-context/sidecar/latest.md`.
 4. Use the EXE `--disable` option or the disable tool only when you intentionally need an unguarded session; turn it back on afterward.
 
-OpenCode Slash Commands are model prompts, not direct plugin callbacks. OpenCode++ does not install control Slash Commands. Desktop tools are model-mediated; EXE status and enable/disable options run locally without a model.
+OpenCode Slash Commands are normally model prompts. The installer patches three exact OpenCode++ commands so they run locally in Desktop without a model turn. Desktop tools remain model-mediated, and the EXE status/enable/disable options remain available outside Desktop.
 
 ## Advanced CLI
 

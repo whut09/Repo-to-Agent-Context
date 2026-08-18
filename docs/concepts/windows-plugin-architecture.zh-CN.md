@@ -25,9 +25,9 @@ flowchart TD
 
 ## 安装边界
 
-EXE 是当前用户级安装器。它把内置插件、状态文件和安装清单写入当前 OpenCode 配置目录，写入使用项目的原子存储。升级时会清理 v0.2.0 遗留的三个 Prompt Command 文件。安装器不需要管理员权限，不修改 Desktop 二进制，不替换更新器，不修改凭据，也不安装操作系统服务。
+EXE 是当前用户级安装器。它把内置插件、状态文件、安装清单和三个命令菜单文件写入当前 OpenCode 配置目录，并对内置 `SessionPrompt.command` 分发器应用经过特征检查的窄范围补丁，使这三个命令可以不经过模型直接执行。原始 `app.asar` 会备份，卸载时恢复。安装器不替换更新器、不修改凭据，也不安装操作系统服务。
 
-esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不再携带 Node.js、Electron、OpenCode 或源代码仓库。v0.2.1 安装器约 3.5 MiB，安装时把插件展开到 OpenCode 配置目录。
+esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不再携带 Node.js、Electron、OpenCode 或源代码仓库。v0.2.2 安装器约 3.5 MiB，安装时把插件展开到 OpenCode 配置目录。
 
 ## 插件边界
 
@@ -45,7 +45,7 @@ OpenCode 负责模型、聊天界面、工具调度、认证、进程生命周�
 
 状态文件是用户级且带版本的。enabled 为 false 时插件仍加载，前后 hook 提前返回，但三个控制工具继续可用。状态文件损坏或版本不支持时，保护逻辑默认保持启用并返回诊断，不会静默关闭 Guard。
 
-OpenCode Markdown Command 是模型 Prompt Template，不是插件直接回调。当前公开插件 Hook 不提供无需模型的状态命令或第三方设置面板，因此本地直接查看状态和启用/禁用由安装器 EXE 负责。
+OpenCode Markdown Command 默认是模型 Prompt Template，不是插件直接回调。宿主补丁只为三个精确命令增加例外：注入分支直接读取或更新 OpenCode++ state，并在正常模板处理前写入本地结果。它不提供通用第三方设置面板，也不改变其他命令。
 
 ## 事件与证据流程
 
@@ -71,7 +71,7 @@ CLI/MCP Harness 是独立控制面。它可以生成 context、调用 executor�
 ## 非目标
 
 - 不再提供第二个 Electron 或 TUI 应用。
-- 不 patch 或注入 OpenCode Desktop 二进制。
+- 不修改无关的 Desktop 代码；安装器只修改经过特征检查的 `SessionPrompt.command` 分发器，并可恢复原始 `app.asar`。
 - 不替代操作系统沙箱或杀毒软件。
 - 不声称命令通过就等于语义正确。
 - 不自动提交、推送、合并或破坏性回滚用户工作树。

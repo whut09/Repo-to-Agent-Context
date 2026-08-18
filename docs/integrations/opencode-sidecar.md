@@ -22,7 +22,7 @@ The plugin handles `tool.execute.before`, `tool.execute.after`, `file.edited`, `
 
 ## Control Surface
 
-The plugin exposes `opencode_plusplus_status`, `opencode_plusplus_enable`, and `opencode_plusplus_disable` as model-visible tools. OpenCode Slash Commands are prompt templates, so they are not installed as control aliases. A disabled plugin remains loaded and only bypasses Guard, evidence capture, and idle verification. Use the installer EXE with `--status`, `--enable`, or `--disable` for direct local control without a model turn.
+The plugin exposes `opencode_plusplus_status`, `opencode_plusplus_enable`, and `opencode_plusplus_disable` as model-visible tools. The Windows installer also adds three command menu entries and patches their exact dispatcher names to run locally without a model turn. A disabled plugin remains loaded and only bypasses Guard, evidence capture, and idle verification. The installer EXE can also use `--status`, `--enable`, or `--disable` outside Desktop.
 
 ## Evidence and Artifacts
 

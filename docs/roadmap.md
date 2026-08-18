@@ -37,7 +37,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 
 - Test against supported OpenCode Desktop versions and record the plugin API version.
 - Add real Desktop smoke tests for tool registration, hook input normalization, command controls, and idle verification.
-- Track OpenCode plugin API changes without patching Desktop binaries.
+- Track OpenCode bundle changes and keep the marker-checked native command patch compatible.
 - Add a native settings panel only if OpenCode exposes a stable third-party extension point.
 
 ### P2: Windows Operations
@@ -58,7 +58,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 ## Boundaries That Will Not Change
 
 - OpenCode++ will not become a second OpenCode Desktop shell.
-- It will not patch OpenCode binaries, renderer code, updater, or authentication.
+- It will not patch unrelated OpenCode code, renderer code, updater, or authentication; the Windows installer may patch only the documented command dispatcher and can restore the original bundle.
 - It will not claim that command success proves semantic correctness.
 - It will not silently commit, push, merge, or destructively reset a user's worktree.
 - Desktop plugin controls remain available when protection is disabled.
