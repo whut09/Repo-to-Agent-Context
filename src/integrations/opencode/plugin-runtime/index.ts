@@ -3,6 +3,7 @@ import { recordOpencodeSidecarTool } from "../sidecar.js";
 import { runCommandGuard } from "./command-guard.js";
 import { createSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
 import { exitCodeFromOutput, outputText, toolKey } from "./evidence.js";
+import { executeEvaluateTool, executeNextTool, executePrepareTool, executeRetrieveTool } from "./harness/index.js";
 import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
@@ -13,6 +14,8 @@ import {
   setOpenCodePlusPlusPluginEnabled
 } from "./state.js";
 import { currentSidecarWorkingTreeHash } from "./worktree-hash.js";
+
+export { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "./harness/index.js";
 
 export interface OpenCodePlusPlusSidecarOptions {
   stateFile?: string;
@@ -96,7 +99,27 @@ export async function createOpenCodePlusPlusSidecar(
     tool: {
       opencode_plusplus_enable: controlTool("Enable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(true, stateFile)),
       opencode_plusplus_disable: controlTool("Disable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(false, stateFile)),
-      opencode_plusplus_status: controlTool("Show OpenCode++ installation and enabled status.", () => readOpenCodePlusPlusPluginStatus(stateFile))
+      opencode_plusplus_status: controlTool("Show OpenCode++ installation and enabled status.", () => readOpenCodePlusPlusPluginStatus(stateFile)),
+      opencode_plusplus_prepare: harnessTool(
+        "Call before editing. Builds repository context if missing and returns taskId, mustInspect, edit boundaries, and requiredCommands.",
+        { task: { type: "string" }, type: { type: "string" } },
+        (args) => executePrepareTool(context.directory, args)
+      ),
+      opencode_plusplus_retrieve: harnessTool(
+        "Call to find task-relevant files without blind search. Returns ranked paths, scores, and a short reason.",
+        { task: { type: "string" }, topK: { type: "number" } },
+        (args) => executeRetrieveTool(context.directory, args)
+      ),
+      opencode_plusplus_evaluate: harnessTool(
+        "Call after edits or before claiming done. Returns blocking, findings, decision, and missing evidence.",
+        { taskId: { type: "string" } },
+        (args) => executeEvaluateTool(context.directory, args)
+      ),
+      opencode_plusplus_next: harnessTool(
+        "Call to get the next harness action. If nextAction is not finalize, do not claim the task is complete.",
+        { taskId: { type: "string" } },
+        (args) => executeNextTool(context.directory, args)
+      )
     },
     "tool.execute.before": async (input: unknown, output: unknown) => {
       if (!enabled()) return;
@@ -144,6 +167,16 @@ function controlTool(description: string, action: () => ReturnType<typeof readOp
     args: {},
     async execute(): Promise<string> {
       return renderOpenCodePlusPlusPluginStatus(action());
+    }
+  };
+}
+
+function harnessTool(description: string, args: Record<string, { type: string }>, execute: (input: unknown) => Promise<string>): Record<string, unknown> {
+  return {
+    description,
+    args,
+    async execute(input: unknown = {}): Promise<string> {
+      return execute(input);
     }
   };
 }
