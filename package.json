@@ -42,7 +42,7 @@
     "test": "npm run test:core",
     "pretest:core": "npm run package-info:generate",
     "test:core": "node scripts/run-tests.mjs",
-    "test:windows": "tsx --test test/safe-command.test.ts test/task-args.test.ts test/opencode-plugin-runtime.test.ts test/windows-installer.test.ts",
+    "test:windows": "tsx --test test/safe-command.test.ts test/task-args.test.ts test/opencode-plugin-runtime.test.ts test/plugin-harness-args.test.ts test/plugin-harness-format.test.ts test/plugin-harness-session.test.ts test/plugin-harness-findings.test.ts test/plugin-harness-tools.test.ts test/windows-installer.test.ts",
     "benchmark": "tsx src/cli/index.ts benchmark benchmarks --top-k 8",
     "benchmark:agent": "tsx src/cli/index.ts benchmark-agent benchmarks --executor mock --dry-run",
     "benchmark:agent:real": "tsx src/cli/index.ts benchmark-agent-real benchmarks",
