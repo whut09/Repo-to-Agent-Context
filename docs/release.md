@@ -42,7 +42,7 @@ Build on Windows with Node.js 20+. Node SEA and postject embed the bundled globa
 Smoke test with an isolated --config-dir:
 
 1. install and inspect status JSON;
-2. verify plugin and three commands exist;
+2. verify the plugin exists and legacy prompt-command files do not;
 3. disable and confirm enabled=false;
 4. enable and confirm enabled=true;
 5. load or syntax-check the installed plugin;

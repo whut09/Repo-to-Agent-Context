@@ -4,7 +4,7 @@
 
 **面向官方 OpenCode Desktop 的 Windows 插件、证据层和 Harness。**
 
-OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌面外壳。Windows EXE 只把一个自包含的全局插件、三个控制命令和状态文件安装到当前用户的 OpenCode 配置目录。安装之后，日常操作在 OpenCode Desktop 的聊天界面中完成。
+OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌面外壳。Windows EXE 只把一个自包含的全局插件和状态文件安装到当前用户的 OpenCode 配置目录。安装之后，日常编码仍在 OpenCode Desktop 中完成。
 
 ## 五分钟安装
 
@@ -12,24 +12,26 @@ OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌�
 2. 完全退出 OpenCode Desktop。
 3. 双击 EXE，等待安装完成。
 4. 重新打开 OpenCode Desktop，打开目标仓库并新建会话。
-5. 在聊天中调用 `opencode_plusplus_status`，或输入 `/opencode-plusplus-status`。
+5. 确认工具列表中存在 `opencode_plusplus_status`。
 
 安装器只写当前 Windows 用户目录，不需要管理员权限。默认位置为 `%USERPROFILE%\.config\opencode`；如果 OpenCode 使用 `OPENCODE_CONFIG_DIR` 或 `XDG_CONFIG_HOME`，插件会安装到对应目录。
 
-## 在 OpenCode 中控制
+## 状态与开关
 
-| 操作     | 插件工具                    | Slash Command               |
-| -------- | --------------------------- | --------------------------- |
-| 查看状态 | `opencode_plusplus_status`  | `/opencode-plusplus-status` |
-| 启用     | `opencode_plusplus_enable`  | `/opencode-plusplus-on`     |
-| 禁用     | `opencode_plusplus_disable` | `/opencode-plusplus-off`    |
+| 操作     | Desktop 工具（经过模型）    | 本地直接 EXE 参数 |
+| -------- | --------------------------- | ----------------- |
+| 查看状态 | `opencode_plusplus_status`  | `--status`        |
+| 启用     | `opencode_plusplus_enable`  | `--enable`        |
+| 禁用     | `opencode_plusplus_disable` | `--disable`       |
+
+OpenCode Slash Command 是发给模型的 Prompt Template，不是本地插件命令。OpenCode++ 不再安装控制类 Slash Command。需要完全不调用模型时，运行 `opencode-plusplus-setup-win-x64.exe --status|--enable|--disable`。
 
 启用时，插件在工具执行前检查危险命令、未知脚本和受保护路径；工具执行后记录退出码、脱敏输出、会话和 working-tree hash；会话空闲时运行增量验证。禁用只暂停保护、证据和空闲验证，控制工具仍然可用。
 
 ## 原理和边界
 
 - EXE 不修改 OpenCode Desktop 二进制、安装目录、renderer、更新器或账户登录。
-- 当前 OpenCode 插件 API 没有公开的第三方设置面板扩展点，因此开关和状态通过插件工具与 Slash Command 暴露。
+- 当前 OpenCode 插件 API 没有公开的第三方设置面板或无需模型的直接命令扩展点；Desktop 工具会经过模型，本地直接控制由 EXE 提供。
 - 插件只观察 OpenCode 暴露的工具和事件，不是操作系统级沙箱，不能阻止其他程序修改文件。
 - Guard 是命令和路径边界，不等同于完整安全审计；不透明的工具参数可能只能产生证据或告警。
 - Evidence 会脱敏并截断输出；它证明系统捕获了什么，不保证测试覆盖所有业务行为。
@@ -43,9 +45,6 @@ OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌�
 
 ```text
 %USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
 %USERPROFILE%\.config\opencode\opencode-plusplus\state.json
 ```
 
@@ -53,9 +52,9 @@ OpenCode++ 不修改或替换官方 OpenCode Desktop，也不安装第二个桌�
 
 ## 升级、关闭和卸载
 
-- **升级**：退出 OpenCode，下载新 EXE 并再次双击。安装器覆盖插件和命令文件，保留有效的启用状态。
-- **临时关闭**：在 OpenCode 中使用 `/opencode-plusplus-off`；之后用 `/opencode-plusplus-on` 恢复。
-- **卸载**：使用 EXE 的 `--uninstall`。它只删除 OpenCode++ 写入的插件、命令、状态和安装清单，不删除仓库 `.agent-context/`。
+- **升级**：退出 OpenCode，下载新 EXE 并再次双击。安装器覆盖插件、清理旧 Prompt Command，并保留有效的启用状态。
+- **临时关闭**：使用 EXE 的 `--disable`，之后用 `--enable` 恢复；也可让 Agent 调用对应工具。
+- **卸载**：使用 EXE 的 `--uninstall`。它只删除 OpenCode++ 写入的插件、遗留命令、状态和安装清单，不删除仓库 `.agent-context/`。
 - **验证状态**：使用 EXE 的 `--status --json`，或在 OpenCode 中调用状态工具。
 
 ## 高级 Harness 和 CLI

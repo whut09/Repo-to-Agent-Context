@@ -8,7 +8,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 
 - self-contained Windows EXE built with Node SEA and postject;
 - per-user install into the active OpenCode configuration directory;
-- status, enable, and disable inside OpenCode through tools and Slash Commands;
+- status, enable, and disable through model-visible OpenCode tools, plus model-free EXE controls;
 - command/path Guard before tool execution;
 - redacted evidence and working-tree hashes after tool execution;
 - idle incremental verification and repository sidecar reports;

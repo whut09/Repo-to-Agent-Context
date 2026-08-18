@@ -10,28 +10,27 @@ OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录接入。它不
 2. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
 3. 双击 EXE，不需要管理员权限。
 4. 重新打开 OpenCode Desktop，打开一个仓库。
-5. 调用 `opencode_plusplus_status` 或输入 `/opencode-plusplus-status`。
+5. 新建会话，确认工具列表中存在 `opencode_plusplus_status`。
 
 安装器写入：
 
 ```text
 <OpenCode 配置目录>\plugins\opencode-plusplus.js
-<OpenCode 配置目录>\commands\opencode-plusplus-on.md
-<OpenCode 配置目录>\commands\opencode-plusplus-off.md
-<OpenCode 配置目录>\commands\opencode-plusplus-status.md
 <OpenCode 配置目录>\opencode-plusplus\state.json
 <OpenCode 配置目录>\opencode-plusplus\installation.json
 ```
 
 默认配置目录是 `%USERPROFILE%\.config\opencode`。运行时优先使用 `OPENCODE_CONFIG_DIR`，也支持 `XDG_CONFIG_HOME`。隔离测试安装可以传 `--config-dir <path>`。
 
-## 在 Desktop 内使用
+## 状态与开关
 
-| 操作     | OpenCode 工具               | Slash Command               |
-| -------- | --------------------------- | --------------------------- |
-| 查看状态 | `opencode_plusplus_status`  | `/opencode-plusplus-status` |
-| 启用     | `opencode_plusplus_enable`  | `/opencode-plusplus-on`     |
-| 禁用     | `opencode_plusplus_disable` | `/opencode-plusplus-off`    |
+| 操作     | Desktop 工具（经过模型）    | 本地直接执行的 EXE 命令                         |
+| -------- | --------------------------- | ----------------------------------------------- |
+| 查看状态 | `opencode_plusplus_status`  | `opencode-plusplus-setup-win-x64.exe --status`  |
+| 启用     | `opencode_plusplus_enable`  | `opencode-plusplus-setup-win-x64.exe --enable`  |
+| 禁用     | `opencode_plusplus_disable` | `opencode-plusplus-setup-win-x64.exe --disable` |
+
+OpenCode 的 Markdown Slash Command 本质是 Prompt Template，会发送给当前模型，不能直接执行本地插件代码，也不能渲染原生状态面板。因此 OpenCode++ 不再安装 `/opencode-plusplus-status`、`/opencode-plusplus-on` 和 `/opencode-plusplus-off`。Desktop 工具是提供给 Agent 的工具，请求 Agent 调用仍会经过一次模型；需要完全不调用模型时，请使用 EXE 参数。
 
 禁用是暂停，不是卸载。插件仍保持加载，因此状态和重新启用仍可用。安装或升级后必须完全重启 OpenCode，让宿主重新加载插件模块。
 
@@ -55,7 +54,7 @@ OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录接入。它不
 
 ## 升级
 
-关闭 OpenCode Desktop 后运行新 EXE。安装器原子替换内置插件和命令文件，更新 `installation.json`，并保留现有有效启用状态。
+关闭 OpenCode Desktop 后运行新 EXE。安装器原子替换内置插件，清理旧版本遗留的 Prompt Command 文件，更新 `installation.json`，并保留现有有效启用状态。
 
 如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。
 

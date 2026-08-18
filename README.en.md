@@ -4,7 +4,7 @@
 
 **A Windows plugin, evidence layer, and harness for the official OpenCode Desktop application.**
 
-OpenCode++ does not modify or replace the official OpenCode Desktop application, and it does not install a second desktop shell. The Windows EXE installs a self-contained global plugin, three control commands, and a state file in the current user's OpenCode configuration directory. Daily use stays inside the OpenCode Desktop chat interface.
+OpenCode++ does not modify or replace the official OpenCode Desktop application, and it does not install a second desktop shell. The Windows EXE installs a self-contained global plugin and state file in the current user's OpenCode configuration directory. Daily coding stays inside OpenCode Desktop.
 
 ## Five-Minute Install
 
@@ -12,24 +12,26 @@ OpenCode++ does not modify or replace the official OpenCode Desktop application,
 2. Fully exit OpenCode Desktop.
 3. Double-click the EXE and wait for the completion message.
 4. Reopen OpenCode Desktop, open the target repository, and start a session.
-5. Call `opencode_plusplus_status` in chat or enter `/opencode-plusplus-status`.
+5. Confirm that `opencode_plusplus_status` appears in the tool list.
 
 The installer writes only to the current Windows user directory and does not require administrator privileges. The default location is `%USERPROFILE%\.config\opencode`; `OPENCODE_CONFIG_DIR` or `XDG_CONFIG_HOME` is honored when OpenCode uses a custom configuration directory.
 
-## Controls Inside OpenCode
+## Status and Controls
 
-| Action      | Plugin tool                 | Slash Command               |
-| ----------- | --------------------------- | --------------------------- |
-| Show status | `opencode_plusplus_status`  | `/opencode-plusplus-status` |
-| Enable      | `opencode_plusplus_enable`  | `/opencode-plusplus-on`     |
-| Disable     | `opencode_plusplus_disable` | `/opencode-plusplus-off`    |
+| Action      | Desktop tool (model-mediated) | Direct local EXE option |
+| ----------- | ----------------------------- | ----------------------- |
+| Show status | `opencode_plusplus_status`    | `--status`              |
+| Enable      | `opencode_plusplus_enable`    | `--enable`              |
+| Disable     | `opencode_plusplus_disable`   | `--disable`             |
+
+OpenCode Slash Commands are model prompt templates, not local plugin commands. OpenCode++ no longer installs control Slash Commands. Run `opencode-plusplus-setup-win-x64.exe --status|--enable|--disable` when control must be local and model-free.
 
 When enabled, the plugin checks dangerous commands, unknown scripts, and protected paths before tool execution; records exit codes, redacted output, sessions, and working-tree hashes after execution; and runs incremental verification when a session becomes idle. Disabling pauses protection, evidence, and idle verification while keeping the controls available.
 
 ## Principles and Boundaries
 
 - The EXE does not modify the OpenCode Desktop binary, installation directory, renderer, updater, or account login.
-- The current OpenCode plugin API has no public third-party settings-panel extension point, so enable/disable/status are exposed through plugin tools and Slash Commands.
+- The current OpenCode plugin API has no public third-party settings panel or model-free direct-command extension point. Desktop tools are model-mediated; the EXE provides direct local control.
 - The plugin observes only OpenCode-exposed tools and events. It is not an operating-system sandbox and cannot stop another program from editing files.
 - Guards enforce command and path boundaries, not a complete security audit. Opaque tool arguments may produce evidence or warnings instead of a block.
 - Evidence is redacted and truncated. It proves what the system captured; it does not prove complete business coverage.
@@ -43,9 +45,6 @@ User-level installation files:
 
 ```text
 %USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
 %USERPROFILE%\.config\opencode\opencode-plusplus\state.json
 ```
 
@@ -53,9 +52,9 @@ Harness files in the target repository live under `.agent-context/` and include 
 
 ## Upgrade, Disable, and Uninstall
 
-- **Upgrade**: exit OpenCode, download the newer EXE, and double-click it. The installer replaces plugin and command files while preserving a valid enabled state.
-- **Temporarily disable**: use `/opencode-plusplus-off`; restore it with `/opencode-plusplus-on`.
-- **Uninstall**: run the EXE with `--uninstall`. It removes only OpenCode++ plugin, command, state, and manifest files, not `.agent-context/`.
+- **Upgrade**: exit OpenCode, download the newer EXE, and double-click it. The installer replaces the plugin, removes legacy prompt commands, and preserves a valid enabled state.
+- **Temporarily disable**: use the EXE `--disable` option and restore with `--enable`, or ask the agent to call the matching tool.
+- **Uninstall**: run the EXE with `--uninstall`. It removes only OpenCode++ plugin, legacy command, state, and manifest files, not `.agent-context/`.
 - **Check status**: run the EXE with `--status --json`, or call the status tool in OpenCode.
 
 ## Advanced Harness and CLI

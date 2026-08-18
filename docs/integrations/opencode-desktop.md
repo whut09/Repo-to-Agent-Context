@@ -10,28 +10,27 @@ OpenCode++ integrates with the official OpenCode Desktop through its user-level 
 2. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
 3. Double-click the EXE. Administrator elevation is not required.
 4. Reopen OpenCode Desktop and open a repository.
-5. Call `opencode_plusplus_status` or `/opencode-plusplus-status`.
+5. Start a new session and confirm the `opencode_plusplus_status` tool is available.
 
 The installer writes:
 
 ```text
 <OpenCode config>\plugins\opencode-plusplus.js
-<OpenCode config>\commands\opencode-plusplus-on.md
-<OpenCode config>\commands\opencode-plusplus-off.md
-<OpenCode config>\commands\opencode-plusplus-status.md
 <OpenCode config>\opencode-plusplus\state.json
 <OpenCode config>\opencode-plusplus\installation.json
 ```
 
 The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONFIG_DIR` takes precedence; `XDG_CONFIG_HOME` is also honored by the runtime. For an isolated installation, pass `--config-dir <path>`.
 
-## Use Inside Desktop
+## Control and Status
 
-| Action      | OpenCode tool               | Slash Command               |
-| ----------- | --------------------------- | --------------------------- |
-| Show status | `opencode_plusplus_status`  | `/opencode-plusplus-status` |
-| Enable      | `opencode_plusplus_enable`  | `/opencode-plusplus-on`     |
-| Disable     | `opencode_plusplus_disable` | `/opencode-plusplus-off`    |
+| Action      | Desktop tool (model-mediated) | Direct local EXE command                        |
+| ----------- | ----------------------------- | ----------------------------------------------- |
+| Show status | `opencode_plusplus_status`    | `opencode-plusplus-setup-win-x64.exe --status`  |
+| Enable      | `opencode_plusplus_enable`    | `opencode-plusplus-setup-win-x64.exe --enable`  |
+| Disable     | `opencode_plusplus_disable`   | `opencode-plusplus-setup-win-x64.exe --disable` |
+
+OpenCode Markdown Slash Commands are prompt templates. They are sent to the selected model and cannot directly execute local plugin code or render a native status panel. OpenCode++ therefore does not install `/opencode-plusplus-status`, `/opencode-plusplus-on`, or `/opencode-plusplus-off`. The Desktop tools are available to the agent, so asking the agent to use one still involves a model turn. Use the EXE commands when status or control must be local and model-free.
 
 Disable is a pause, not an uninstall. The plugin remains loaded so status and enable remain available. Install and upgrade require a full OpenCode restart because the host must reload the plugin module.
 
@@ -55,7 +54,7 @@ When enabled, the plugin:
 
 ## Upgrade
 
-Close OpenCode Desktop and run the newer EXE. The installer atomically replaces the bundled plugin and command files, updates `installation.json`, and preserves an existing valid enabled state.
+Close OpenCode Desktop and run the newer EXE. The installer atomically replaces the bundled plugin, removes legacy prompt-command files from older releases, updates `installation.json`, and preserves an existing valid enabled state.
 
 If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice.
 

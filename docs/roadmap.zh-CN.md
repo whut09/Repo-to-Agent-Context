@@ -8,7 +8,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 
 - Node SEA + postject 构建的自包含 Windows EXE；
 - 安装到当前用户实际使用的 OpenCode 配置目录；
-- 在 OpenCode 内通过工具和 Slash Command 查看状态、启用和关闭；
+- 通过 OpenCode 模型可见工具查看状态、启用和关闭，并提供无需模型的 EXE 控制；
 - 工具执行前的命令/路径 Guard；
 - 工具执行后的脱敏 evidence 和 working-tree hash；
 - idle 增量验证和仓库 Sidecar 报告；

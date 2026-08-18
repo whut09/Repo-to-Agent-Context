@@ -9,16 +9,18 @@ OpenCode++ 的主要使用方式是作为插件运行在官方 OpenCode Desktop 
 1. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
 2. 安装或升级前完全退出 OpenCode Desktop。
 3. 双击 EXE，完成后重新打开 OpenCode Desktop。
-4. 打开目标仓库，调用 `opencode_plusplus_status` 或输入 `/opencode-plusplus-status`。
+4. 打开目标仓库，确认工具列表中存在 `opencode_plusplus_status`。
 
 安装器只作用于当前 Windows 用户，不需要管理员权限，并写入 OpenCode 配置目录。路径、自定义配置目录、升级、卸载和排障见 [Windows 安装与使用](integrations/opencode-desktop.zh-CN.md)。
 
 ## 第一个会话检查清单
 
-1. 调用状态工具，确认插件版本以及 `Enabled: yes`。
+1. 运行 `opencode-plusplus-setup-win-x64.exe --status` 直接检查本地状态，或让 Agent 调用状态工具。
 2. 编辑期间保持插件启用，以获得命令/路径 Guard 和证据记录。
 3. 完成重要编辑后等待会话空闲，在 `.agent-context/sidecar/latest.md` 查看报告。
-4. 只有明确需要无 Guard 会话时才使用 `/opencode-plusplus-off`，完成后重新启用。
+4. 只有明确需要无 Guard 会话时才使用 EXE 的 `--disable` 或禁用工具，完成后重新启用。
+
+OpenCode Slash Command 是模型 Prompt，不是插件的直接回调。OpenCode++ 不安装控制类 Slash Command。Desktop 工具会经过模型；EXE 的状态、启用和禁用参数在本地直接执行，不调用模型。
 
 ## 高级 CLI
 

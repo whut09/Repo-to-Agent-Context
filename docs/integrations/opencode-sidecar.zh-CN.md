@@ -22,7 +22,7 @@ flowchart LR
 
 ## 控制入口
 
-插件提供 `opencode_plusplus_status`、`opencode_plusplus_enable`、`opencode_plusplus_disable` 和对应 Slash Command。禁用后插件仍加载，只跳过 Guard、证据记录和空闲验证，因此无需重新安装就能查看状态并重新启用。
+插件把 `opencode_plusplus_status`、`opencode_plusplus_enable` 和 `opencode_plusplus_disable` 暴露为模型可见工具。OpenCode Slash Command 是 Prompt Template，因此不再安装为控制别名。禁用后插件仍加载，只跳过 Guard、证据记录和空闲验证。需要不经过模型的本地直接控制时，使用安装器 EXE 的 `--status`、`--enable` 或 `--disable`。
 
 ## 证据与 Artifact
 

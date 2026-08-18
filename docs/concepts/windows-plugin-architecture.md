@@ -25,7 +25,7 @@ flowchart TD
 
 ## Installation Boundary
 
-The EXE is a per-user installer. It writes the bundled plugin, three command markdown files, a state file, and an installation manifest below the active OpenCode config directory. Writes use the project's atomic store. The installer does not require Administrator permission, patch the Desktop binary, replace the updater, modify credentials, or install an operating-system service.
+The EXE is a per-user installer. It writes the bundled plugin, a state file, and an installation manifest below the active OpenCode config directory. Writes use the project's atomic store. Upgrades remove the three legacy prompt-command files from v0.2.0. The installer does not require Administrator permission, patch the Desktop binary, replace the updater, modify credentials, or install an operating-system service.
 
 The plugin bundle is built with Node SEA and contains its runtime code. At runtime it must not import the source checkout or depend on a globally installed OpenCode++ package. The EXE is large because it contains a Node runtime and the bundled plugin, not a second Desktop application.
 
@@ -35,7 +35,7 @@ OpenCode owns the model, chat UI, tool dispatch, authentication, process lifecyc
 
 | Boundary   | OpenCode owns                        | OpenCode++ owns                                             |
 | ---------- | ------------------------------------ | ----------------------------------------------------------- |
-| UI         | chat, settings, session display      | tools and Slash Commands shown by OpenCode                  |
+| UI         | chat, settings, session display      | model-visible tools; no native settings or direct commands  |
 | Execution  | model and tool invocation            | pre-tool command/path checks and post-tool evidence         |
 | State      | plugin loading and session lifecycle | enabled state, revision, trace, policy, and sidecar reports |
 | Repository | source files and user workflow       | .agent-context runtime outputs                              |
@@ -44,6 +44,8 @@ OpenCode owns the model, chat UI, tool dispatch, authentication, process lifecyc
 ## Enable State
 
 The state file is user-scoped and versioned. The plugin remains loaded when enabled is false. Before and after hooks return early, while the three control tools continue to operate. A corrupt or unsupported state file fails closed for protection: the runtime keeps protection enabled and returns a diagnostic instead of silently disabling the guard.
+
+OpenCode Markdown commands are model prompt templates, not direct plugin callbacks. The public plugin hooks do not currently provide a model-free status command or third-party settings panel. The installer EXE therefore owns direct local status and enable/disable operations.
 
 ## Event and Evidence Flow
 
