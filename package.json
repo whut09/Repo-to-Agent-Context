@@ -1,7 +1,7 @@
 {
   "name": "opencode-plusplus",
   "version": "0.2.2",
-  "description": "OpenCode++ adds context, boundaries, evidence, verification gates, and repair loops to OpenCode.",
+  "description": "The official OpenCode Desktop Windows plugin with an in-plugin reliability harness. Install from the release EXE and use inside OpenCode Desktop.",
   "type": "module",
   "bin": {
     "opencode-plusplus": "./dist/cli/index.js",
@@ -62,11 +62,11 @@
     "opencode",
     "opencode-plugin",
     "opencode-ai",
+    "opencode-desktop",
     "opencode-plusplus",
     "opencode-harness",
     "coding-agent",
     "agent-harness",
-    "mcp",
     "verification",
     "regression-guard",
     "hallucination-guard"
