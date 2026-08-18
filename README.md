@@ -81,7 +81,7 @@ npm run build
 npm run build:installer:windows
 ```
 
-输出为 `release/opencode-plusplus-setup-win-x64.exe` 和对应的 `.sha256`。构建使用 Node SEA 和 `postject`，插件代码嵌入 EXE，不依赖本机仓库绝对路径。
+输出为 `release/opencode-plusplus-setup-win-x64.exe` 和对应的 `.sha256`。构建流程压缩插件并嵌入轻量 .NET Framework 安装器，不携带 Node 或 Electron runtime，也不依赖本机仓库绝对路径。
 
 ## 文档
 

@@ -27,7 +27,7 @@ flowchart TD
 
 EXE 是当前用户级安装器。它把内置插件、状态文件和安装清单写入当前 OpenCode 配置目录，写入使用项目的原子存储。升级时会清理 v0.2.0 遗留的三个 Prompt Command 文件。安装器不需要管理员权限，不修改 Desktop 二进制，不替换更新器，不修改凭据，也不安装操作系统服务。
 
-插件使用 Node SEA 构建并嵌入运行时代码。运行时不能导入源代码仓库，也不能依赖全局安装的 OpenCode++ 包。EXE 较大是因为包含 Node runtime 和内置插件，不是第二个 Desktop 应用。
+esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不再携带 Node.js、Electron、OpenCode 或源代码仓库。v0.2.1 安装器约 3.5 MiB，安装时把插件展开到 OpenCode 配置目录。
 
 ## 插件边界
 

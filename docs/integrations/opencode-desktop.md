@@ -93,4 +93,4 @@ npm run check
 npm run build:installer:windows
 ```
 
-The build emits `release/opencode-plusplus-setup-win-x64.exe` and a SHA256 file. Node SEA embeds the bundled global plugin; the output does not require the source checkout at runtime. The published binary is not commercially code-signed, so verify the release SHA256 before bypassing a SmartScreen warning.
+The build emits `release/opencode-plusplus-setup-win-x64.exe` and a SHA256 file. It minifies and compresses the global plugin, then embeds it in a compact .NET Framework installer. The EXE does not carry a Node or Electron runtime and does not require the source checkout. Supported Windows 10/11 systems already include the required .NET Framework 4.x runtime. The published binary is not commercially code-signed, so verify the release SHA256 before bypassing a SmartScreen warning.

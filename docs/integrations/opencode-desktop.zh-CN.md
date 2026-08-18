@@ -93,4 +93,4 @@ npm run check
 npm run build:installer:windows
 ```
 
-输出为 `release/opencode-plusplus-setup-win-x64.exe` 和 SHA256 文件。Node SEA 把全局插件嵌入 EXE，运行时不依赖源代码仓库。发布二进制未做商业代码签名，遇到 SmartScreen 提示时应先核对 Release SHA256。
+输出为 `release/opencode-plusplus-setup-win-x64.exe` 和 SHA256 文件。构建流程压缩全局插件并嵌入小型 .NET Framework 安装器；EXE 不再携带 Node 或 Electron runtime，也不依赖源代码仓库。受支持的 Windows 10/11 已包含所需的 .NET Framework 4.x。发布二进制未做商业代码签名，遇到 SmartScreen 提示时应先核对 Release SHA256。

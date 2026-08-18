@@ -25,7 +25,7 @@ npm run release:verify
 npm run build:installer:windows
 ```
 
-Windows 安装器构建必须在 Windows + Node.js 20+ 上执行。它使用 Node SEA 和 postject，把全局插件嵌入 EXE，并生成 .sha256。发布前用临时 --config-dir 验证安装、status、disable、enable 和 uninstall。
+Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x 构建工具环境执行。esbuild 压缩插件，gzip 生成 payload，再由 Windows C# 编译器嵌入 EXE 并生成 .sha256。发布前运行 `npm run test:installer:windows`，验证安装、status、disable、enable、插件加载、uninstall 和 12 MiB 体积上限。
 
 ## 版本和包边界
 

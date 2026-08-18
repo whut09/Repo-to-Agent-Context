@@ -27,7 +27,7 @@ flowchart TD
 
 The EXE is a per-user installer. It writes the bundled plugin, a state file, and an installation manifest below the active OpenCode config directory. Writes use the project's atomic store. Upgrades remove the three legacy prompt-command files from v0.2.0. The installer does not require Administrator permission, patch the Desktop binary, replace the updater, modify credentials, or install an operating-system service.
 
-The plugin bundle is built with Node SEA and contains its runtime code. At runtime it must not import the source checkout or depend on a globally installed OpenCode++ package. The EXE is large because it contains a Node runtime and the bundled plugin, not a second Desktop application.
+esbuild produces a minified CommonJS plugin, then the build compresses it into a small .NET Framework installer. The installer uses the .NET Framework 4.x runtime included with supported Windows 10/11 systems; it does not bundle Node.js, Electron, OpenCode, or the source checkout. The v0.2.1 installer is about 3.5 MiB and expands the plugin into the OpenCode configuration directory during installation.
 
 ## Plugin Boundary
 

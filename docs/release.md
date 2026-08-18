@@ -33,7 +33,7 @@ Confirm that npm pack contains dist, README files, config examples, package meta
 
 ## Windows EXE
 
-Build on Windows with Node.js 20+. Node SEA and postject embed the bundled global plugin. The release must include:
+Build on Windows with Node.js 20+ and .NET Framework 4.x build tools. esbuild minifies the plugin, gzip compresses it, and the Windows C# compiler embeds it in the installer. The release must include:
 
 - opencode-plusplus-setup-win-x64.exe;
 - opencode-plusplus-setup-win-x64.exe.sha256;
@@ -47,6 +47,7 @@ Smoke test with an isolated --config-dir:
 4. enable and confirm enabled=true;
 5. load or syntax-check the installed plugin;
 6. uninstall and confirm only owned files are removed.
+7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget.
 
 ## Publish Verification
 

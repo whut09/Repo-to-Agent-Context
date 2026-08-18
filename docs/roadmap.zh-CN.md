@@ -6,7 +6,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 
 ## v0.2.0 已交付
 
-- Node SEA + postject 构建的自包含 Windows EXE；
+- 不携带 Node 或 Electron、内嵌压缩插件的轻量 Windows EXE；
 - 安装到当前用户实际使用的 OpenCode 配置目录；
 - 通过 OpenCode 模型可见工具查看状态、启用和关闭，并提供无需模型的 EXE 控制；
 - 工具执行前的命令/路径 Guard；
@@ -31,7 +31,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 - 检测运行中的 OpenCode Desktop，并明确提示必须重启；
 - 覆盖前显示已安装版本、目标配置目录和启用状态；
 - 增加明确的 upgrade/repair 模式并保留有效 state revision；
-- 评估更小的 bootstrap installer，同时保留离线自包含安装方式。
+- 保持离线安装器低于 12 MiB 回归阈值，并持续跟踪压缩插件体积。
 
 ### P1：Desktop 兼容性
 

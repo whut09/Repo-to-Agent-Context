@@ -6,7 +6,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 
 ## Shipped in v0.2.0
 
-- self-contained Windows EXE built with Node SEA and postject;
+- compact Windows EXE that embeds the compressed plugin without bundling Node or Electron;
 - per-user install into the active OpenCode configuration directory;
 - status, enable, and disable through model-visible OpenCode tools, plus model-free EXE controls;
 - command/path Guard before tool execution;
@@ -31,7 +31,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 - Detect a running OpenCode Desktop process and explain that a restart is required.
 - Show installed version, target config directory, and enabled state before overwrite.
 - Add explicit upgrade/repair modes and preserve valid state revisions.
-- Evaluate a smaller bootstrap installer while keeping offline/self-contained installation available.
+- Keep the offline installer below its 12 MiB regression budget and track compressed plugin growth.
 
 ### P1: Desktop Compatibility
 

@@ -81,7 +81,7 @@ npm run build
 npm run build:installer:windows
 ```
 
-The outputs are `release/opencode-plusplus-setup-win-x64.exe` and its `.sha256` file. Node SEA and `postject` embed the plugin in the EXE, so it does not depend on an absolute path to this repository.
+The outputs are `release/opencode-plusplus-setup-win-x64.exe` and its `.sha256` file. The build compresses the plugin into a compact .NET Framework installer without bundling Node or Electron, and it does not depend on an absolute path to this repository.
 
 ## Documentation
 
