@@ -20,6 +20,13 @@ internal static class OpenCodePlusPlusInstaller
     private const string NativeCommandPatchResource = "OpenCodePlusPlus.NativeCommandPatch.js";
     private const string PluginFileName = "opencode-plusplus.js";
     private const string NativeCommandPatchMarker = "OPENCODE_PLUSPLUS_NATIVE_COMMANDS";
+    private const string PlusPlusTaskCommandFile = "plusplus-task.md";
+    private const string PlusPlusVerifyCommandFile = "plusplus-verify.md";
+    private const string PlusPlusSkillFile = "skills/opencode-plusplus/SKILL.md";
+    // Mirror of src/installer/opencode-plusplus-prompts.ts; kept in sync by test/installer-prompt-sync.test.ts.
+    private const string PlusPlusTaskCommand = "---\ndescription: Run a coding task through the OpenCode++ harness workflow\n---\n\nTask: $ARGUMENTS\n\nRun this task through the OpenCode++ harness workflow. Follow the steps in order and do not skip any of them.\n\n1. Call the opencode_plusplus_prepare tool with task set to the task above and type set to bugfix, feature, or refactor.\n2. Read every file listed in mustInspect before making edits.\n3. Change only files inside allowedEditGlobs and never touch files in avoidEditGlobs.\n4. Run every command in requiredCommands with the OpenCode built-in shell tool and keep its output.\n5. Call the opencode_plusplus_evaluate tool with the taskId returned by prepare.\n6. Call the opencode_plusplus_next tool with the same taskId.\n7. If nextAction is not finalize, fix the reported findings, run the required commands, and repeat from step 4. Do not claim the task is complete until nextAction is finalize.\n\nNever invent file paths, package scripts, or command output that did not appear in tool results or files you actually read. All verification happens through the OpenCode++ tools; do not suggest any command-line harness usage.\n";
+    private const string PlusPlusVerifyCommand = "---\ndescription: Verify the current OpenCode++ task state\n---\n\nVerify the OpenCode++ harness state for the current task.\n\n1. If this session has no taskId from opencode_plusplus_prepare, call opencode_plusplus_prepare for the current task first.\n2. Call the opencode_plusplus_evaluate tool with that taskId.\n3. Call the opencode_plusplus_next tool with the same taskId.\n4. Report whether the state is blocking, list every missing evidence item, and list every required command that still must run.\n5. Do not claim completion unless nextAction is finalize.\n\nAll verification happens through the OpenCode++ tools; do not suggest any command-line harness usage.\n";
+    private const string PlusPlusSkill = "---\nname: opencode-plusplus\ndescription: Load for concrete coding tasks, cross-module changes, and final verification in a repository instrumented with OpenCode++. Do not load for pure Q&A, discussion, or non-coding chat.\n---\n\nOpenCode++ reliability harness workflow for coding tasks in the current repository.\n\nWhen to use each tool:\n- opencode_plusplus_prepare: call once at the start of a concrete coding task. It returns taskId, mustInspect, allowedEditGlobs, avoidEditGlobs, and requiredCommands.\n- opencode_plusplus_retrieve: call to locate task-relevant files before searching blindly.\n- opencode_plusplus_evaluate: call after edits, or before claiming the task is done. It returns blocking, findings, decision, and missingEvidence.\n- opencode_plusplus_next: call after evaluate to get the next action for the task.\n\nHard rules:\n- Read every mustInspect file before editing, and edit only inside allowedEditGlobs.\n- Run every requiredCommands entry with the built-in shell tool before calling opencode_plusplus_evaluate.\n- When opencode_plusplus_evaluate reports blocking as true, the task is not complete: fix the findings, run the required commands, and evaluate again.\n- Present the task as complete only when opencode_plusplus_next returns nextAction as finalize.\n- Never fabricate files, commands, or outputs that are not present in tool results.\n";
     private static readonly JavaScriptSerializer Json = CreateJsonSerializer();
 
     private static JavaScriptSerializer CreateJsonSerializer()
@@ -81,6 +88,9 @@ internal static class OpenCodePlusPlusInstaller
         AtomicWrite(paths.pluginFile, plugin);
         string[] commands = NativeCommandFiles();
         for (int index = 0; index < paths.commandFiles.Length; index++) AtomicWrite(paths.commandFiles[index], Encoding.UTF8.GetBytes(commands[index]));
+        string[] agentCommands = { PlusPlusTaskCommand, PlusPlusVerifyCommand };
+        for (int index = 0; index < paths.agentCommandFiles.Length; index++) AtomicWrite(paths.agentCommandFiles[index], Encoding.UTF8.GetBytes(agentCommands[index]));
+        AtomicWrite(paths.skillFile, Encoding.UTF8.GetBytes(PlusPlusSkill));
 
         PluginState current = ReadState(paths.stateFile, true);
         DateTime now = DateTime.UtcNow;
@@ -106,7 +116,13 @@ internal static class OpenCodePlusPlusInstaller
                 Path.GetFileName(paths.commandFiles[0]),
                 Path.GetFileName(paths.commandFiles[1]),
                 Path.GetFileName(paths.commandFiles[2])
-            }
+            },
+            agentCommands = new[]
+            {
+                Path.GetFileName(paths.agentCommandFiles[0]),
+                Path.GetFileName(paths.agentCommandFiles[1])
+            },
+            skill = PlusPlusSkillFile
         });
         return MakeReport("installed", paths, "OpenCode++ was installed with native Desktop commands for the current Windows user.");
     }
@@ -118,7 +134,11 @@ internal static class OpenCodePlusPlusInstaller
         DeleteOwnedFile(paths.manifestFile);
         DeleteOwnedFile(paths.stateFile);
         foreach (string commandFile in paths.commandFiles) DeleteOwnedFile(commandFile);
+        foreach (string commandFile in paths.agentCommandFiles) DeleteOwnedFile(commandFile);
+        DeleteOwnedFile(paths.skillFile);
         RemoveEmptyDirectory(Path.GetDirectoryName(paths.manifestFile));
+        RemoveEmptyDirectory(Path.GetDirectoryName(paths.skillFile));
+        RemoveEmptyDirectory(Path.GetDirectoryName(Path.GetDirectoryName(paths.skillFile)));
         return MakeReport("uninstalled", paths, "OpenCode++ was removed from the current Windows user.");
     }
 
@@ -143,6 +163,9 @@ internal static class OpenCodePlusPlusInstaller
         PluginState state = ReadState(paths.stateFile, false);
         int commandsInstalled = 0;
         foreach (string commandFile in paths.commandFiles) if (File.Exists(commandFile)) commandsInstalled++;
+        int agentFilesInstalled = 0;
+        foreach (string agentFile in paths.agentCommandFiles) if (File.Exists(agentFile)) agentFilesInstalled++;
+        if (File.Exists(paths.skillFile)) agentFilesInstalled++;
         bool pluginExists = File.Exists(paths.pluginFile);
         return new InstallReport
         {
@@ -153,6 +176,7 @@ internal static class OpenCodePlusPlusInstaller
             pluginExists = pluginExists,
             enabled = state.enabled,
             commandsInstalled = commandsInstalled,
+            agentFilesInstalled = agentFilesInstalled,
             nativeCommandPatch = HostPatchPresent(paths),
             message = message
         };
@@ -184,7 +208,13 @@ internal static class OpenCodePlusPlusInstaller
                 Path.Combine(root, "commands", "opencode-plusplus-on.md"),
                 Path.Combine(root, "commands", "opencode-plusplus-off.md"),
                 Path.Combine(root, "commands", "opencode-plusplus-status.md")
-            }
+            },
+            agentCommandFiles = new[]
+            {
+                Path.Combine(root, "commands", PlusPlusTaskCommandFile),
+                Path.Combine(root, "commands", PlusPlusVerifyCommandFile)
+            },
+            skillFile = Path.Combine(root, "skills", "opencode-plusplus", "SKILL.md")
         };
     }
 
@@ -636,6 +666,8 @@ internal static class OpenCodePlusPlusInstaller
         public string installedAt;
         public string plugin;
         public string[] commands;
+        public string[] agentCommands;
+        public string skill;
     }
 
     private sealed class InstallPaths
@@ -647,6 +679,8 @@ internal static class OpenCodePlusPlusInstaller
         public string stateFile;
         public string manifestFile;
         public string[] commandFiles;
+        public string[] agentCommandFiles;
+        public string skillFile;
     }
 
     private sealed class InstallReport
@@ -658,6 +692,7 @@ internal static class OpenCodePlusPlusInstaller
         public bool pluginExists;
         public bool enabled;
         public int commandsInstalled;
+        public int agentFilesInstalled;
         public bool nativeCommandPatch;
         public string message;
     }
