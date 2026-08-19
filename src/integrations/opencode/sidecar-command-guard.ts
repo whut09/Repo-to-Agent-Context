@@ -56,8 +56,7 @@ function checkDangerousCommand(command: string): OpenCodeSidecarCommandFinding[]
     ]
   ];
   for (const [pattern, reason, doInstead] of patterns) {
-    if (pattern.test(command))
-      findings.push({ kind: "dangerous_command", severity: "blocker", message: reason, doInstead, evidence: [command] });
+    if (pattern.test(command)) findings.push({ kind: "dangerous_command", severity: "blocker", message: reason, doInstead, evidence: [command] });
   }
   return findings;
 }
@@ -70,8 +69,7 @@ function checkScriptCommand(root: string, command: string): OpenCodeSidecarComma
         kind: "dangerous_command",
         severity: "blocker",
         message: "Unsupported shell control syntax 不支持的 shell 控制语法",
-        doInstead:
-          "Run one plain executable with arguments; split chained steps into separate tool calls. 拆成多个单独工具调用，不要用 ; && |。",
+        doInstead: "Run one plain executable with arguments; split chained steps into separate tool calls. 拆成多个单独工具调用，不要用 ; && |。",
         evidence: [command]
       }
     ];

@@ -32,8 +32,7 @@ export function checkProtectedPath(filePath: string): ProtectedPathFinding[] {
       severity: "blocker",
       rule: "secret-local-config",
       message: `Secret/local config path 密钥/本地配置路径: ${normalized}`,
-      doInstead:
-        "Do not edit .env or *.local.* files; OpenCode already guards secret reads. 如需配置变更，改普通配置文件并说明原因。",
+      doInstead: "Do not edit .env or *.local.* files; OpenCode already guards secret reads. 如需配置变更，改普通配置文件并说明原因。",
       evidence: [normalized]
     });
   }
