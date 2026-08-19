@@ -3,7 +3,7 @@ import { buildPolicyReport } from "../../../../harness/verification-plane/policy
 import { runSidecarIncrementalVerifier } from "../../sidecar-incremental-verifier.js";
 import { loadPluginHarnessContext } from "./context.js";
 import { evaluateFindings, evaluateMissingEvidence, evaluateRequiredCommands } from "./findings.js";
-import { readPluginHarnessSession, resolvePluginTaskId, taskRunExists } from "./session.js";
+import { readPluginHarnessSession, resolvePluginTaskId, taskRunExists, writePluginEvaluateState } from "./session.js";
 import type { PluginEvaluateArgs, PluginEvaluateResult } from "./types.js";
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
@@ -17,7 +17,7 @@ export async function evaluatePluginHarness(root: string, args: PluginEvaluateAr
   const guardStack = await runSidecarIncrementalVerifier(root, { base: "main", changedFiles: [] });
   const policy = buildPolicyReport(context, { base: "main", traceId: taskId, failOn: "required" });
   const loop = buildLoopControllerReport(context, task, { phase: "after-edit", base: "main", traceId: taskId });
-  return {
+  const result: PluginEvaluateResult = {
     taskId,
     blocking: Boolean(loop.decisions[0]?.blocking) || !policy.passed || !guardStack.passed,
     decision: loop.decisions[0]?.action ?? "ready-for-review",
@@ -25,4 +25,13 @@ export async function evaluatePluginHarness(root: string, args: PluginEvaluateAr
     missingEvidence: evaluateMissingEvidence({ loop, policy }),
     requiredCommands: evaluateRequiredCommands({ loop, policy })
   };
+  writePluginEvaluateState(root, {
+    taskId: result.taskId,
+    blocking: result.blocking,
+    decision: result.decision,
+    missingEvidence: result.missingEvidence,
+    requiredCommands: result.requiredCommands,
+    updatedAt: new Date().toISOString()
+  });
+  return result;
 }
