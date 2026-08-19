@@ -7,6 +7,7 @@ import { executeEvaluateTool, executeNextTool, executePrepareTool, executeRetrie
 import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
+import { createSessionLifecycle } from "./session-lifecycle.js";
 import {
   defaultOpenCodePlusPlusStateFile,
   readOpenCodePlusPlusPluginStatus,
@@ -39,6 +40,14 @@ export async function createOpenCodePlusPlusSidecar(
   function enabled(): boolean {
     return readOpenCodePlusPlusPluginStatus(stateFile).enabled;
   }
+
+  const lifecycle = createSessionLifecycle({
+    directory: context.directory,
+    context,
+    recorder,
+    idle,
+    isEnabled: enabled
+  });
 
   function rememberToolStart(tool: unknown, args: unknown, callId?: string): void {
     toolStarts.set(hookKey(tool, args, callId), {
@@ -131,12 +140,15 @@ export async function createOpenCodePlusPlusSidecar(
       if (!enabled()) return;
       recordToolAfter(input, output);
     },
+    "experimental.session.compacting": async (input: unknown, output: unknown) => {
+      lifecycle.onSessionCompacting(input, output);
+    },
     event: async ({ event }: { event?: Record<string, unknown> }) => {
       const eventRecord = event ?? {};
       const type = eventRecord.type;
       if (type === "session.created") {
-        recorder.record("session.created", { enabled: enabled() });
-        recorder.log("debug", "sidecar active", { directory: context.directory, worktree: context.worktree });
+        lifecycle.onSessionCreated();
+        return;
       }
 
       if (!enabled()) return;
@@ -155,7 +167,12 @@ export async function createOpenCodePlusPlusSidecar(
 
       if (type === "session.idle") {
         recorder.record("session.idle");
-        await idle.maybeVerifyOnIdle();
+        const verify = await idle.maybeVerifyOnIdle();
+        lifecycle.onSessionIdle(verify);
+      }
+
+      if (type === "session.error") {
+        lifecycle.onSessionError(eventRecord);
       }
     }
   };
