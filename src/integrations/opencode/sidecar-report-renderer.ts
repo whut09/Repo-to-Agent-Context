@@ -23,8 +23,18 @@ export function renderCommandCheck(result: {
   command: string | null;
   paths: string[];
   allowed: boolean;
-  findings: Array<{ severity: string; message: string }>;
+  findings: Array<{ severity: string; message: string; evidence?: string[]; doInstead?: string }>;
 }): string {
+  const findingLines = result.findings.length
+    ? result.findings.flatMap((finding) => {
+        const lines = [
+          `${finding.severity === "warning" ? "WARNING" : "BLOCKED"}: ${finding.message}`,
+          `Evidence: ${(finding.evidence ?? []).join(" | ") || "n/a"}`
+        ];
+        if (finding.doInstead) lines.push(`Do instead: ${finding.doInstead}`);
+        return lines;
+      })
+    : ["- none"];
   return [
     "OpenCode++ Sidecar Command Check",
     "",
@@ -33,7 +43,7 @@ export function renderCommandCheck(result: {
     `Result: ${result.allowed ? "allow" : "block"}`,
     "",
     "Findings:",
-    ...(result.findings.length ? result.findings.map((finding) => `- [${finding.severity.toUpperCase()}] ${finding.message}`) : ["- none"])
+    ...findingLines
   ].join("\n");
 }
 
