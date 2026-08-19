@@ -69,6 +69,17 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 - 通过普通 OpenCode 插件工具提供状态、启用和禁用控制；
 - 以 `opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate`、`opencode_plusplus_next` 四个工具提供 `/plusplus-task` 和 `/plusplus-verify` 背后的会话内 Harness 工作流。
 
+## 会话生命周期
+
+插件会把 Harness 状态推回会话，而不是只写进 `.agent-context/` 文件：
+
+- `session.created`：启用时把仓库标记为 dirty，并在 debounce（≥2 秒）后后台构建 context。成功时弹出 "OpenCode++ 已就绪" toast；构建失败只记录日志，绝不中断会话。
+- `session.idle`：沿用现有 idle 验证。出现 blocker 时弹出一行 toast：`OpenCode++ 未通过：<第一条 blocker>。下一步调用 opencode_plusplus_next`。不会 throw。
+- `experimental.session.compacting`：模型压缩长会话前，插件把当前 Harness 状态（taskId、allowed/avoid 编辑 glob、blocking、缺失证据、上次 decision、`.agent-context/sidecar/latest.md` 摘要）追加到 `output.context`，绝不替换 `output.prompt`。
+- `session.error`：把错误记入 sidecar 事件日志作为证据，不打断宿主。
+
+插件禁用时，除 `status`/`enable`/`disable` 工具外的生命周期处理全部立即返回。若当前 OpenCode 版本没有 toast API，通知会降级为结构化 `app.log` 记录，而不是假设不存在的 SDK 方法。
+
 ## 插件不能做什么
 
 - 不能增加原生 OpenCode Desktop 设置页面；原生补丁只负责三个明确的 Slash Command。
