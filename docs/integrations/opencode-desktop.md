@@ -62,7 +62,7 @@ Disable is a pause, not an uninstall. The plugin remains loaded so status and en
 
 When enabled, the plugin:
 
-- checks command syntax, known package scripts, dangerous shell operations, protected paths, and secret-like paths before execution;
+- checks command syntax, known package scripts, dangerous shell operations, protected paths, and secret-like paths before execution; a blocked command returns a fixed bilingual structure (`BLOCKED: <reason>` / `Evidence: <command or path>` / `Do instead: <concrete alternative>`) so the model can run the next action, and uncertain path-like arguments are recorded as warnings instead of blockers;
 - records tool, command, exit code, timestamps, changed paths, working-tree hashes, and redacted/truncated output after execution;
 - writes trace and event artifacts under the current repository's `.agent-context/`;
 - runs the shared incremental verification stack after file edits and an idle session;
