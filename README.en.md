@@ -57,9 +57,13 @@ Harness files in the target repository live under `.agent-context/` and include 
 - **Uninstall**: run the EXE with `--uninstall`. It removes only OpenCode++ plugin, legacy command, state, and manifest files, not `.agent-context/`.
 - **Check status**: run the EXE with `--status --json`, or call the status tool in OpenCode.
 
-## Advanced Harness and CLI
+## Product Boundary
 
-The CLI is not the daily Desktop entry point. It is used for CI, repository context generation, diagnostics, MCP, and harness-led batch runs:
+The only runtime product is the Windows plugin for the official OpenCode Desktop: download the EXE, double-click to install, restart OpenCode Desktop. There is no other installation or usage path. `src/integrations/opencode/global-plugin.ts` is the single production runtime entry; the EXE install flow and the `opencode_plusplus_*` tool names are unchanged.
+
+The CLI (`opencode-plusplus`) and MCP server (`opencode-plusplus-mcp`) are internal dev/test compatibility surfaces: they exist for CI, source builds, diagnostics, and harness-led batch runs. They stay in the npm package only as development dependencies and are **not a Desktop user installation or usage path**. The npm package itself is a developer tool; Desktop users never run `npm install`.
+
+### CLI internal uses (not a user entry)
 
 ```powershell
 opencode-plusplus build .
@@ -68,7 +72,7 @@ opencode-plusplus policy . --base main --fail-on required
 opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor mock --max-loops 3
 ```
 
-CLI, MCP, and the Desktop plugin share Guard, Evidence, Policy, Decision, and Loop Engineering implementations, but their control boundaries differ: the Desktop plugin observes the current OpenCode session, while the harness-led CLI owns bounded execution, collection, and termination decisions.
+CLI, MCP, and the Desktop plugin share Guard, Evidence, Policy, Decision, and Loop Engineering implementations, but their control boundaries differ: the Desktop plugin observes the current OpenCode session, while the harness-led CLI owns bounded execution, collection, and termination decisions. The internal role of CLI/MCP and the deletion details are in [Product Boundary](docs/developer/product-boundary.md).
 
 ## Build the Windows EXE
 
@@ -87,6 +91,7 @@ The outputs are `release/opencode-plusplus-setup-win-x64.exe` and its `.sha256` 
 
 - [Windows installation and usage](docs/integrations/opencode-desktop.md)
 - [Windows plugin architecture and boundaries](docs/concepts/windows-plugin-architecture.md)
+- [Product boundary (CLI/MCP internal roles)](docs/developer/product-boundary.md)
 - [Global sidecar runtime](docs/integrations/opencode-sidecar.md)
 - [Architecture](docs/concepts/architecture.md)
 - [Integration modes](docs/concepts/integration-modes.md)
