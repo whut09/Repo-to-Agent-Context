@@ -23,17 +23,41 @@ export function checkSidecarCommand(repo = ".", input: { command?: string; paths
 
 function checkDangerousCommand(command: string): OpenCodeSidecarCommandFinding[] {
   const findings: OpenCodeSidecarCommandFinding[] = [];
-  const patterns: Array<[RegExp, string]> = [
-    [/\brm\s+(-[^\s]*[rf][^\s]*|-[^\s]*r[^\s]*f[^\s]*|-[^\s]*f[^\s]*r[^\s]*)\s+(\/|\*|\.|~|\$HOME|%USERPROFILE%)/i, "destructive recursive remove"],
-    [/\bgit\s+reset\s+--hard\b/i, "hard git reset"],
-    [/\bgit\s+clean\s+-[^\s]*[fd][^\s]*/i, "git clean removes untracked files"],
-    [/\b(curl|wget)\b.+\|\s*(sh|bash|powershell|pwsh)\b/i, "remote script pipe to shell"],
-    [/\bchmod\s+-R\s+777\b/i, "recursive world-writable permissions"],
-    [/\bdel\s+\/[sfq]\s+(\\|\/|\*)/i, "destructive Windows delete"]
+  const patterns: Array<[RegExp, string, string]> = [
+    [
+      /\brm\s+(-[^\s]*[rf][^\s]*|-[^\s]*r[^\s]*f[^\s]*|-[^\s]*f[^\s]*r[^\s]*)\s+(\/|\*|\.|~|\$HOME|%USERPROFILE%)/i,
+      "Destructive recursive remove 破坏性递归删除",
+      "Remove specific files inside the repository, e.g. `rm src/tmp.txt`. 只删除仓库内明确文件，不要递归删 /、~、*。"
+    ],
+    [
+      /\bgit\s+reset\s+--hard\b/i,
+      "Hard git reset 破坏性硬重置",
+      "Discard one file with `git checkout -- <file>`, or keep changes and call opencode_plusplus_evaluate first. 不要整仓硬重置，先看评估结果。"
+    ],
+    [
+      /\bgit\s+clean\s+-[^\s]*[fd][^\s]*/i,
+      "git clean removes untracked files 删除未跟踪文件",
+      "Remove specific untracked files by name. 按文件名删除，不要用 git clean。"
+    ],
+    [
+      /\b(curl|wget)\b.+\|\s*(sh|bash|powershell|pwsh)\b/i,
+      "Remote script piped to shell 远程脚本管道执行",
+      "Download the script into the repository, inspect it, then run it as a plain command. 先下载并检查脚本再显式运行。"
+    ],
+    [
+      /\bchmod\s+-R\s+777\b/i,
+      "Recursive world-writable permissions 递归全局可写权限",
+      "Set permissions on specific files, e.g. `chmod 755 path/to/file`. 对明确文件单独设置权限。"
+    ],
+    [
+      /\bdel\s+\/[sfq]\s+(\\|\/|\*)/i,
+      "Destructive Windows delete Windows 破坏性删除",
+      "Delete specific files with `del path\\to\\file` or the edit tool. 只删除明确文件。"
+    ]
   ];
-  for (const [pattern, reason] of patterns) {
+  for (const [pattern, reason, doInstead] of patterns) {
     if (pattern.test(command))
-      findings.push({ kind: "dangerous_command", severity: "blocker", message: `Blocked dangerous command: ${reason}`, evidence: [command] });
+      findings.push({ kind: "dangerous_command", severity: "blocker", message: reason, doInstead, evidence: [command] });
   }
   return findings;
 }
