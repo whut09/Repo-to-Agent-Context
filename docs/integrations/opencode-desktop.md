@@ -12,7 +12,7 @@ This EXE is the only user-facing installation and usage path for OpenCode++. The
 2. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
 3. Double-click the EXE. Administrator elevation is not required.
 4. Reopen OpenCode Desktop and open a repository.
-5. Start a new session and confirm the `opencode_plusplus_status` tool is available.
+5. Start a new session and type `/plusplus-task <task>` to run a coding task through the harness.
 
 The installer writes:
 
@@ -23,9 +23,20 @@ The installer writes:
 <OpenCode config>\commands\opencode-plusplus-on.md
 <OpenCode config>\commands\opencode-plusplus-off.md
 <OpenCode config>\commands\opencode-plusplus-status.md
+<OpenCode config>\commands\plusplus-task.md
+<OpenCode config>\commands\plusplus-verify.md
+<OpenCode config>\skills\opencode-plusplus\SKILL.md
 ```
 
 The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONFIG_DIR` takes precedence; `XDG_CONFIG_HOME` is also honored by the runtime. For an isolated installation, pass `--config-dir <path>`.
+
+## Harness Workflow
+
+After restart, the session exposes `/plusplus-task` and `/plusplus-verify` as normal model-mediated slash commands, plus the `opencode-plusplus` skill that OpenCode loads automatically for concrete coding work. No command line is required:
+
+- `/plusplus-task <task>` runs the task through the harness workflow: `opencode_plusplus_prepare` → read `mustInspect` files → edit only inside `allowedEditGlobs` → run `requiredCommands` with the built-in shell tool → `opencode_plusplus_evaluate` → `opencode_plusplus_next`. The model must not claim completion while `nextAction` is not `finalize`.
+- `/plusplus-verify` re-runs `opencode_plusplus_evaluate` and `opencode_plusplus_next`, then reports blocking state, missing evidence, and the commands that still must run.
+- The skill steers the model to the right tool at the right moment and treats a blocking evaluation as not-complete.
 
 ## Control and Status
 
@@ -55,7 +66,8 @@ When enabled, the plugin:
 - records tool, command, exit code, timestamps, changed paths, working-tree hashes, and redacted/truncated output after execution;
 - writes trace and event artifacts under the current repository's `.agent-context/`;
 - runs the shared incremental verification stack after file edits and an idle session;
-- exposes status, enable, and disable controls as normal OpenCode plugin tools.
+- exposes status, enable, and disable controls as normal OpenCode plugin tools;
+- exposes `opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next` as the in-session harness workflow behind `/plusplus-task` and `/plusplus-verify`.
 
 ## What It Cannot Do
 
@@ -67,9 +79,9 @@ When enabled, the plugin:
 
 ## Upgrade
 
-Close OpenCode Desktop and run the newer EXE. The installer updates the bundled plugin, verifies or reapplies the host command patch, writes the three command menu entries, updates `installation.json`, and preserves an existing valid enabled state.
+Close OpenCode Desktop and run the newer EXE. The installer updates the bundled plugin, verifies or reapplies the host command patch, writes the three native command menu entries plus the `/plusplus-task` and `/plusplus-verify` commands and the `opencode-plusplus` skill, updates `installation.json`, and preserves an existing valid enabled state.
 
-If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice.
+If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice. Legacy repository commands `.opencode/commands/opencode-plusplus.md` and `.opencode/commands/opencode-plusplus-verify.md` invoke the CLI and are no longer generated; delete them or re-run `opencode-plusplus opencode init .` to get the aligned `/plusplus-task` and `/plusplus-verify` versions.
 
 ## Uninstall
 

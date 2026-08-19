@@ -12,7 +12,7 @@ OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录和一个范围
 2. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
 3. 双击 EXE，不需要管理员权限。
 4. 重新打开 OpenCode Desktop，打开一个仓库。
-5. 新建会话，确认工具列表中存在 `opencode_plusplus_status`。
+5. 新建会话，输入 `/plusplus-task <task>` 即可让 Harness 接管编码任务。
 
 安装器写入：
 
@@ -23,9 +23,20 @@ OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录和一个范围
 <OpenCode 配置目录>\commands\opencode-plusplus-on.md
 <OpenCode 配置目录>\commands\opencode-plusplus-off.md
 <OpenCode 配置目录>\commands\opencode-plusplus-status.md
+<OpenCode 配置目录>\commands\plusplus-task.md
+<OpenCode 配置目录>\commands\plusplus-verify.md
+<OpenCode 配置目录>\skills\opencode-plusplus\SKILL.md
 ```
 
 默认配置目录是 `%USERPROFILE%\.config\opencode`。运行时优先使用 `OPENCODE_CONFIG_DIR`，也支持 `XDG_CONFIG_HOME`。隔离测试安装可以传 `--config-dir <path>`。
+
+## Harness 工作流
+
+重启后，会话提供 `/plusplus-task` 和 `/plusplus-verify` 两个普通模型 Slash Command，以及 OpenCode 在具体编码任务时自动加载的 `opencode-plusplus` skill，全程无需命令行：
+
+- `/plusplus-task <task>` 按 Harness 顺序执行：`opencode_plusplus_prepare` → 读取 `mustInspect` 文件 → 只在 `allowedEditGlobs` 内修改 → 用内置 shell 工具跑 `requiredCommands` → `opencode_plusplus_evaluate` → `opencode_plusplus_next`。`nextAction` 不是 `finalize` 前不得声称完成。
+- `/plusplus-verify` 重新执行 `opencode_plusplus_evaluate` 和 `opencode_plusplus_next`，并汇报阻塞状态、缺失证据和仍必须运行的命令。
+- skill 负责在正确的时机引导模型调用正确工具，并把 blocking 视为未完成。
 
 ## 状态与开关
 
@@ -55,7 +66,8 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 - 在工具执行后记录工具、命令、退出码、时间、变更路径、working-tree hash 以及脱敏/截断输出；
 - 把 trace 和事件 artifact 写入当前仓库的 `.agent-context/`；
 - 在文件编辑且会话进入 idle 后运行共享增量验证栈；
-- 通过普通 OpenCode 插件工具提供状态、启用和禁用控制。
+- 通过普通 OpenCode 插件工具提供状态、启用和禁用控制；
+- 以 `opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate`、`opencode_plusplus_next` 四个工具提供 `/plusplus-task` 和 `/plusplus-verify` 背后的会话内 Harness 工作流。
 
 ## 插件不能做什么
 
@@ -67,9 +79,9 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 
 ## 升级
 
-关闭 OpenCode Desktop 后运行新 EXE。安装器更新内置插件，检查或重新应用宿主补丁，写入三个命令菜单项，更新 `installation.json`，并保留现有有效启用状态。
+关闭 OpenCode Desktop 后运行新 EXE。安装器更新内置插件，检查或重新应用宿主补丁，写入三个原生命令菜单项以及 `/plusplus-task`、`/plusplus-verify` 命令和 `opencode-plusplus` skill，更新 `installation.json`，并保留现有有效启用状态。
 
-如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。
+如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。旧版仓库级命令 `.opencode/commands/opencode-plusplus.md` 和 `.opencode/commands/opencode-plusplus-verify.md` 会调用 CLI，已不再生成；可删除它们或重新运行 `opencode-plusplus opencode init .` 生成对齐的 `/plusplus-task` 和 `/plusplus-verify`。
 
 ## 卸载
 
