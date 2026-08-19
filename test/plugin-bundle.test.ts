@@ -10,7 +10,8 @@ import { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "../src/integrations/opencod
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const NODE_BUILTINS = new Set([  "assert",
+const NODE_BUILTINS = new Set([
+  "assert",
   "async_hooks",
   "buffer",
   "child_process",
@@ -105,8 +106,7 @@ async function buildPluginBundle(): Promise<string> {
   const result = await build({
     stdin: {
       contents:
-        'import { OpenCodePlusPlusGlobalPlugin } from "./src/integrations/opencode/global-plugin.ts";\n' +
-        "module.exports = OpenCodePlusPlusGlobalPlugin;\n",
+        'import { OpenCodePlusPlusGlobalPlugin } from "./src/integrations/opencode/global-plugin.ts";\n' + "module.exports = OpenCodePlusPlusGlobalPlugin;\n",
       resolveDir: root,
       sourcefile: "opencode-plusplus-plugin-entry.ts",
       loader: "ts"

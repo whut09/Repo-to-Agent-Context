@@ -15,13 +15,7 @@ function verifyPackage(name) {
     maximumFiles: 200,
     // The Desktop plugin is the product entry. dist/cli and dist/mcp remain in the
     // developer package as internal dev/test surfaces, so they stay required too.
-    required: [
-      "package.json",
-      "dist/integrations/opencode/global-plugin.js",
-      "dist/core/package-info.generated.js",
-      "dist/cli/index.js",
-      "dist/mcp/server.js"
-    ],
+    required: ["package.json", "dist/integrations/opencode/global-plugin.js", "dist/core/package-info.generated.js", "dist/cli/index.js", "dist/mcp/server.js"],
     forbiddenPrefixes: ["assets/", "benchmarks/", "apps/desktop/", ".agent-context/", "release/", ".installer-build/"]
   };
   const npmCli = process.env.npm_execpath;

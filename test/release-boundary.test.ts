@@ -19,7 +19,11 @@ test("release boundary: build-windows-installer.mjs only bundles global-plugin.t
   const buildScript = readFileSync(path.join(root, "scripts/build-windows-installer.mjs"), "utf8");
   assert.match(buildScript, /OpenCodePlusPlusGlobalPlugin/, "build script must import global-plugin.ts");
   const embeddedResources = [...buildScript.matchAll(/\/resource:[^",]+,(OpenCodePlusPlus\.\w+\.gz|OpenCodePlusPlus\.\w+\.js)/g)].map((m) => m[1]);
-  assert.deepEqual(embeddedResources.sort(), ["OpenCodePlusPlus.NativeCommandPatch.js", "OpenCodePlusPlus.Plugin.gz"], "build must embed exactly plugin + native patch");
+  assert.deepEqual(
+    embeddedResources.sort(),
+    ["OpenCodePlusPlus.NativeCommandPatch.js", "OpenCodePlusPlus.Plugin.gz"],
+    "build must embed exactly plugin + native patch"
+  );
   assert.doesNotMatch(buildScript, /src[\\/]cli[\\/]|src[\\/]mcp[\\/]/, "build script must not reference CLI or MCP");
 });
 
@@ -31,9 +35,18 @@ test("release boundary: global-plugin.ts imports only plugin-runtime", () => {
 
 test("release boundary: npm package files whitelist excludes release and build artifacts", () => {
   const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-  assert.ok(pkg.files.some((f: string) => f.includes("README.md")), "package must include README");
-  assert.ok(pkg.files.some((f: string) => f.includes("opencode-plusplus.config.example.yml")), "package must include config example");
-  assert.ok(pkg.files.some((f: string) => f.includes("dist/")), "package must include dist runtime output");
+  assert.ok(
+    pkg.files.some((f: string) => f.includes("README.md")),
+    "package must include README"
+  );
+  assert.ok(
+    pkg.files.some((f: string) => f.includes("opencode-plusplus.config.example.yml")),
+    "package must include config example"
+  );
+  assert.ok(
+    pkg.files.some((f: string) => f.includes("dist/")),
+    "package must include dist runtime output"
+  );
   assert.ok(!pkg.files.some((f: string) => f.includes("release/")), "package must not include release/");
   assert.ok(!pkg.files.some((f: string) => f.includes(".installer-build/")), "package must not include installer build");
   assert.ok(!pkg.files.some((f: string) => f.includes("node_modules/")), "package must not include node_modules");
