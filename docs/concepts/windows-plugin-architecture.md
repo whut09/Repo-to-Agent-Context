@@ -53,8 +53,11 @@ OpenCode Markdown commands are normally model prompt templates, not direct plugi
 2. The runtime stores a start timestamp and working-tree hash.
 3. tool.execute.after normalizes output, captures an exit code when available, redacts secrets, and records hashes/previews.
 4. file.edited or file.watcher.updated marks the session dirty.
-5. session.idle starts incremental verification for the current repository.
-6. Sidecar reports and traces are atomically persisted under .agent-context.
+5. session.created (enabled) marks the repository dirty and schedules a debounced background context build, then toasts "OpenCode++ 已就绪" on success; failures are logged only.
+6. session.idle starts incremental verification for the current repository; a failing verify toasts the first blocker with a pointer to `opencode_plusplus_next`.
+7. experimental.session.compacting appends the current taskId, edit globs, blocking state, missing evidence, last decision, and sidecar latest summary to `output.context` (never replacing `output.prompt`).
+8. session.error is recorded as evidence without interrupting the host.
+9. Sidecar reports and traces are atomically persisted under .agent-context.
 
 If the host does not expose a command, exit code, path, or session id, the runtime records an unknown or partial value. It must not invent evidence.
 
