@@ -36,7 +36,11 @@ test("installer: C# installer uses the same command and skill file names as TS",
 test("installer: prompt content stays free of CLI invocation text", () => {
   for (const content of [PLUSPLUS_TASK_COMMAND, PLUSPLUS_VERIFY_COMMAND, PLUSPLUS_SKILL]) {
     assert.doesNotMatch(content, /opencode-plusplus oc\b/, "prompt must not reference the opencode-plusplus oc CLI command");
-    assert.doesNotMatch(content, /opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context|status)\b/, "prompt must not reference the opencode-plusplus CLI");
+    assert.doesNotMatch(
+      content,
+      /opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context|status)\b/,
+      "prompt must not reference the opencode-plusplus CLI"
+    );
   }
   assert.match(PLUSPLUS_TASK_COMMAND, /Task: \$ARGUMENTS/, "plusplus-task must pass $ARGUMENTS through as the task");
   assert.match(PLUSPLUS_TASK_COMMAND, /opencode_plusplus_prepare/);

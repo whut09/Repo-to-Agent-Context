@@ -39,7 +39,10 @@ try {
     assert.equal(existsSync(file), true, `Installer must write ${file}`);
     const content = readFileSync(file, "utf8");
     assert.ok(!content.includes("opencode-plusplus oc"), `${file} must not reference the opencode-plusplus oc CLI command`);
-    assert.ok(!/opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context)\b/.test(content), `${file} must not reference the opencode-plusplus CLI`);
+    assert.ok(
+      !/opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context)\b/.test(content),
+      `${file} must not reference the opencode-plusplus CLI`
+    );
   }
   assert.ok(readFileSync(agentCommandFiles[0], "utf8").includes("Task: $ARGUMENTS"), "plusplus-task must pass $ARGUMENTS as the task");
   assert.ok(readFileSync(skillFile, "utf8").includes("name: opencode-plusplus"), "SKILL.md must declare the opencode-plusplus skill");

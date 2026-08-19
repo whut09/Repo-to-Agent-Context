@@ -1,6 +1,11 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { PLUSPLUS_TASK_COMMAND, PLUSPLUS_TASK_COMMAND_FILE, PLUSPLUS_VERIFY_COMMAND, PLUSPLUS_VERIFY_COMMAND_FILE } from "../../installer/opencode-plusplus-prompts.js";
+import {
+  PLUSPLUS_TASK_COMMAND,
+  PLUSPLUS_TASK_COMMAND_FILE,
+  PLUSPLUS_VERIFY_COMMAND,
+  PLUSPLUS_VERIFY_COMMAND_FILE
+} from "../../installer/opencode-plusplus-prompts.js";
 
 export interface OpencodeInitOptions {
   force?: boolean;

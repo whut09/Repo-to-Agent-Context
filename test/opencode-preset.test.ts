@@ -60,11 +60,7 @@ test("OpenCode init writes commands and agent files without overwriting by defau
 
     assert.deepEqual(
       first.files.map((file) => `${file.path}:${file.status}`),
-      [
-        ".opencode/commands/plusplus-task.md:written",
-        ".opencode/commands/plusplus-verify.md:written",
-        ".opencode/agents/opencode-plusplus.md:written"
-      ]
+      [".opencode/commands/plusplus-task.md:written", ".opencode/commands/plusplus-verify.md:written", ".opencode/agents/opencode-plusplus.md:written"]
     );
     assert.ok(existsSync(path.join(root, ".opencode", "commands", "plusplus-task.md")));
     const taskContent = readFileSync(path.join(root, ".opencode", "commands", "plusplus-task.md"), "utf8");

@@ -47,7 +47,11 @@ test("Windows installer writes the global plugin and native command files", () =
       assert.equal(existsSync(file), true, `installer must write ${path.basename(file)}`);
       const content = readFileSync(file, "utf8");
       assert.doesNotMatch(content, /opencode-plusplus oc\b/, "agent file must not reference the opencode-plusplus oc CLI command");
-      assert.doesNotMatch(content, /opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context)\b/, "agent file must not reference the opencode-plusplus CLI");
+      assert.doesNotMatch(
+        content,
+        /opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context)\b/,
+        "agent file must not reference the opencode-plusplus CLI"
+      );
     }
     assert.match(readFileSync(plusPlusTaskFile, "utf8"), /Task: \$ARGUMENTS/);
     assert.match(readFileSync(plusPlusTaskFile, "utf8"), /opencode_plusplus_prepare/);
