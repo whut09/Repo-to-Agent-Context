@@ -73,6 +73,12 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 - 通过普通 OpenCode 插件工具提供状态、启用和禁用控制；
 - 以 `opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate`、`opencode_plusplus_next` 四个工具提供 `/plusplus-task` 和 `/plusplus-verify` 背后的会话内 Harness 工作流。
 
+## Harness 工具协议
+
+`opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate` 和 `opencode_plusplus_next` 都返回同一种稳定 JSON envelope，既供模型解析，也带有适合聊天显示的 `summary`。每次结果包含 `schemaVersion`、`taskId`、`sessionId`、`taskIdSource`、`repository`、`workingTreeHash`、阶段、decision、blocking、findings、证据/命令/编辑边界、artifacts 与 `nextAction`。
+
+同一 task 的 `prepare` 幂等，并且在 evaluate 与 next 完成前始终 blocking。省略 `taskId` 时会从匹配的插件 session 恢复，并显示 `taskIdSource: "session"`。`evaluate` 会针对当前 working tree 重算并持久化 session-scoped 结果；`next` 只消费这一结果，blocking 时不能返回 `finalize`。参数错误或内部失败同样返回 JSON error envelope，不会令 OpenCode 崩溃。
+
 ## 会话生命周期
 
 插件会把 Harness 状态推回会话，而不是只写进 `.agent-context/` 文件：

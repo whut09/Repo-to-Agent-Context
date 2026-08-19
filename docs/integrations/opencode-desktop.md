@@ -73,6 +73,12 @@ When enabled, the plugin:
 - exposes status, enable, and disable controls as normal OpenCode plugin tools;
 - exposes `opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next` as the in-session harness workflow behind `/plusplus-task` and `/plusplus-verify`.
 
+## Harness Tool Protocol
+
+`opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next` all return the same stable JSON envelope for both model parsing and chat display. Every result includes `schemaVersion`, `summary`, `taskId`, `sessionId`, `taskIdSource`, `repository`, `workingTreeHash`, phase, decision, blocking state, findings, evidence/command/edit boundaries, artifacts, and `nextAction`.
+
+`prepare` is idempotent for the same task and remains blocking until evaluate and next run. Omitting `taskId` recovers it from the matching plugin session and reports `taskIdSource: "session"`. `evaluate` recomputes against the current working tree and persists a session-scoped result; `next` consumes that exact result and cannot return `finalize` while blocking. Malformed input and internal failures return the same JSON error envelope without crashing OpenCode.
+
 ## Session Lifecycle
 
 The plugin pushes harness state back into the session so it is not trapped in `.agent-context/` files:
