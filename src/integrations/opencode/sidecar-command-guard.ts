@@ -99,14 +99,26 @@ function checkMakeCommand(root: string, command: string): OpenCodeSidecarCommand
   if (!parsed || !/^(make|gmake)$/i.test(parsed.file)) return [];
   const target = parsed.args.find((arg) => arg && !arg.startsWith("-")) ?? "all";
   const targets = readMakeTargets(root);
-  if (!targets.length) return [{ kind: "unknown_make_target", severity: "blocker", message: "Makefile not found for make command.", evidence: [command] }];
+  if (!targets.length)
+    return [
+      {
+        kind: "unknown_make_target",
+        severity: "blocker",
+        message: "Makefile not found 未找到 Makefile",
+        doInstead: "Run the equivalent package.json script instead. 用 package.json 里已有的 script 替代。",
+        evidence: [command]
+      }
+    ];
   if (targets.includes(target)) return [];
+  const shown = targets.slice(0, 12);
+  const more = targets.length - shown.length;
   return [
     {
       kind: "unknown_make_target",
       severity: "blocker",
-      message: `Make target does not exist: ${target}`,
-      evidence: [`Makefile targets: ${targets.join(", ")}`]
+      message: `Unknown Make target 未知的 make target: ${target}`,
+      doInstead: `Use an existing Makefile target: ${shown.join(", ")}${more > 0 ? `, +${more} more` : ""}. 用已有的 target。`,
+      evidence: [`Makefile targets: ${shown.join(", ")}${more > 0 ? `, +${more} more` : ""}`]
     }
   ];
 }
