@@ -15,6 +15,7 @@ export type PluginHarnessTaskType = "bugfix" | "feature" | "refactor";
 export interface PluginPrepareArgs {
   task: string;
   type?: PluginHarnessTaskType;
+  sessionId?: string | null;
 }
 
 export interface PluginRetrieveArgs {
@@ -24,64 +25,72 @@ export interface PluginRetrieveArgs {
 
 export interface PluginEvaluateArgs {
   taskId?: string;
+  sessionId?: string | null;
 }
 
 export interface PluginNextArgs {
   taskId?: string;
+  sessionId?: string | null;
 }
 
 export interface PluginHarnessSession {
   taskId: string;
   task: string;
   type: PluginHarnessTaskType | "auto";
+  sessionId?: string | null;
   updatedAt: string;
 }
 
-export interface PluginPrepareResult {
-  taskId: string;
-  task: string;
-  type: string;
-  mustInspect: string[];
-  allowedEditGlobs: string[];
-  avoidEditGlobs: string[];
-  requiredCommands: string[];
-  nextStep: string;
-}
+export type PluginHarnessToolKind = "prepare" | "retrieve" | "evaluate" | "next";
+export type PluginTaskIdSource = "argument" | "session" | "created" | "none";
 
-export interface PluginRetrieveHit {
-  path: string;
-  score: number;
-  reason: string;
-}
-
-export interface PluginRetrieveResult {
-  task: string;
-  hits: PluginRetrieveHit[];
-}
-
-export interface PluginEvaluateResult {
-  taskId: string;
-  blocking: boolean;
+export interface PluginHarnessResult {
+  schemaVersion: string;
+  ok: boolean;
+  tool: PluginHarnessToolKind;
+  summary: string;
+  error?: { code: string; message: string };
+  taskId: string | null;
+  sessionId: string | null;
+  taskIdSource: PluginTaskIdSource;
+  repository: string;
+  workingTreeHash: string;
+  currentPhase: string;
   decision: string;
+  blocking: boolean;
   findings: string[];
   missingEvidence: string[];
   requiredCommands: string[];
+  mustInspect: string[];
+  allowedEditGlobs: string[];
+  avoidEditGlobs: string[];
+  artifacts: string[];
+  nextAction: string;
+  hits?: Array<{ path: string; score: number; reason: string }>;
 }
 
-export interface PluginNextResult {
-  taskId: string;
-  nextAction: string;
-  blocking: boolean;
-  missingEvidence: string[];
-  requiredCommands: string[];
-  completionRule: string;
-}
+export type PluginPrepareResult = PluginHarnessResult;
+export type PluginRetrieveResult = PluginHarnessResult;
+export type PluginEvaluateResult = PluginHarnessResult;
+export type PluginNextResult = PluginHarnessResult;
 
 export interface PluginEvaluateState {
+  schemaVersion: string;
   taskId: string;
-  blocking: boolean;
+  sessionId: string | null;
+  taskIdSource: PluginTaskIdSource;
+  workingTreeHash: string;
+  currentPhase: string;
   decision: string;
+  blocking: boolean;
+  findings: string[];
   missingEvidence: string[];
   requiredCommands: string[];
+  mustInspect: string[];
+  allowedEditGlobs: string[];
+  avoidEditGlobs: string[];
+  artifacts: string[];
+  nextAction: string;
+  summary: string;
   updatedAt: string;
 }
