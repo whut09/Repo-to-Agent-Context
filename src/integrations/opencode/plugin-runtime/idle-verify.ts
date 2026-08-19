@@ -1,9 +1,9 @@
-import { renderOpencodeSidecarVerifyReport, verifyOpencodeSidecar, writeOpencodeSidecarLatest } from "../sidecar.js";
+import { renderOpencodeSidecarVerifyReport, verifyOpencodeSidecar, writeOpencodeSidecarLatest, type OpenCodeSidecarVerifyResult } from "../sidecar.js";
 import type { OpenCodeSidecarRecorder } from "./events.js";
 
 export interface IdleVerifier {
   markDirty: (type: string, payload?: Record<string, unknown>) => void;
-  maybeVerifyOnIdle: () => Promise<void>;
+  maybeVerifyOnIdle: () => Promise<OpenCodeSidecarVerifyResult | null>;
 }
 
 export function createIdleVerifier(
@@ -23,19 +23,19 @@ export function createIdleVerifier(
     recorder.log("debug", "repository marked dirty", { type, ...payload });
   }
 
-  async function maybeVerifyOnIdle(): Promise<void> {
+  async function maybeVerifyOnIdle(): Promise<OpenCodeSidecarVerifyResult | null> {
     const now = Date.now();
     if (!dirty) {
       recorder.log("debug", "idle verification skipped", { reason: "clean" });
-      return;
+      return null;
     }
     if (verifying) {
       recorder.log("debug", "idle verification skipped", { reason: "already verifying" });
-      return;
+      return null;
     }
     if (now - lastVerifyAt < debounceMs) {
       recorder.log("debug", "idle verification skipped", { reason: "debounced", elapsedMs: now - lastVerifyAt });
-      return;
+      return null;
     }
 
     verifying = true;
@@ -50,6 +50,10 @@ export function createIdleVerifier(
       } else {
         recorder.log("debug", "sidecar verification passed");
       }
+      return verify;
+    } catch (error) {
+      recorder.log("error", "idle verification failed", { message: error instanceof Error ? error.message : String(error) });
+      return null;
     } finally {
       verifying = false;
       lastVerifyAt = Date.now();
