@@ -25,7 +25,7 @@ flowchart TD
 
 ## 安装边界
 
-EXE 是当前用户级安装器。它把内置插件、状态文件、安装清单和三个命令菜单文件写入当前 OpenCode 配置目录，并对内置 `SessionPrompt.command` 分发器应用经过特征检查的窄范围补丁，使这三个命令可以不经过模型直接执行。原始 `app.asar` 会备份，卸载时恢复。安装器不替换更新器、不修改凭据，也不安装操作系统服务。
+EXE 是当前用户级安装器。它把内置插件、状态文件、安装清单、三个原生命令菜单文件、`/plusplus-task` 和 `/plusplus-verify` Harness 工作流命令以及 `opencode-plusplus` skill 写入当前 OpenCode 配置目录，并对内置 `SessionPrompt.command` 分发器应用经过特征检查的窄范围补丁，使这三个原生命令可以不经过模型直接执行。原始 `app.asar` 会备份，卸载时恢复。安装器不替换更新器、不修改凭据，也不安装操作系统服务。
 
 esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不再携带 Node.js、Electron、OpenCode 或源代码仓库。v0.2.2 安装器约 3.5 MiB，安装时把插件展开到 OpenCode 配置目录。
 
