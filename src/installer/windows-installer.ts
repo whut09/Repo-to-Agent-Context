@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -164,7 +164,7 @@ function nativeCommandFiles(): string[] {
 
 function removeEmptyDirectory(directory: string): void {
   try {
-    if (existsSync(directory) && statSync(directory).isDirectory() && readdirSync(directory).length === 0) rmSync(directory, { recursive: false, force: true });
+    if (existsSync(directory) && statSync(directory).isDirectory() && readdirSync(directory).length === 0) rmdirSync(directory);
   } catch {
     // Keep user-created files and directories intact.
   }
