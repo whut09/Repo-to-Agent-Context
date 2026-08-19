@@ -35,15 +35,15 @@ opencode run --format json --dir {repo} "Follow the attached OpenCode++ task pro
 
 `opencode-plusplus opencode doctor` checks OpenCode installation, `opencode run`, `opencode auth list`, git repository status, `.agent-context`, and working-tree cleanliness.
 
-`opencode-plusplus oc init` creates OpenCode-native commands and an agent profile:
+`opencode-plusplus oc init` creates OpenCode-native commands and an agent profile aligned with the global `/plusplus-task` and `/plusplus-verify` flow:
 
 ```txt
-.opencode/commands/opencode-plusplus.md
-.opencode/commands/opencode-plusplus-verify.md
+.opencode/commands/plusplus-task.md
+.opencode/commands/plusplus-verify.md
 .opencode/agents/opencode-plusplus.md
 ```
 
-Inside OpenCode, use `/opencode-plusplus <task>` to start an OpenCode++ harness-led run and `/opencode-plusplus-verify` before finalizing.
+Inside OpenCode, use `/plusplus-task <task>` to start a harness task and `/plusplus-verify` before finalizing. The repo-level files mirror the global commands written by the Windows installer, so both entry points share the same tool-based workflow.
 
 OpenCode preset runs print a compact terminal summary by default:
 

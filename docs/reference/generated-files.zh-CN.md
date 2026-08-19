@@ -17,7 +17,7 @@
 - runs 下的 transient iterations、worktrees 和 executor 输出；
 - tool evidence、hallucination report、memory candidates；
 - opencode-plusplus.local.yml；
-- 用户配置目录中的全局插件和 state.json。
+- 用户配置目录中的全局插件、state.json、plusplus 命令和 skill。
 
 ## 推荐 gitignore
 
