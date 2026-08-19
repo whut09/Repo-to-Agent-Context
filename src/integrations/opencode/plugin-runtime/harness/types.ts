@@ -76,3 +76,12 @@ export interface PluginNextResult {
   requiredCommands: string[];
   completionRule: string;
 }
+
+export interface PluginEvaluateState {
+  taskId: string;
+  blocking: boolean;
+  decision: string;
+  missingEvidence: string[];
+  requiredCommands: string[];
+  updatedAt: string;
+}
