@@ -53,8 +53,11 @@ OpenCode Markdown Command 默认是模型 Prompt Template，不是插件直接�
 2. 运行时记录开始时间和 working-tree hash。
 3. tool.execute.after 规范化输出，在可用时记录退出码，脱敏密钥并记录 hash/预览。
 4. file.edited 或 file.watcher.updated 标记会话 dirty。
-5. session.idle 为当前仓库启动增量验证。
-6. Sidecar 报告和 trace 通过原子方式写入 .agent-context。
+5. session.created（启用时）把仓库标记 dirty，并在 debounce 后后台构建 context，成功后弹出 "OpenCode++ 已就绪" toast；失败只记日志。
+6. session.idle 为当前仓库启动增量验证；验证未通过时弹出第一条 blocker 的 toast，并提示调用 `opencode_plusplus_next`。
+7. experimental.session.compacting 把当前 taskId、编辑 glob、blocking 状态、缺失证据、上次 decision 和 sidecar latest 摘要追加到 `output.context`（绝不替换 `output.prompt`）。
+8. session.error 记为证据，不打断宿主。
+9. Sidecar 报告和 trace 通过原子方式写入 .agent-context。
 
 如果宿主没有暴露命令、退出码、路径或 session id，运行时记录 unknown 或 partial，不伪造证据。
 
