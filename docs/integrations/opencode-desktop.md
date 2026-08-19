@@ -69,6 +69,17 @@ When enabled, the plugin:
 - exposes status, enable, and disable controls as normal OpenCode plugin tools;
 - exposes `opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next` as the in-session harness workflow behind `/plusplus-task` and `/plusplus-verify`.
 
+## Session Lifecycle
+
+The plugin pushes harness state back into the session so it is not trapped in `.agent-context/` files:
+
+- `session.created`: when enabled, the repository is marked dirty and a debounced (≥2s) background context build runs. On success a "OpenCode++ 已就绪" toast is shown; a build failure is only logged and never interrupts the session.
+- `session.idle`: the existing idle verification runs. When it reports blockers, a one-line toast shows `OpenCode++ 未通过：<first blocker>。下一步调用 opencode_plusplus_next`. It never throws.
+- `experimental.session.compacting`: before the model compacts a long session, the plugin appends the current harness state (taskId, allowed/avoid edit globs, blocking, missing evidence, last decision, and a summary of `.agent-context/sidecar/latest.md`) to `output.context`. It never replaces `output.prompt`.
+- `session.error`: the error is recorded as evidence in the sidecar event log without interrupting the host.
+
+When the plugin is disabled, every lifecycle handler except the `status`/`enable`/`disable` tools returns immediately. If the active OpenCode build does not expose a toast API, notifications degrade to structured `app.log` entries instead of assuming a missing SDK method.
+
 ## What It Cannot Do
 
 - It cannot add a native OpenCode Desktop settings page; the native command patch is intentionally limited to the three slash commands.
