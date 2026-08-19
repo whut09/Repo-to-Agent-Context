@@ -53,6 +53,14 @@ test("prepare is idempotent, task state is isolated, and next consumes current e
     assert.notEqual(other.taskId, first.taskId);
     assert.equal(other.sessionId, "session-b");
 
+    const retrieved = result(await tools.opencode_plusplus_retrieve.execute({ task: "fix login timeout bug", topK: 4, sessionId: "session-a" }));
+    assert.deepEqual(
+      retrieved.hits?.map((hit) => `${hit.score}:${hit.path}`),
+      [...(retrieved.hits ?? [])]
+        .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+        .map((hit) => `${hit.score}:${hit.path}`)
+    );
+
     const evaluated = result(await tools.opencode_plusplus_evaluate.execute({ taskId: first.taskId, sessionId: "session-a" }));
     assert.equal(evaluated.taskId, first.taskId);
     assert.equal(evaluated.sessionId, "session-a");
@@ -112,7 +120,11 @@ function createPluginHarnessRepo(): string {
   mkdirSync(path.join(root, "test", "auth"), { recursive: true });
   writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test", check: "tsc --noEmit" } }), "utf8");
   writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'ok'; }\n", "utf8");
-  writeFileSync(path.join(root, "src", "auth", "middleware.ts"), "import { loginSession } from './session.js';\nexport function authMiddleware() { return loginSession(); }\n", "utf8");
+  writeFileSync(
+    path.join(root, "src", "auth", "middleware.ts"),
+    "import { loginSession } from './session.js';\nexport function authMiddleware() { return loginSession(); }\n",
+    "utf8"
+  );
   writeFileSync(path.join(root, "test", "auth", "session.test.ts"), "import { loginSession } from '../../src/auth/session.js';\nloginSession();\n", "utf8");
   runGit(root, ["init"]);
   runGit(root, ["checkout", "-b", "main"]);

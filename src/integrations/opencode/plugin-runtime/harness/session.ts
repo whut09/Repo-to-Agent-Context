@@ -61,9 +61,16 @@ export function resolvePluginTask(
   const session = readPluginHarnessSession(root, sessionId);
   if (taskId?.trim()) {
     const normalized = taskSlug(taskId.trim());
-    return { taskId: normalized, task: session?.taskId === normalized ? session.task : normalized, source: "argument", sessionId: sessionId ?? session?.sessionId ?? null };
+    return {
+      taskId: normalized,
+      task: session?.taskId === normalized ? session.task : normalized,
+      source: "argument",
+      sessionId: sessionId ?? session?.sessionId ?? null
+    };
   }
-  return session ? { taskId: session.taskId, task: session.task, source: "session", sessionId: session.sessionId ?? null } : { source: "none", sessionId: sessionId ?? null };
+  return session
+    ? { taskId: session.taskId, task: session.task, source: "session", sessionId: session.sessionId ?? null }
+    : { source: "none", sessionId: sessionId ?? null };
 }
 
 export function resolvePluginTaskId(root: string, taskId?: string, sessionId?: string | null): string | undefined {

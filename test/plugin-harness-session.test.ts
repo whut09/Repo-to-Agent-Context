@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   pluginHarnessSessionPath,
   readPluginHarnessSession,
+  resolvePluginTask,
   resolvePluginTaskId,
   writePluginHarnessSession
 } from "../src/integrations/opencode/plugin-runtime/harness/session.js";
@@ -26,6 +27,7 @@ test("plugin harness session persists the last prepared task", () => {
     assert.equal(resolvePluginTaskId(root), "fix-login-timeout-bug");
     assert.equal(resolvePluginTaskId(root, "Another Task"), "another-task");
     assert.equal(readPluginHarnessSession(root)?.sessionId, "session-a");
+    assert.equal(resolvePluginTask(root).source, "session");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -11,7 +11,10 @@ export async function preparePluginHarnessTask(root: string, args: PluginPrepare
   const context = await loadPluginHarnessContext(root);
   const taskId = taskSlug(args.task);
   const existing = readJsonDiagnostic<TaskRunManifest>(taskRunManifestPath(root, taskId));
-  const manifest = existing.status === "ok" && existing.value.id === taskId ? existing.value : (await startApplicationTask({ repo: root, task: args.task, type: args.type ?? "auto" })).manifest;
+  const manifest =
+    existing.status === "ok" && existing.value.id === taskId
+      ? existing.value
+      : (await startApplicationTask({ repo: root, task: args.task, type: args.type ?? "auto" })).manifest;
   const resolvedTaskId = manifest.id || taskId;
   writePluginHarnessSession(root, {
     taskId: resolvedTaskId,

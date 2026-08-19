@@ -6,8 +6,22 @@ export const PLUGIN_HARNESS_SCHEMA_VERSION = "opencode-plusplus.desktop-harness.
 
 export function createPluginHarnessResult(
   root: string,
-  input: Omit<PluginHarnessResult, "schemaVersion" | "repository" | "workingTreeHash" | "findings" | "missingEvidence" | "requiredCommands" | "mustInspect" | "allowedEditGlobs" | "avoidEditGlobs" | "artifacts">
-    & Partial<Pick<PluginHarnessResult, "findings" | "missingEvidence" | "requiredCommands" | "mustInspect" | "allowedEditGlobs" | "avoidEditGlobs" | "artifacts">>
+  input: Omit<
+    PluginHarnessResult,
+    | "schemaVersion"
+    | "repository"
+    | "workingTreeHash"
+    | "findings"
+    | "missingEvidence"
+    | "requiredCommands"
+    | "mustInspect"
+    | "allowedEditGlobs"
+    | "avoidEditGlobs"
+    | "artifacts"
+  > &
+    Partial<
+      Pick<PluginHarnessResult, "findings" | "missingEvidence" | "requiredCommands" | "mustInspect" | "allowedEditGlobs" | "avoidEditGlobs" | "artifacts">
+    >
 ): PluginHarnessResult {
   return {
     ...input,
