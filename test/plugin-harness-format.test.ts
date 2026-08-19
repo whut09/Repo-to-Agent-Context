@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { completionRuleFor, isFinalizeAction } from "../src/integrations/opencode/plugin-runtime/harness/completion.js";
-import { renderEvaluateText, renderHarnessError, renderNextText, renderPrepareText, renderRetrieveText } from "../src/integrations/opencode/plugin-runtime/harness/format.js";
+import {
+  renderEvaluateText,
+  renderHarnessError,
+  renderNextText,
+  renderPrepareText,
+  renderRetrieveText
+} from "../src/integrations/opencode/plugin-runtime/harness/format.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
 
 const base: PluginHarnessResult = {
@@ -28,7 +34,12 @@ const base: PluginHarnessResult = {
 };
 
 test("plugin harness renderers expose the unified Desktop protocol fields", () => {
-  for (const rendered of [renderPrepareText(base), renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }), renderEvaluateText(base), renderNextText(base)]) {
+  for (const rendered of [
+    renderPrepareText(base),
+    renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }),
+    renderEvaluateText(base),
+    renderNextText(base)
+  ]) {
     const parsed = JSON.parse(rendered) as PluginHarnessResult;
     assert.equal(parsed.schemaVersion, "opencode-plusplus.desktop-harness.v1");
     assert.equal(parsed.taskId, "fix-login-timeout");
@@ -37,7 +48,10 @@ test("plugin harness renderers expose the unified Desktop protocol fields", () =
     assert.ok(Array.isArray(parsed.findings));
     assert.ok(typeof parsed.summary === "string");
   }
-  assert.match(renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }), /src\/auth\/session\.ts/);
+  assert.match(
+    renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }),
+    /src\/auth\/session\.ts/
+  );
 });
 
 test("structured harness errors never become unparseable text", () => {

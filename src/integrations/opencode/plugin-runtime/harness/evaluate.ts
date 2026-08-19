@@ -4,7 +4,7 @@ import { runSidecarIncrementalVerifier } from "../../sidecar-incremental-verifie
 import { loadPluginHarnessContext } from "./context.js";
 import { evaluateFindings, evaluateMissingEvidence, evaluateRequiredCommands } from "./findings.js";
 import { createPluginHarnessResult } from "./protocol.js";
-import { readPluginHarnessSession, resolvePluginTask, taskRunExists, writePluginEvaluateState } from "./session.js";
+import { resolvePluginTask, taskRunExists, writePluginEvaluateState } from "./session.js";
 import type { PluginEvaluateArgs, PluginEvaluateResult } from "./types.js";
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
@@ -13,7 +13,6 @@ export async function evaluatePluginHarness(root: string, args: PluginEvaluateAr
   if (!taskRunExists(root, resolved.taskId)) return `evaluate could not find a task run for ${resolved.taskId}. Call prepare first.`;
 
   const context = await loadPluginHarnessContext(root);
-  const session = readPluginHarnessSession(root);
   const task = resolved.task ?? resolved.taskId;
   const guardStack = await runSidecarIncrementalVerifier(root, { base: "main", changedFiles: [] });
   const policy = buildPolicyReport(context, { base: "main", traceId: resolved.taskId, failOn: "required" });

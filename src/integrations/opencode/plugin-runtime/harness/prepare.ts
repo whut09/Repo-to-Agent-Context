@@ -8,7 +8,7 @@ import { createPluginHarnessResult } from "./protocol.js";
 import type { PluginPrepareArgs, PluginPrepareResult } from "./types.js";
 
 export async function preparePluginHarnessTask(root: string, args: PluginPrepareArgs): Promise<PluginPrepareResult> {
-  const context = await loadPluginHarnessContext(root);
+  await loadPluginHarnessContext(root);
   const taskId = taskSlug(args.task);
   const existing = readJsonDiagnostic<TaskRunManifest>(taskRunManifestPath(root, taskId));
   const manifest =
