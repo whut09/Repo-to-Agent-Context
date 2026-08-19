@@ -89,7 +89,7 @@ function checkScriptCommand(root: string, command: string): OpenCodeSidecarComma
       severity: "blocker",
       message: `Unknown package script 未知的 npm script: ${script}`,
       doInstead: `Run one of the existing package.json scripts: ${shown.join(", ") || "none"}${more > 0 ? `, +${more} more` : ""}. 用 package.json 里已有的 script。`,
-      evidence: [`package.json scripts: ${shown.join(", ") || "none"}${more > 0 ? `, +${more} more` : ""}`]
+      evidence: [command]
     }
   ];
 }
@@ -118,7 +118,7 @@ function checkMakeCommand(root: string, command: string): OpenCodeSidecarCommand
       severity: "blocker",
       message: `Unknown Make target 未知的 make target: ${target}`,
       doInstead: `Use an existing Makefile target: ${shown.join(", ")}${more > 0 ? `, +${more} more` : ""}. 用已有的 target。`,
-      evidence: [`Makefile targets: ${shown.join(", ")}${more > 0 ? `, +${more} more` : ""}`]
+      evidence: [command]
     }
   ];
 }
