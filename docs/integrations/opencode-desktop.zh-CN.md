@@ -62,7 +62,7 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 
 启用时，插件会：
 
-- 在工具执行前检查命令语法、已知 package script、危险 Shell 操作、受保护路径和疑似密钥路径；
+- 在工具执行前检查命令语法、已知 package script、危险 Shell 操作、受保护路径和疑似密钥路径；被拦下的命令返回固定双语结构（`BLOCKED: <原因>` / `Evidence: <命令或路径>` / `Do instead: <具体替代>`），让模型知道下一步改跑什么；不确定的路径参数记为 warning 而不是 blocker；
 - 在工具执行后记录工具、命令、退出码、时间、变更路径、working-tree hash 以及脱敏/截断输出；
 - 把 trace 和事件 artifact 写入当前仓库的 `.agent-context/`；
 - 在文件编辑且会话进入 idle 后运行共享增量验证栈；
