@@ -103,3 +103,38 @@ test("native Desktop commands read and update local state without an executor", 
     rmSync(configDir, { recursive: true, force: true });
   }
 });
+
+test("native command patch intercepts exactly the three local commands", () => {
+  const source = readFileSync(path.resolve("src/installer/native-command-patch.js"), "utf8");
+  const setLiteral = source.match(/const OPENCODE_PLUSPLUS_NATIVE_COMMANDS = new Set\(\[([^\]]*)\]\)/)?.[1] ?? "";
+  const names = [...setLiteral.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(names.sort(), ["opencode-plusplus-off", "opencode-plusplus-on", "opencode-plusplus-status"]);
+});
+
+test("native command patch performs no shell execution and no model request", () => {
+  const source = readFileSync(path.resolve("src/installer/native-command-patch.js"), "utf8");
+  assert.doesNotMatch(source, /child_process/);
+  assert.doesNotMatch(source, /\bexec(Sync)?\(/);
+  assert.doesNotMatch(source, /\bspawn(Sync)?\(/);
+  assert.doesNotMatch(source, /\bfetch\(/);
+  assert.doesNotMatch(source, /provider|completion|XMLHttpRequest/);
+});
+
+test("injected host branch answers locally with a synthetic message, without model or shell", () => {
+  const installer = readFileSync(path.resolve("src/installer/windows-installer.cs"), "utf8");
+  const start = installer.indexOf("string nativeBranch =");
+  const end = installer.indexOf('";', start);
+  assert.ok(start >= 0 && end > start, "native branch declaration must exist in the installer");
+  const branchDeclaration = installer.slice(start, end + 2);
+  const branch = [...branchDeclaration.matchAll(/"((?:[^"\\]|\\.)*)"/g)]
+    .map((match) => match[1] ?? "")
+    .join("")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\")
+    .replace(/\\n/g, "\n");
+  assert.match(branch, /OPENCODE_PLUSPLUS_NATIVE_COMMANDS\.has\(input\.command\)/);
+  assert.match(branch, /synthetic: true/);
+  assert.match(branch, /finish: "stop"/);
+  assert.doesNotMatch(branch, /child_process|exec\(|spawn\(|fetch\(/);
+  assert.doesNotMatch(branch, /\.completion|\.stream\(|exports_provider|require\(/);
+});
