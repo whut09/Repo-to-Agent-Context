@@ -69,7 +69,9 @@ function checkScriptCommand(root: string, command: string): OpenCodeSidecarComma
       {
         kind: "dangerous_command",
         severity: "blocker",
-        message: "Blocked command with unsupported shell control syntax. Use a plain executable plus arguments.",
+        message: "Unsupported shell control syntax 不支持的 shell 控制语法",
+        doInstead:
+          "Run one plain executable with arguments; split chained steps into separate tool calls. 拆成多个单独工具调用，不要用 ; && |。",
         evidence: [command]
       }
     ];
@@ -78,12 +80,16 @@ function checkScriptCommand(root: string, command: string): OpenCodeSidecarComma
   if (!script) return [];
   const scripts = readPackageScripts(root);
   if (script in scripts) return [];
+  const names = Object.keys(scripts).sort();
+  const shown = names.slice(0, 12);
+  const more = names.length - shown.length;
   return [
     {
       kind: "unknown_script",
       severity: "blocker",
-      message: `Package script does not exist: ${script}`,
-      evidence: [`package.json scripts: ${Object.keys(scripts).sort().join(", ") || "none"}`]
+      message: `Unknown package script 未知的 npm script: ${script}`,
+      doInstead: `Run one of the existing package.json scripts: ${shown.join(", ") || "none"}${more > 0 ? `, +${more} more` : ""}. 用 package.json 里已有的 script。`,
+      evidence: [`package.json scripts: ${shown.join(", ") || "none"}${more > 0 ? `, +${more} more` : ""}`]
     }
   ];
 }
