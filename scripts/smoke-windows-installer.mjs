@@ -27,10 +27,22 @@ try {
   assert.equal(installed.action, "installed");
   assert.equal(installed.version, packageVersion);
   assert.equal(installed.commandsInstalled, 3);
+  assert.equal(installed.agentFilesInstalled, 3);
   assert.equal(
     legacyCommands.every((commandFile) => existsSync(commandFile)),
     true
   );
+
+  const agentCommandFiles = ["plusplus-task.md", "plusplus-verify.md"].map((name) => path.join(configDir, "commands", name));
+  const skillFile = path.join(configDir, "skills", "opencode-plusplus", "SKILL.md");
+  for (const file of [...agentCommandFiles, skillFile]) {
+    assert.equal(existsSync(file), true, `Installer must write ${file}`);
+    const content = readFileSync(file, "utf8");
+    assert.ok(!content.includes("opencode-plusplus oc"), `${file} must not reference the opencode-plusplus oc CLI command`);
+    assert.ok(!/opencode-plusplus (build|verify|policy|orchestrate|doctor|report|trace|context)\b/.test(content), `${file} must not reference the opencode-plusplus CLI`);
+  }
+  assert.ok(readFileSync(agentCommandFiles[0], "utf8").includes("Task: $ARGUMENTS"), "plusplus-task must pass $ARGUMENTS as the task");
+  assert.ok(readFileSync(skillFile, "utf8").includes("name: opencode-plusplus"), "SKILL.md must declare the opencode-plusplus skill");
 
   const pluginFile = path.join(configDir, "plugins", "opencode-plusplus.js");
   const pluginModule = await import(`${pathToFileURL(pluginFile).href}?smoke=${Date.now()}`);
@@ -38,7 +50,15 @@ try {
   assert.equal(pluginExports.length, 1);
   assert.equal(typeof pluginExports[0], "function");
   const hooks = await pluginExports[0]({ directory: root, worktree: root, project: {} });
-  assert.deepEqual(Object.keys(hooks.tool).sort(), ["opencode_plusplus_disable", "opencode_plusplus_enable", "opencode_plusplus_status"]);
+  assert.deepEqual(Object.keys(hooks.tool).sort(), [
+    "opencode_plusplus_disable",
+    "opencode_plusplus_enable",
+    "opencode_plusplus_evaluate",
+    "opencode_plusplus_next",
+    "opencode_plusplus_prepare",
+    "opencode_plusplus_retrieve",
+    "opencode_plusplus_status"
+  ]);
 
   assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--disable", "--json"]).enabled, false);
   assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--json"]).enabled, false);
@@ -46,6 +66,9 @@ try {
   assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--enable", "--json"]).enabled, true);
   assert.equal(runInstaller(["--config-dir", configDir, "--skip-host-patch", "--uninstall", "--json"]).pluginExists, false);
   assert.equal(existsSync(pluginFile), false);
+  assert.equal(existsSync(agentCommandFiles[0]), false, "Uninstall must remove plusplus-task.md");
+  assert.equal(existsSync(agentCommandFiles[1]), false, "Uninstall must remove plusplus-verify.md");
+  assert.equal(existsSync(skillFile), false, "Uninstall must remove SKILL.md");
 
   console.log(`Windows installer smoke test passed (${statSync(executable).size} bytes).`);
 } finally {
