@@ -21,6 +21,7 @@ export interface PluginPrepareArgs {
 export interface PluginRetrieveArgs {
   task: string;
   topK?: number;
+  sessionId?: string | null;
 }
 
 export interface PluginEvaluateArgs {

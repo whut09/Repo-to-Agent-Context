@@ -14,10 +14,11 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
   const record = asRecord(args);
   const task = readNonEmptyString(record.task);
   if (!task) return "retrieve requires a non-empty task.";
-  if (record.topK === undefined) return { task };
+  const sessionId = readOptionalSessionId(record.sessionId);
+  if (record.topK === undefined) return { task, ...(sessionId ? { sessionId } : {}) };
   const topK = readPositiveInteger(record.topK);
   if (topK === undefined) return "retrieve topK must be a positive integer.";
-  return { task, topK };
+  return { task, topK, ...(sessionId ? { sessionId } : {}) };
 }
 
 export function parseEvaluateArgs(args: unknown): PluginEvaluateArgs | string {

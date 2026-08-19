@@ -1,4 +1,4 @@
-import { completionRuleFor, isFinalizeAction } from "./completion.js";
+import { isFinalizeAction } from "./completion.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { readPluginEvaluateState, resolvePluginTask, taskRunExists } from "./session.js";
 import type { PluginNextArgs, PluginNextResult } from "./types.js";
@@ -7,7 +7,7 @@ export async function nextPluginHarnessAction(root: string, args: PluginNextArgs
   const resolved = resolvePluginTask(root, args.taskId, args.sessionId);
   if (!resolved.taskId) return "next needs a taskId or a previous prepare in this repository.";
   if (!taskRunExists(root, resolved.taskId)) return `next could not find a task run for ${resolved.taskId}. Call prepare first.`;
-  const latest = readPluginEvaluateState(root);
+  const latest = readPluginEvaluateState(root, args.sessionId);
   if (!latest || latest.taskId !== resolved.taskId) return `next requires a current evaluate result for ${resolved.taskId}. Call evaluate first.`;
 
   const finalize = isFinalizeAction(latest.decision, latest.blocking);

@@ -34,22 +34,23 @@ function readSessionFile(filePath: string): PluginHarnessSession | undefined {
   return result.value;
 }
 
-export function pluginEvaluateStatePath(root: string): string {
-  return path.join(root, ".agent-context", "sidecar", "plugin-evaluate.json");
+export function pluginEvaluateStatePath(root: string, sessionId?: string | null): string {
+  const suffix = sessionId?.trim() ? `-${taskSlug(sessionId.trim())}` : "";
+  return path.join(root, ".agent-context", "sidecar", `plugin-evaluate${suffix}.json`);
 }
 
 export function writePluginEvaluateState(root: string, state: PluginEvaluateState): void {
   try {
-    writeJsonAtomic(pluginEvaluateStatePath(root), state);
+    writeJsonAtomic(pluginEvaluateStatePath(root, state.sessionId), state);
+    if (!state.sessionId) writeJsonAtomic(pluginEvaluateStatePath(root), state);
   } catch {
     // Best-effort persistence; the evaluate result is still returned to the model.
   }
 }
 
-export function readPluginEvaluateState(root: string): PluginEvaluateState | undefined {
-  const result = readJsonDiagnostic<PluginEvaluateState>(pluginEvaluateStatePath(root));
-  if (result.status !== "ok") return undefined;
-  if (!result.value.taskId) return undefined;
+export function readPluginEvaluateState(root: string, sessionId?: string | null): PluginEvaluateState | undefined {
+  const result = readJsonDiagnostic<PluginEvaluateState>(pluginEvaluateStatePath(root, sessionId));
+  if (result.status !== "ok" || !result.value.taskId) return undefined;
   return result.value;
 }
 

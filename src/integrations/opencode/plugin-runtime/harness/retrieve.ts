@@ -13,7 +13,7 @@ export async function retrievePluginHarnessContext(root: string, args: PluginRet
     topK: args.topK ?? 8,
     includeTests: true
   });
-  const session = readPluginHarnessSession(root);
+  const session = readPluginHarnessSession(root, args.sessionId);
   const hits = [...result.hits]
     .map((hit) => ({ path: hit.path, score: hit.score, reason: hit.reason }))
     .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path) || left.reason.localeCompare(right.reason));
