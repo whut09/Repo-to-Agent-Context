@@ -22,12 +22,12 @@ The installer is per-user, does not need Administrator permission, and writes to
 
 OpenCode Slash Commands are normally model prompts. The installer patches three exact OpenCode++ commands so they run locally in Desktop without a model turn. Desktop tools remain model-mediated, and the EXE status/enable/disable options remain available outside Desktop.
 
-## Advanced CLI
+## Developer Surfaces (CLI / MCP)
 
-The CLI is a maintenance and automation surface, not a replacement UI:
+CLI and MCP are internal dev/test compatibility surfaces, not a user path. Desktop users install only from the EXE and never run `npm install`. Developers may use them for CI, scripts, repository context generation, diagnostics, or a harness-led loop that needs explicit artifacts and exit codes:
 
 ```powershell
-npm install --global opencode-plusplus
+npm ci
 opencode-plusplus build .
 opencode-plusplus status .
 opencode-plusplus verify --diff .
@@ -35,7 +35,7 @@ opencode-plusplus policy . --base main --fail-on required
 opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor mock --max-loops 3
 ```
 
-Use CLI/MCP for CI, scripts, repository generation, or a harness-led loop that needs explicit artifacts and exit codes. Use the Desktop plugin for normal interactive coding.
+See [Product Boundary](developer/product-boundary.md) for what is user-facing, what is internal, and what was removed.
 
 ## Local Development
 

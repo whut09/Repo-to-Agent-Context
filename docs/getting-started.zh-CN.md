@@ -22,12 +22,12 @@ OpenCode++ 的主要使用方式是作为插件运行在官方 OpenCode Desktop 
 
 OpenCode Slash Command 默认是模型 Prompt。安装器会补丁三个精确的 OpenCode++ 命令，使它们在 Desktop 中直接本地执行，不经过模型。Desktop 工具仍然经过模型；EXE 的状态、启用和禁用参数也可以在 Desktop 外本地执行。
 
-## 高级 CLI
+## 开发者面（CLI / MCP，内部）
 
-CLI 是维护和自动化入口，不是 Desktop 的替代界面：
+CLI 和 MCP 是内部 dev/test 兼容面，不是用户路径。Desktop 用户只通过 EXE 安装，从不执行 `npm install`。开发者可用它们做 CI、脚本、仓库 context 生成、诊断，或需要明确 artifact/退出码的 Harness-led 循环：
 
 ```powershell
-npm install --global opencode-plusplus
+npm ci
 opencode-plusplus build .
 opencode-plusplus status .
 opencode-plusplus verify --diff .
@@ -35,7 +35,7 @@ opencode-plusplus policy . --base main --fail-on required
 opencode-plusplus orchestrate "修复登录超时并补回归测试" . --executor mock --max-loops 3
 ```
 
-CI、脚本、仓库 context 生成或需要明确 artifact/退出码的 Harness-led 循环使用 CLI/MCP；日常交互式编码使用 Desktop 插件。
+用户面、内部面和已删除内容的划分见 [产品边界说明](developer/product-boundary.zh-CN.md)。
 
 ## 本地开发
 
