@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { readJsonDiagnostic, writeJsonAtomic } from "../../../../core/atomic-store.js";
 import { taskSlug } from "../../../../core/task-id.js";
-import type { PluginHarnessSession } from "./types.js";
+import type { PluginEvaluateState, PluginHarnessSession } from "./types.js";
 
 export function pluginHarnessSessionPath(root: string): string {
   return path.join(root, ".agent-context", "sidecar", "plugin-session.json");
@@ -16,6 +16,25 @@ export function readPluginHarnessSession(root: string): PluginHarnessSession | u
   const result = readJsonDiagnostic<PluginHarnessSession>(pluginHarnessSessionPath(root));
   if (result.status !== "ok") return undefined;
   if (!result.value.taskId || !result.value.task) return undefined;
+  return result.value;
+}
+
+export function pluginEvaluateStatePath(root: string): string {
+  return path.join(root, ".agent-context", "sidecar", "plugin-evaluate.json");
+}
+
+export function writePluginEvaluateState(root: string, state: PluginEvaluateState): void {
+  try {
+    writeJsonAtomic(pluginEvaluateStatePath(root), state);
+  } catch {
+    // Best-effort persistence; the evaluate result is still returned to the model.
+  }
+}
+
+export function readPluginEvaluateState(root: string): PluginEvaluateState | undefined {
+  const result = readJsonDiagnostic<PluginEvaluateState>(pluginEvaluateStatePath(root));
+  if (result.status !== "ok") return undefined;
+  if (!result.value.taskId) return undefined;
   return result.value;
 }
 
