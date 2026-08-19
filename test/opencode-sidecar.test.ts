@@ -13,6 +13,7 @@ import { commandFromTool, pathsFromTool } from "../src/integrations/opencode/plu
 import {
   checkOpencodeSidecarCommand,
   recordOpencodeSidecarTool,
+  renderOpencodeSidecarCommandCheck,
   verifyOpencodeSidecar,
   writeOpencodeSidecarLatest
 } from "../src/integrations/opencode/sidecar.js";
@@ -232,7 +233,7 @@ test("OpenCode sidecar command guard blocks unknown scripts and protected paths"
     assert.equal(checkOpencodeSidecarCommand(root, { command: "npm run test" }).allowed, true);
     const missingScript = checkOpencodeSidecarCommand(root, { command: "npm run hallucinated" });
     assert.equal(missingScript.allowed, false);
-    assert.match(missingScript.findings[0]?.message ?? "", /does not exist/);
+    assert.match(missingScript.findings[0]?.message ?? "", /Unknown package script/);
 
     assert.equal(checkOpencodeSidecarCommand(root, { command: "make build" }).allowed, true);
     assert.equal(checkOpencodeSidecarCommand(root, { command: "make deploy-prod" }).allowed, false);
@@ -252,6 +253,86 @@ test("OpenCode sidecar command guard blocks dangerous shell commands", () => {
     const result = checkOpencodeSidecarCommand(root, { command: "git reset --hard HEAD" });
     assert.equal(result.allowed, false);
     assert.equal(result.findings[0]?.kind, "dangerous_command");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode sidecar command guard lists existing scripts for unknown npm scripts", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-command-script-list-"));
+  try {
+    const scripts = Object.fromEntries(Array.from({ length: 15 }, (_, index) => [`script-${index}`, "node -e 1"]));
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts }), "utf8");
+
+    const result = checkOpencodeSidecarCommand(root, { command: "npm run hallucinated" });
+    const rendered = renderOpencodeSidecarCommandCheck(result);
+
+    assert.equal(result.allowed, false);
+    assert.match(result.findings[0]?.doInstead ?? "", /script-0, script-1, script-10/);
+    assert.match(result.findings[0]?.doInstead ?? "", /\+3 more/);
+    assert.doesNotMatch(result.findings[0]?.doInstead ?? "", /script-7/);
+    assert.match(rendered, /BLOCKED: Unknown package script/);
+    assert.match(rendered, /Evidence: npm run hallucinated/);
+    assert.match(rendered, /Do instead:/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode sidecar command guard gives rm -rf a concrete Do instead action", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-command-rm-"));
+  try {
+    const result = checkOpencodeSidecarCommand(root, { command: "rm -rf /" });
+    const rendered = renderOpencodeSidecarCommandCheck(result);
+
+    assert.equal(result.allowed, false);
+    assert.equal(result.findings[0]?.kind, "dangerous_command");
+    assert.match(result.findings[0]?.doInstead ?? "", /Remove specific files/);
+    assert.match(rendered, /BLOCKED: Destructive recursive remove/);
+    assert.match(rendered, /Evidence: rm -rf \//);
+    assert.match(rendered, /Do instead:/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode sidecar command guard states the rule for protected paths", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-command-rule-"));
+  try {
+    const generated = checkOpencodeSidecarCommand(root, { command: "path-check", paths: [".agent-context/repo-summary.md"] });
+    assert.equal(generated.allowed, false);
+    assert.equal(generated.findings[0]?.rule, "generated-context");
+    assert.match(generated.findings[0]?.doInstead ?? "", /opencode_plusplus_prepare/);
+
+    const secret = checkOpencodeSidecarCommand(root, { command: "path-check", paths: [".env"] });
+    assert.equal(secret.allowed, false);
+    assert.equal(secret.findings[0]?.rule, "secret-local-config");
+    assert.match(renderOpencodeSidecarCommandCheck(secret), /Do instead:/);
+
+    const agents = checkOpencodeSidecarCommand(root, { command: "path-check", paths: ["AGENTS.md"] });
+    assert.equal(agents.allowed, false);
+    assert.equal(agents.findings[0]?.rule, "generated-agents-md");
+    assert.match(agents.findings[0]?.doInstead ?? "", /AGENTS\.manual\.md/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode sidecar command guard treats uncertain path arguments as warnings", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-command-uncertain-"));
+  try {
+    const result = checkOpencodeSidecarCommand(root, { command: "node build.js --out=dist/index.js" });
+    const rendered = renderOpencodeSidecarCommandCheck(result);
+
+    assert.equal(result.allowed, true, "uncertain arguments must not block");
+    assert.equal(result.findings[0]?.severity, "warning");
+    assert.equal(result.findings[0]?.rule, "dependency-build-output-uncertain");
+    assert.match(rendered, /WARNING: Uncertain dependency\/build path argument/);
+    assert.match(rendered, /Do instead:/);
+
+    const clearOutput = checkOpencodeSidecarCommand(root, { command: "path-check", paths: ["dist/index.js"] });
+    assert.equal(clearOutput.allowed, false);
+    assert.equal(clearOutput.findings[0]?.rule, "dependency-build-output");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
