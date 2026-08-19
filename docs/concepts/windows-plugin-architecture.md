@@ -2,7 +2,7 @@
 
 [中文](windows-plugin-architecture.zh-CN.md) | English
 
-This is the source of truth for the Windows Desktop integration. OpenCode++ has two related products: a user-level OpenCode plugin for interactive sessions and a repository-side Harness for explicit automation. They share domain logic but do not share control ownership.
+This is the source of truth for the Windows Desktop integration. The product is a user-level OpenCode plugin installed from the release EXE. The Harness runs inside the plugin as in-process tools, and the same primitives are also exposed through the internal CLI/MCP developer surfaces. They share domain logic but do not share control ownership.
 
 ## System Model
 
@@ -20,7 +20,7 @@ flowchart TD
   Evidence --> Repo
   Idle --> Repo
   Repo --> Artifacts[".agent-context artifacts"]
-  CLI["CLI / MCP Harness"] --> Repo
+  CLI["CLI / MCP (internal dev surfaces)"] --> Repo
 ```
 
 ## Installation Boundary
@@ -60,7 +60,7 @@ If the host does not expose a command, exit code, path, or session id, the runti
 
 ## Harness Boundary
 
-The CLI/MCP Harness is a separate control plane. It can build context, invoke an executor, collect a diff, evaluate policy and Guard Gates, and choose finalize, repair, repack, block, rollback, or human-review. The Desktop plugin does not start a multi-loop executor and does not make destructive rollback decisions.
+The CLI/MCP Harness is a separate control plane and an internal developer/automation surface, not a user installation path. It can build context, invoke an executor, collect a diff, evaluate policy and Guard Gates, and choose finalize, repair, repack, block, rollback, or human-review. The Desktop plugin does not start a multi-loop executor and does not make destructive rollback decisions.
 
 The entry point determines authority:
 

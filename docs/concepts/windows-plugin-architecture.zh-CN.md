@@ -2,7 +2,7 @@
 
 [English](windows-plugin-architecture.md) | 中文
 
-本文是 Windows Desktop 集成的原理和边界说明。OpenCode++ 包含两个相关产品：面向交互式会话的用户级 OpenCode 插件，以及面向显式自动化的仓库 Harness。两者共享领域实现，但不共享控制权。
+本文是 Windows Desktop 集成的原理和边界说明。产品是通过 Release EXE 安装的用户级 OpenCode 插件。Harness 作为进程内工具运行在插件内部；同样的实现也通过内部 CLI/MCP 开发者面暴露。它们共享领域实现，但不共享控制权。
 
 ## 系统模型
 
@@ -20,7 +20,7 @@ flowchart TD
   Evidence --> Repo
   Idle --> Repo
   Repo --> Artifacts[".agent-context artifact"]
-  CLI["CLI / MCP Harness"] --> Repo
+  CLI["CLI / MCP（内部开发者面）"] --> Repo
 ```
 
 ## 安装边界
@@ -60,7 +60,7 @@ OpenCode Markdown Command 默认是模型 Prompt Template，不是插件直接�
 
 ## Harness 边界
 
-CLI/MCP Harness 是独立控制面。它可以生成 context、调用 executor、收集 diff、评估 policy 和 Guard Gate，并选择 finalize、repair、repack、block、rollback 或 human-review。Desktop 插件不会启动多轮 executor，也不会对用户工作树执行破坏性回滚。
+CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是用户安装路径。它可以生成 context、调用 executor、收集 diff、评估 policy 和 Guard Gate，并选择 finalize、repair、repack、block、rollback 或 human-review。Desktop 插件不会启动多轮 executor，也不会对用户工作树执行破坏性回滚。
 
 入口决定权限：
 
