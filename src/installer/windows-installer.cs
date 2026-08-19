@@ -43,7 +43,8 @@ internal static class OpenCodePlusPlusInstaller
         try
         {
             bool skipHostPatch = HasArgument(args, "--skip-host-patch");
-            InstallPaths paths = ResolvePaths(ArgumentValue(args, "--config-dir"), skipHostPatch);
+            string hostAsarOverride = ArgumentValue(args, "--host-asar");
+            InstallPaths paths = ResolvePaths(ArgumentValue(args, "--config-dir"), skipHostPatch, hostAsarOverride);
             InstallReport report;
             if (HasArgument(args, "--uninstall")) report = Uninstall(paths, skipHostPatch);
             else if (HasArgument(args, "--status")) report = MakeReport("status", paths, "OpenCode++ installation status.");
@@ -58,6 +59,7 @@ internal static class OpenCodePlusPlusInstaller
                 Console.WriteLine("Config: " + report.paths.configDir);
                 Console.WriteLine("Plugin: " + (report.pluginExists ? "installed" : "not installed"));
                 Console.WriteLine("Enabled: " + (report.enabled ? "yes" : "no"));
+                Console.WriteLine("Native command patch: " + report.nativeCommandPatchStatus);
                 if (report.action == "installed")
                 {
                     MessageBox.Show(
@@ -84,13 +86,16 @@ internal static class OpenCodePlusPlusInstaller
     private static InstallReport Install(InstallPaths paths, bool skipHostPatch)
     {
         if (!skipHostPatch) PatchOpenCodeHost(paths);
+        FailAt("plugin");
         byte[] plugin = ReadPlugin();
         AtomicWrite(paths.pluginFile, plugin);
+        FailAt("commands");
         string[] commands = NativeCommandFiles();
         for (int index = 0; index < paths.commandFiles.Length; index++) AtomicWrite(paths.commandFiles[index], Encoding.UTF8.GetBytes(commands[index]));
         string[] agentCommands = { PlusPlusTaskCommand, PlusPlusVerifyCommand };
         for (int index = 0; index < paths.agentCommandFiles.Length; index++) AtomicWrite(paths.agentCommandFiles[index], Encoding.UTF8.GetBytes(agentCommands[index]));
         AtomicWrite(paths.skillFile, Encoding.UTF8.GetBytes(PlusPlusSkill));
+        FailAt("state");
 
         PluginState current = ReadState(paths.stateFile, true);
         DateTime now = DateTime.UtcNow;
@@ -122,7 +127,16 @@ internal static class OpenCodePlusPlusInstaller
                 Path.GetFileName(paths.agentCommandFiles[0]),
                 Path.GetFileName(paths.agentCommandFiles[1])
             },
-            skill = PlusPlusSkillFile
+            skill = PlusPlusSkillFile,
+            hostPatch = skipHostPatch || !HostPatchPresent(paths)
+                ? null
+                : new HostPatchRecord
+                {
+                    schemaVersion = 1,
+                    marker = NativeCommandPatchMarker,
+                    asarPath = paths.hostAsar,
+                    patchedAt = Iso(now)
+                }
         });
         return MakeReport("installed", paths, "OpenCode++ was installed with native Desktop commands for the current Windows user.");
     }
@@ -167,6 +181,7 @@ internal static class OpenCodePlusPlusInstaller
         foreach (string agentFile in paths.agentCommandFiles) if (File.Exists(agentFile)) agentFilesInstalled++;
         if (File.Exists(paths.skillFile)) agentFilesInstalled++;
         bool pluginExists = File.Exists(paths.pluginFile);
+        string patchStatus = HostPatchStatus(paths);
         return new InstallReport
         {
             action = action,
@@ -177,12 +192,13 @@ internal static class OpenCodePlusPlusInstaller
             enabled = state.enabled,
             commandsInstalled = commandsInstalled,
             agentFilesInstalled = agentFilesInstalled,
-            nativeCommandPatch = HostPatchPresent(paths),
+            nativeCommandPatch = patchStatus == "active",
+            nativeCommandPatchStatus = patchStatus,
             message = message
         };
     }
 
-    private static InstallPaths ResolvePaths(string configuredDirectory, bool skipHostPatch)
+    private static InstallPaths ResolvePaths(string configuredDirectory, bool skipHostPatch, string hostAsarOverride)
     {
         string root = configuredDirectory;
         if (String.IsNullOrWhiteSpace(root)) root = Environment.GetEnvironmentVariable("OPENCODE_CONFIG_DIR");
@@ -194,12 +210,14 @@ internal static class OpenCodePlusPlusInstaller
                 : Path.Combine(xdg, "opencode");
         }
         root = Path.GetFullPath(root);
-        string hostAsar = skipHostPatch ? null : FindOpenCodeAsar();
+        string hostAsar = skipHostPatch ? null : FindOpenCodeAsar(hostAsarOverride);
+        string hostBackup = hostAsar == null ? null : hostAsar + ".opencode-plusplus.original";
         return new InstallPaths
         {
             configDir = root,
             hostAsar = hostAsar,
-            hostBackup = hostAsar == null ? null : hostAsar + ".opencode-plusplus.original",
+            hostBackup = hostBackup,
+            hostBackupManifest = hostAsar == null ? null : hostAsar + ".opencode-plusplus.json",
             pluginFile = Path.Combine(root, "plugins", PluginFileName),
             stateFile = Path.Combine(root, "opencode-plusplus", "state.json"),
             manifestFile = Path.Combine(root, "opencode-plusplus", "installation.json"),
@@ -228,8 +246,14 @@ internal static class OpenCodePlusPlusInstaller
         };
     }
 
-    private static string FindOpenCodeAsar()
+    private static string FindOpenCodeAsar(string overridePath)
     {
+        if (!String.IsNullOrWhiteSpace(overridePath))
+        {
+            string resolved = Path.GetFullPath(overridePath);
+            if (File.Exists(resolved)) return resolved;
+            throw new InvalidOperationException("The --host-asar override does not exist: " + resolved);
+        }
         string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string[] candidates =
         {
@@ -293,17 +317,19 @@ internal static class OpenCodePlusPlusInstaller
     private static void PatchOpenCodeHost(InstallPaths paths)
     {
         if (String.IsNullOrEmpty(paths.hostAsar)) throw new InvalidOperationException("OpenCode Desktop app.asar was not found.");
-        if (HostPatchPresent(paths)) return;
+        if (!File.Exists(paths.hostAsar)) throw new InvalidOperationException("OpenCode Desktop app.asar was not found at " + paths.hostAsar + ".");
         if (OpenCodeRunning()) throw new InvalidOperationException("Close OpenCode Desktop completely before installing the OpenCode++ native command patch.");
 
         AsarArchive archive = ReadAsar(paths.hostAsar);
         AsarTarget target = FindNativeCommandTarget(archive);
-        if (target == null) throw new InvalidOperationException("This OpenCode Desktop version is unsupported: SessionPrompt.command was not found in app.asar.");
-        string patch = ReadNativeCommandPatch();
-        string commandMarker = "const command = exports_Effect.fn(\"SessionPrompt.command\")(function* (input) {";
+        if (target == null) throw new InvalidOperationException("This OpenCode Desktop version is unsupported: the SessionPrompt.command bundle marker was not found in app.asar.");
         if (target.text.Contains(NativeCommandPatchMarker)) return;
+
+        string commandMarker = "const command = exports_Effect.fn(\"SessionPrompt.command\")(function* (input) {";
         int marker = target.text.IndexOf(commandMarker, StringComparison.Ordinal);
-        if (marker < 0) throw new InvalidOperationException("This OpenCode Desktop version is unsupported: native command insertion point was not found.");
+        if (marker < 0) throw new InvalidOperationException("This OpenCode Desktop version is unsupported: the SessionPrompt.command insertion point was not found.");
+        string patch = ReadNativeCommandPatch();
+        string desktopVersion = ReadDesktopVersion(archive);
         string nativeBranch = "\n    if (OPENCODE_PLUSPLUS_NATIVE_COMMANDS.has(input.command)) {\n" +
             "      const nativeOutput = opencodePlusPlusNativeControl(input.command);\n" +
             "      const nativeModel = yield* currentModel(input.sessionID);\n" +
@@ -328,8 +354,12 @@ internal static class OpenCodePlusPlusInstaller
         try
         {
             WritePatchedAsar(archive, temporaryPath, target, patchedTarget);
+            FailAt("asar-write");
             File.Copy(paths.hostAsar, paths.hostBackup, true);
+            WriteBackupManifest(paths.hostBackupManifest, desktopVersion, paths.hostAsar);
+            FailAt("backup");
             ReplaceFile(temporaryPath, paths.hostAsar);
+            FailAt("replace");
         }
         finally
         {
@@ -339,23 +369,47 @@ internal static class OpenCodePlusPlusInstaller
 
     private static void RestoreOpenCodeHost(InstallPaths paths)
     {
-        if (!File.Exists(paths.hostBackup) || String.IsNullOrEmpty(paths.hostAsar)) return;
+        if (String.IsNullOrEmpty(paths.hostAsar) || String.IsNullOrEmpty(paths.hostBackup)) return;
+        if (!File.Exists(paths.hostBackup))
+        {
+            DeleteOwnedFile(paths.hostBackupManifest);
+            return;
+        }
         if (!HostPatchPresent(paths))
         {
+            // The current bundle is not patched (already restored or replaced by an
+            // OpenCode update), so there is nothing to roll back.
             DeleteOwnedFile(paths.hostBackup);
+            DeleteOwnedFile(paths.hostBackupManifest);
             return;
         }
         if (OpenCodeRunning()) throw new InvalidOperationException("Close OpenCode Desktop completely before uninstalling the OpenCode++ native command patch.");
+        if (!IsCleanOriginalAsar(paths.hostBackup))
+            throw new InvalidOperationException("Refusing to restore: the OpenCode++ backup does not contain a clean, unpatched app.asar. Review " + paths.hostBackup + " manually.");
         string temporaryPath = paths.hostAsar + ".tmp-opencode-plusplus-restore-" + Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N");
         try
         {
             File.Copy(paths.hostBackup, temporaryPath, true);
             ReplaceFile(temporaryPath, paths.hostAsar);
             DeleteOwnedFile(paths.hostBackup);
+            DeleteOwnedFile(paths.hostBackupManifest);
         }
         finally
         {
             DeleteOwnedFile(temporaryPath);
+        }
+    }
+
+    private static bool IsCleanOriginalAsar(string backupPath)
+    {
+        try
+        {
+            AsarArchive archive = ReadAsar(backupPath);
+            return FindNativeCommandTarget(archive, NativeCommandPatchMarker) == null;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -371,6 +425,71 @@ internal static class OpenCodePlusPlusInstaller
         {
             return false;
         }
+    }
+
+    private static string HostPatchStatus(InstallPaths paths)
+    {
+        if (String.IsNullOrEmpty(paths.hostAsar)) return "skipped";
+        bool patched = HostPatchPresent(paths);
+        if (patched) return "active";
+        return ReadManifestHostPatch(paths.manifestFile) != null ? "stale" : "absent";
+    }
+
+    private static Dictionary<string, object> ReadManifestHostPatch(string manifestFile)
+    {
+        if (!File.Exists(manifestFile)) return null;
+        try
+        {
+            Dictionary<string, object> manifest = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(manifestFile, Encoding.UTF8));
+            object raw;
+            if (manifest != null && manifest.TryGetValue("hostPatch", out raw) && raw is Dictionary<string, object>)
+                return (Dictionary<string, object>)raw;
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string ReadDesktopVersion(AsarArchive archive)
+    {
+        object packageEntry;
+        if (!archive.files.TryGetValue("package.json", out packageEntry) || !(packageEntry is Dictionary<string, object>)) return "unknown";
+        try
+        {
+            Dictionary<string, object> entry = (Dictionary<string, object>)packageEntry;
+            if (!entry.ContainsKey("offset")) return "unknown";
+            long offset = Convert.ToInt64(entry["offset"]);
+            int size = Convert.ToInt32(entry["size"]);
+            string text = Encoding.UTF8.GetString(ReadSegment(archive.path, archive.dataStart + offset, size));
+            Dictionary<string, object> package = Json.Deserialize<Dictionary<string, object>>(text);
+            object version;
+            return package != null && package.TryGetValue("version", out version) && version != null ? Convert.ToString(version) : "unknown";
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
+    private static void WriteBackupManifest(string manifestPath, string desktopVersion, string asarPath)
+    {
+        AtomicWriteJson(manifestPath, new BackupManifest
+        {
+            schemaVersion = 1,
+            marker = NativeCommandPatchMarker,
+            desktopVersion = desktopVersion,
+            sourceAsar = asarPath,
+            installedAt = Iso(DateTime.UtcNow)
+        });
+    }
+
+    private static void FailAt(string step)
+    {
+        string requested = Environment.GetEnvironmentVariable("OPENCODE_PLUSPLUS_TEST_FAIL_AT");
+        if (String.Equals(requested, step, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Test failure injected at step: " + step);
     }
 
     private static bool OpenCodeRunning()
@@ -668,6 +787,24 @@ internal static class OpenCodePlusPlusInstaller
         public string[] commands;
         public string[] agentCommands;
         public string skill;
+        public HostPatchRecord hostPatch;
+    }
+
+    private sealed class HostPatchRecord
+    {
+        public int schemaVersion;
+        public string marker;
+        public string asarPath;
+        public string patchedAt;
+    }
+
+    private sealed class BackupManifest
+    {
+        public int schemaVersion;
+        public string marker;
+        public string desktopVersion;
+        public string sourceAsar;
+        public string installedAt;
     }
 
     private sealed class InstallPaths
@@ -675,6 +812,7 @@ internal static class OpenCodePlusPlusInstaller
         public string configDir;
         public string hostAsar;
         public string hostBackup;
+        public string hostBackupManifest;
         public string pluginFile;
         public string stateFile;
         public string manifestFile;
@@ -694,6 +832,7 @@ internal static class OpenCodePlusPlusInstaller
         public int commandsInstalled;
         public int agentFilesInstalled;
         public bool nativeCommandPatch;
+        public string nativeCommandPatchStatus;
         public string message;
     }
 
