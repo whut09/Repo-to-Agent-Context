@@ -13,43 +13,43 @@ export { renderEvaluateText, renderHarnessError, renderNextText, renderPrepareTe
 export { completionRuleFor, isFinalizeAction } from "./completion.js";
 
 export async function executePrepareTool(root: string, args: unknown): Promise<string> {
-  return runHarnessTool("prepare", async () => {
+  return runHarnessTool(root, "prepare", async () => {
     const parsed = parsePrepareArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("prepare", parsed);
+    if (typeof parsed === "string") return renderHarnessError("prepare", parsed, root);
     return renderPrepareText(await preparePluginHarnessTask(root, parsed));
   });
 }
 
 export async function executeRetrieveTool(root: string, args: unknown): Promise<string> {
-  return runHarnessTool("retrieve", async () => {
+  return runHarnessTool(root, "retrieve", async () => {
     const parsed = parseRetrieveArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("retrieve", parsed);
+    if (typeof parsed === "string") return renderHarnessError("retrieve", parsed, root);
     return renderRetrieveText(await retrievePluginHarnessContext(root, parsed));
   });
 }
 
 export async function executeEvaluateTool(root: string, args: unknown): Promise<string> {
-  return runHarnessTool("evaluate", async () => {
+  return runHarnessTool(root, "evaluate", async () => {
     const parsed = parseEvaluateArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("evaluate", parsed);
+    if (typeof parsed === "string") return renderHarnessError("evaluate", parsed, root);
     const result = await evaluatePluginHarness(root, parsed);
     return typeof result === "string" ? renderHarnessError("evaluate", result) : renderEvaluateText(result);
   });
 }
 
 export async function executeNextTool(root: string, args: unknown): Promise<string> {
-  return runHarnessTool("next", async () => {
+  return runHarnessTool(root, "next", async () => {
     const parsed = parseNextArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("next", parsed);
+    if (typeof parsed === "string") return renderHarnessError("next", parsed, root);
     const result = await nextPluginHarnessAction(root, parsed);
     return typeof result === "string" ? renderHarnessError("next", result) : renderNextText(result);
   });
 }
 
-async function runHarnessTool(tool: string, action: () => Promise<string>): Promise<string> {
+async function runHarnessTool(root: string, tool: "prepare" | "retrieve" | "evaluate" | "next", action: () => Promise<string>): Promise<string> {
   try {
     return await action();
   } catch (error) {
-    return renderHarnessError(tool, harnessFailureMessage(error));
+    return renderHarnessError(tool, harnessFailureMessage(error), root);
   }
 }

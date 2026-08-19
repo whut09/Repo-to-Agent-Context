@@ -1,28 +1,37 @@
-import { unique } from "../../../../core/collections.js";
-import { buildLoopControllerReport } from "../../../../harness/control-plane/loop-controller.js";
-import { completionRuleFor } from "./completion.js";
-import { loadPluginHarnessContext } from "./context.js";
-import { readPluginHarnessSession, resolvePluginTaskId, taskRunExists } from "./session.js";
+import { completionRuleFor, isFinalizeAction } from "./completion.js";
+import { createPluginHarnessResult } from "./protocol.js";
+import { readPluginEvaluateState, resolvePluginTask, taskRunExists } from "./session.js";
 import type { PluginNextArgs, PluginNextResult } from "./types.js";
 
 export async function nextPluginHarnessAction(root: string, args: PluginNextArgs = {}): Promise<PluginNextResult | string> {
-  const session = readPluginHarnessSession(root);
-  const taskId = resolvePluginTaskId(root, args.taskId);
-  if (!taskId) return "next needs a taskId or a previous prepare in this repository.";
-  if (!taskRunExists(root, taskId)) return `next could not find a task run for ${taskId}. Call prepare first.`;
+  const resolved = resolvePluginTask(root, args.taskId, args.sessionId);
+  if (!resolved.taskId) return "next needs a taskId or a previous prepare in this repository.";
+  if (!taskRunExists(root, resolved.taskId)) return `next could not find a task run for ${resolved.taskId}. Call prepare first.`;
+  const latest = readPluginEvaluateState(root);
+  if (!latest || latest.taskId !== resolved.taskId) return `next requires a current evaluate result for ${resolved.taskId}. Call evaluate first.`;
 
-  const context = await loadPluginHarnessContext(root);
-  const task = session?.task && session.taskId === taskId ? session.task : taskId;
-  const loop = buildLoopControllerReport(context, task, { phase: "after-edit", base: "main", traceId: taskId });
-  const decision = loop.decisions[0];
-  const nextAction = decision?.action ?? "ready-for-review";
-  const blocking = Boolean(decision?.blocking);
-  return {
-    taskId,
+  const finalize = isFinalizeAction(latest.decision, latest.blocking);
+  const nextAction = finalize ? "finalize" : latest.decision === "ready-for-review" ? "evaluate" : latest.decision;
+  return createPluginHarnessResult(root, {
+    ok: true,
+    tool: "next",
+    summary: finalize
+      ? `Next for ${resolved.taskId}: finalize is allowed after the current evaluate.`
+      : `Next for ${resolved.taskId}: ${nextAction}. Do not claim completion.`,
+    taskId: resolved.taskId,
+    sessionId: latest.sessionId ?? resolved.sessionId,
+    taskIdSource: resolved.source,
+    currentPhase: "next",
+    decision: latest.decision,
+    blocking: latest.blocking,
+    findings: latest.findings,
+    missingEvidence: latest.missingEvidence,
+    requiredCommands: latest.requiredCommands,
+    mustInspect: latest.mustInspect,
+    allowedEditGlobs: latest.allowedEditGlobs,
+    avoidEditGlobs: latest.avoidEditGlobs,
+    artifacts: latest.artifacts,
     nextAction,
-    blocking,
-    missingEvidence: unique(loop.runtime.missingEvidence),
-    requiredCommands: unique(loop.decisions.map((item) => item.command).filter((command): command is string => Boolean(command))),
-    completionRule: completionRuleFor(nextAction, blocking)
-  };
+    error: undefined
+  });
 }

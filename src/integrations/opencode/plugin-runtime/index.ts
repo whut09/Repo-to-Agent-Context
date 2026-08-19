@@ -111,23 +111,23 @@ export async function createOpenCodePlusPlusSidecar(
       opencode_plusplus_status: controlTool("Show OpenCode++ installation and enabled status.", () => readOpenCodePlusPlusPluginStatus(stateFile)),
       opencode_plusplus_prepare: harnessTool(
         "Call before editing. Builds repository context if missing and returns taskId, mustInspect, edit boundaries, and requiredCommands.",
-        { task: { type: "string" }, type: { type: "string" } },
+         { task: { type: "string" }, type: { type: "string" }, sessionId: { type: "string" } },
         (args) => executePrepareTool(context.directory, args)
       ),
       opencode_plusplus_retrieve: harnessTool(
         "Call to find task-relevant files without blind search. Returns ranked paths, scores, and a short reason.",
-        { task: { type: "string" }, topK: { type: "number" } },
+         { task: { type: "string" }, topK: { type: "number" }, sessionId: { type: "string" } },
         (args) => executeRetrieveTool(context.directory, args)
       ),
       opencode_plusplus_evaluate: harnessTool(
         "Call after edits or before claiming done. Returns blocking, findings, decision, and missing evidence.",
-        { taskId: { type: "string" } },
-        (args) => executeEvaluateTool(context.directory, args)
+        { taskId: { type: "string" }, sessionId: { type: "string" } },
+         (args) => executeEvaluateTool(context.directory, args)
       ),
       opencode_plusplus_next: harnessTool(
         "Call to get the next harness action. If nextAction is not finalize, do not claim the task is complete.",
-        { taskId: { type: "string" } },
-        (args) => executeNextTool(context.directory, args)
+        { taskId: { type: "string" }, sessionId: { type: "string" } },
+         (args) => executeNextTool(context.directory, args)
       )
     },
     "tool.execute.before": async (input: unknown, output: unknown) => {

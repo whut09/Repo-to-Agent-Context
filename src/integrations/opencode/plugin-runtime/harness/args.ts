@@ -6,7 +6,8 @@ export function parsePrepareArgs(args: unknown): PluginPrepareArgs | string {
   if (!task) return "prepare requires a non-empty task.";
   const type = readTaskType(record.type);
   if (type === false) return 'prepare type must be "bugfix", "feature", or "refactor".';
-  return type ? { task, type } : { task };
+  const sessionId = readOptionalSessionId(record.sessionId);
+  return type ? { task, type, ...(sessionId ? { sessionId } : {}) } : { task, ...(sessionId ? { sessionId } : {}) };
 }
 
 export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
@@ -27,12 +28,13 @@ export function parseNextArgs(args: unknown): PluginNextArgs | string {
   return parseOptionalTaskIdArgs(args, "next");
 }
 
-function parseOptionalTaskIdArgs(args: unknown, tool: "evaluate" | "next"): { taskId?: string } | string {
+function parseOptionalTaskIdArgs(args: unknown, tool: "evaluate" | "next"): { taskId?: string; sessionId?: string | null } | string {
   const record = asRecord(args);
-  if (record.taskId === undefined) return {};
+  const sessionId = readOptionalSessionId(record.sessionId);
+  if (record.taskId === undefined) return sessionId ? { sessionId } : {};
   const taskId = readNonEmptyString(record.taskId);
   if (!taskId) return `${tool} taskId must be a non-empty string when provided.`;
-  return { taskId };
+  return { taskId, ...(sessionId ? { sessionId } : {}) };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -41,6 +43,10 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function readOptionalSessionId(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function readTaskType(value: unknown): PluginHarnessTaskType | undefined | false {
