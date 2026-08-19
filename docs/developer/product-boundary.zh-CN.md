@@ -11,6 +11,7 @@ OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Window
 - bundle 可以脱离本仓库目录独立加载，不依赖 `node_modules`，不依赖仓库绝对路径；运行时只使用 Node.js 内置模块。
 - 插件工具名保持不变：`opencode_plusplus_enable`、`opencode_plusplus_disable`、`opencode_plusplus_status`、`opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate`、`opencode_plusplus_next`。
 - 三个本地 Slash Command（`/opencode-plusplus-status`、`/opencode-plusplus-on`、`/opencode-plusplus-off`）由窄范围宿主补丁执行，不调用模型。
+- 安装器还会在 OpenCode 配置目录写入用户级、经模型的 Harness 工作流文件，无需任何命令行：`commands/plusplus-task.md`、`commands/plusplus-verify.md`、`skills/opencode-plusplus/SKILL.md`。TS 安装器与 C# EXE 安装器写入同一组文件且内容一致，由 `test/installer-prompt-sync.test.ts` 强制对齐。
 
 ## 降级为内部 dev/test 兼容面
 
@@ -46,4 +47,6 @@ OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Window
 
 - `test/plugin-bundle.test.ts`：bundle 独立加载、单一函数导出、不含仓库路径、不 require node_modules 外部包、7 个工具名注册兼容、构建不依赖 CLI/MCP 模块。
 - `test/release-boundary.test.ts`：安装器只嵌入插件+补丁、构建脚本只打包 `global-plugin.ts`、`global-plugin.ts` 只导入 plugin-runtime、npm files 白名单排除发布/构建产物。
+- `test/installer-prompt-sync.test.ts`：C# EXE 安装器的常量与文件名和 TS prompt 源逐字节一致，避免 TS 测试通过但 EXE 没装上。
+- `test/windows-installer.test.ts`、`scripts/smoke-windows-installer.mjs`：安装器写入 `/plusplus-task`、`/plusplus-verify` 和 skill，正文不含 CLI 调用，卸载时删除。
 - `test/plugin-harness-tools.test.ts`、`test/opencode-plugin-runtime.test.ts`：Desktop 插件工具注册与钩子行为兼容。

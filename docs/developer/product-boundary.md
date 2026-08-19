@@ -11,6 +11,7 @@ OpenCode++ has exactly one runtime product: **the Windows plugin for the officia
 - The bundle loads standalone outside this repository, does not depend on `node_modules`, and does not depend on an absolute repository path. At runtime it uses Node.js built-in modules only.
 - Plugin tool names are unchanged: `opencode_plusplus_enable`, `opencode_plusplus_disable`, `opencode_plusplus_status`, `opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next`.
 - The three local slash commands (`/opencode-plusplus-status`, `/opencode-plusplus-on`, `/opencode-plusplus-off`) are executed by the narrow host patch and do not call the model.
+- The installer additionally writes user-level, model-mediated harness workflow files that require no command line: `commands/plusplus-task.md`, `commands/plusplus-verify.md`, and `skills/opencode-plusplus/SKILL.md` in the OpenCode config directory. The TS installer and the C# EXE installer write the same file set with identical content, enforced by `test/installer-prompt-sync.test.ts`.
 
 ## Degraded to Internal Dev/Test Surfaces
 
@@ -46,4 +47,6 @@ The following remain in the repository and the npm developer package but are **n
 
 - `test/plugin-bundle.test.ts`: bundle loads standalone, single function export, no repository path, no node_modules requires, seven tool names registered, build independent of CLI/MCP modules.
 - `test/release-boundary.test.ts`: installer embeds only plugin + patch, build script bundles only `global-plugin.ts`, `global-plugin.ts` imports only plugin-runtime, and the npm files whitelist excludes release/build artifacts.
+- `test/installer-prompt-sync.test.ts`: the C# EXE installer constants and file names stay byte-identical to the TS prompt source, so a passing TS test cannot hide a missing EXE write.
+- `test/windows-installer.test.ts` and `scripts/smoke-windows-installer.mjs`: the installer writes `/plusplus-task`, `/plusplus-verify`, and the skill without any CLI invocation text, and uninstall removes them.
 - `test/plugin-harness-tools.test.ts` and `test/opencode-plugin-runtime.test.ts`: Desktop plugin tool registration and hook behavior stay compatible.
