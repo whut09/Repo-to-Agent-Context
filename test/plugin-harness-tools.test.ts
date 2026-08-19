@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { runGit } from "../src/core/git.js";
 import { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "../src/integrations/opencode/plugin-runtime/harness/index.js";
+import { pluginEvaluateStatePath } from "../src/integrations/opencode/plugin-runtime/harness/session.js";
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 
 interface PluginHarnessTool {
@@ -55,6 +56,12 @@ test("prepare, evaluate, and next return the harness contract and stay available
     assert.match(evaluated, /blocking:/);
     assert.match(evaluated, /decision:/);
     assert.match(evaluated, /missingEvidence:/);
+    const evaluateStatePath = pluginEvaluateStatePath(root);
+    assert.equal(existsSync(evaluateStatePath), true, "evaluate must persist state for session context injection");
+    const evaluateState = JSON.parse(readFileSync(evaluateStatePath, "utf8")) as { taskId: string; blocking: boolean; decision: string };
+    assert.equal(evaluateState.taskId, "fix-login-timeout-bug");
+    assert.equal(typeof evaluateState.blocking, "boolean");
+    assert.equal(typeof evaluateState.decision, "string");
 
     const next = await tools.opencode_plusplus_next.execute({ taskId: "fix-login-timeout-bug" });
     assert.match(next, /nextAction:/);
