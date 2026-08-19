@@ -22,12 +22,14 @@ OpenCode++ 是 OpenCode 的外部可靠性 Harness，不是新的 coding agent�
 - 不自动提交、推送、合并或破坏性回滚用户工作树；
 - 不阻止其他应用绕过 OpenCode 直接修改文件。
 
-## 三种入口
+## 入口划分
 
-| 入口              | 控制者           | Windows 用途                                  |
-| ----------------- | ---------------- | --------------------------------------------- |
-| Desktop Sidecar   | OpenCode Desktop | 日常交互、工具前 Guard、工具后证据、idle 验证 |
-| Agent-led CLI/MCP | 外部 Agent       | Agent 主动调用 OpenCode++，结果默认是建议     |
-| Harness-led CLI   | OpenCode++       | CI 或批处理，拥有有界循环和终止决策           |
+Desktop Sidecar 是唯一的产品入口；CLI/MCP 是内部开发者面，不是用户安装或使用路径。
 
-原理和硬边界见 [Windows 插件架构与边界](windows-plugin-architecture.zh-CN.md)。
+| 入口              | 控制者           | Windows 用途                                  | 定位       |
+| ----------------- | ---------------- | --------------------------------------------- | ---------- |
+| Desktop Sidecar   | OpenCode Desktop | 日常交互、工具前 Guard、工具后证据、idle 验证 | 产品入口   |
+| Agent-led CLI/MCP | 外部 Agent       | Agent 主动调用 OpenCode++，结果默认是建议     | 内部开发面 |
+| Harness-led CLI   | OpenCode++       | CI 或批处理，拥有有界循环和终止决策           | 内部开发面 |
+
+原理和硬边界见 [Windows 插件架构与边界](windows-plugin-architecture.zh-CN.md)，CLI/MCP 降级明细见 [产品边界说明](../developer/product-boundary.zh-CN.md)。
