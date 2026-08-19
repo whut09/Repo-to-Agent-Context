@@ -83,6 +83,8 @@ export interface OpenCodeSidecarCommandFinding {
   severity: "blocker" | "warning";
   message: string;
   evidence: string[];
+  doInstead?: string;
+  rule?: string;
 }
 
 export interface OpenCodeSidecarCommandCheckResult {
