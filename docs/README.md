@@ -2,7 +2,7 @@
 
 [中文目录](README.zh-CN.md) | English
 
-OpenCode++ is Windows-first: install the plugin for the official OpenCode Desktop with the release EXE, then use status, enable, and disable from the chat UI. CLI and MCP are advanced automation surfaces, not a second Desktop application.
+OpenCode++ is Windows-first: install the plugin for the official OpenCode Desktop with the release EXE, then use status, enable, and disable from the chat UI. CLI and MCP are internal dev/test compatibility surfaces, not user paths and not a second Desktop application.
 
 ## Start Here
 
@@ -10,11 +10,12 @@ OpenCode++ is Windows-first: install the plugin for the official OpenCode Deskto
 | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Install, upgrade, disable, or uninstall on Windows | [OpenCode Desktop on Windows](integrations/opencode-desktop.md)                       |
 | Understand the plugin and its hard boundaries      | [Windows plugin architecture and boundaries](concepts/windows-plugin-architecture.md) |
+| Understand the product boundary (CLI/MCP internal) | [Product Boundary](developer/product-boundary.md)                                     |
 | Start in five minutes                              | [Getting Started](getting-started.md)                                                 |
 | Understand the global event-driven runtime         | [OpenCode Global Sidecar](integrations/opencode-sidecar.md)                           |
 | Understand context, guards, evidence, and loops    | [Architecture](concepts/architecture.md)                                              |
 | Choose agent-led or harness-led usage              | [Integration Modes](concepts/integration-modes.md)                                    |
-| Operate the CLI                                    | [CLI Reference](reference/cli-reference.md)                                           |
+| Operate the CLI (developer surface)                | [CLI Reference](reference/cli-reference.md)                                           |
 | Configure evidence trust                           | [Configuration](reference/config.md)                                                  |
 | Build and publish releases                         | [Release Checklist](release.md)                                                       |
 
@@ -40,6 +41,7 @@ OpenCode++ is Windows-first: install the plugin for the official OpenCode Deskto
 
 ## Developer Documentation
 
+- [Product Boundary](developer/product-boundary.md)
 - [Source Walkthrough](developer/source-walkthrough.md)
 - [Runtime State Machine](developer/runtime-state-machine.md)
 - [Guard Gate Schema](developer/guard-gate-schema.md)
