@@ -57,6 +57,10 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 - 原始文件会备份为 `app.asar.opencode-plusplus.original`，卸载时恢复。
 - OpenCode 更新并替换 `app.asar` 后，原生命令会暂时消失；重新运行安装器即可重新检测、备份并补丁新版本。
 - 如果 bundle 结构不支持或已变化，安装器会拒绝操作，不写入命令文件。
+- 备份旁车文件记录 `schemaVersion`、补丁 marker、Desktop 版本、源 `app.asar` 和安装时间。卸载只恢复 OpenCode++ 自己创建且经过校验的未补丁备份。
+- `--status` 会报告 `active`、`stale`、`absent` 或 `skipped`；OpenCode 更新替换 `app.asar` 后，已有安装会显示 `stale`，不会误报 active。
+- 宿主替换和每次配置写入都使用临时文件及原子替换。补丁、plugin、command 或 state 任一步失败，宿主 bundle 仍可恢复，并且不会继续写入后续文件。
+- `--host-asar` 仅供开发/冒烟测试覆盖路径使用；普通用户由安装器自动检测 OpenCode Desktop bundle。EXE 只包含 .NET 安装器、插件 bundle 和补丁资源，不携带 Node、Electron 或完整 OpenCode runtime。
 
 ## 插件做什么
 

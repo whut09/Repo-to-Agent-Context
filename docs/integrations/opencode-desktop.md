@@ -57,6 +57,10 @@ Disable is a pause, not an uninstall. The plugin remains loaded so status and en
 - The original `app.asar` is saved beside the bundle as `app.asar.opencode-plusplus.original` and restored on uninstall.
 - If OpenCode updates and replaces `app.asar`, the native commands disappear until the installer is run again. The installer detects the missing marker and creates a new backup before patching the new bundle.
 - An unsupported or changed bundle is rejected without writing the command files.
+- The backup sidecar records `schemaVersion`, the patch marker, Desktop version, source `app.asar`, and install time. Uninstall restores only a valid, unpatched backup created by OpenCode++.
+- `--status` reports `active`, `stale`, `absent`, or `skipped`; after an OpenCode update replaces `app.asar`, an existing installation is reported as `stale`, not active.
+- Host replacement and every config write use temporary files and atomic replacement. A failed patch, plugin write, command write, or state write leaves the host bundle recoverable and does not continue to later writes.
+- `--host-asar` is a development/smoke-test override; end users use the detected OpenCode Desktop bundle. The EXE contains only the .NET installer, plugin bundle, and patch resource, not Node, Electron, or the OpenCode runtime.
 
 ## What the Plugin Does
 
