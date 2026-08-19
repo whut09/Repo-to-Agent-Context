@@ -57,9 +57,13 @@ OpenCode Slash Command 默认是发给模型的 Prompt Template。安装器会�
 - **卸载**：使用 EXE 的 `--uninstall`。它只删除 OpenCode++ 写入的插件、遗留命令、状态和安装清单，不删除仓库 `.agent-context/`。
 - **验证状态**：使用 EXE 的 `--status --json`，或在 OpenCode 中调用状态工具。
 
-## 高级 Harness 和 CLI
+## 产品边界
 
-CLI 不是 Desktop 插件的日常入口。它用于 CI、仓库 context 生成、诊断、MCP 服务和 Harness-led 批处理：
+OpenCode++ 的唯一运行时产品是官方 OpenCode Desktop 的 Windows 插件：下载 EXE、双击安装、重启 OpenCode Desktop，没有其他安装或使用路径。`src/integrations/opencode/global-plugin.ts` 是插件的唯一生产运行时入口；EXE 安装流程与 `opencode_plusplus_*` 工具名保持不变。
+
+CLI（`opencode-plusplus`）和 MCP（`opencode-plusplus-mcp`）是仓库内部的 dev/test compatibility surface：它们供 CI、源码构建、诊断和 Harness-led 批处理使用，保留在 npm 包中仅作为开发依赖，**不是 Desktop 用户的安装或使用路径**。npm 包本身也是开发工具，Desktop 用户不需要 `npm install` 任何东西。
+
+### CLI 内部用途（非用户入口）
 
 ```powershell
 opencode-plusplus build .
@@ -68,7 +72,7 @@ opencode-plusplus policy . --base main --fail-on required
 opencode-plusplus orchestrate "修复登录超时并补回归测试" . --executor mock --max-loops 3
 ```
 
-CLI、MCP 和 Desktop 插件共享 Guard、Evidence、Policy、Decision 和 Loop Engineering 实现，但控制边界不同：Desktop 插件观察当前 OpenCode 会话；Harness-led CLI 才负责多轮执行、收集和终止决策。
+CLI、MCP 和 Desktop 插件共享 Guard、Evidence、Policy、Decision 和 Loop Engineering 实现，但控制边界不同：Desktop 插件观察当前 OpenCode 会话；Harness-led CLI 才负责多轮执行、收集和终止决策。CLI/MCP 的内部定位与降级明细见 [产品边界说明](docs/developer/product-boundary.zh-CN.md)。
 
 ## 从源码构建 Windows EXE
 
@@ -87,6 +91,7 @@ npm run build:installer:windows
 
 - [Windows 安装与使用](docs/integrations/opencode-desktop.zh-CN.md)
 - [Windows 插件架构与边界](docs/concepts/windows-plugin-architecture.zh-CN.md)
+- [产品边界说明（CLI/MCP 内部定位）](docs/developer/product-boundary.zh-CN.md)
 - [全局 Sidecar 运行机制](docs/integrations/opencode-sidecar.zh-CN.md)
 - [总体架构](docs/concepts/architecture.zh-CN.md)
 - [集成模式](docs/concepts/integration-modes.zh-CN.md)
