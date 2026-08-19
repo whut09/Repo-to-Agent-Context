@@ -9,18 +9,18 @@ OpenCode++ 的主要使用方式是作为插件运行在官方 OpenCode Desktop 
 1. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
 2. 安装或升级前完全退出 OpenCode Desktop。
 3. 双击 EXE，完成后重新打开 OpenCode Desktop。
-4. 打开目标仓库，确认工具列表中存在 `opencode_plusplus_status`。
+4. 打开目标仓库，在新会话中输入 `/plusplus-task <任务>`，让 Harness 接管任务。
 
-安装器只作用于当前 Windows 用户，不需要管理员权限，并写入 OpenCode 配置目录。路径、自定义配置目录、升级、卸载和排障见 [Windows 安装与使用](integrations/opencode-desktop.zh-CN.md)。
+安装器只作用于当前 Windows 用户，不需要管理员权限，并写入 OpenCode 配置目录。它同时写入全局 `/plusplus-task`、`/plusplus-verify` Slash Command 和 `opencode-plusplus` skill，重启后无需任何命令行即可使用。路径、自定义配置目录、升级、卸载和排障见 [Windows 安装与使用](integrations/opencode-desktop.zh-CN.md)。
 
 ## 第一个会话检查清单
 
-1. 运行 `opencode-plusplus-setup-win-x64.exe --status` 直接检查本地状态，或让 Agent 调用状态工具。
+1. 编码任务输入 `/plusplus-task <task>`，收尾验证输入 `/plusplus-verify`。
 2. 编辑期间保持插件启用，以获得命令/路径 Guard 和证据记录。
 3. 完成重要编辑后等待会话空闲，在 `.agent-context/sidecar/latest.md` 查看报告。
 4. 只有明确需要无 Guard 会话时才使用 EXE 的 `--disable` 或禁用工具，完成后重新启用。
 
-OpenCode Slash Command 默认是模型 Prompt。安装器会补丁三个精确的 OpenCode++ 命令，使它们在 Desktop 中直接本地执行，不经过模型。Desktop 工具仍然经过模型；EXE 的状态、启用和禁用参数也可以在 Desktop 外本地执行。
+OpenCode Slash Command 默认是模型 Prompt。安装器会补丁三个精确的 OpenCode++ 控制命令（`/opencode-plusplus-status`、`/opencode-plusplus-on`、`/opencode-plusplus-off`），使它们在 Desktop 中直接本地执行，不经过模型。Harness 工作流命令（`/plusplus-task`、`/plusplus-verify`）经过模型；EXE 的状态、启用和禁用参数也可以在 Desktop 外本地执行。
 
 ## 开发者面（CLI / MCP，内部）
 

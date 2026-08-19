@@ -9,18 +9,18 @@ OpenCode++ is primarily used as a plugin inside the official OpenCode Desktop ap
 1. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
 2. Exit OpenCode Desktop completely before installation or upgrade.
 3. Double-click the EXE, then restart OpenCode Desktop.
-4. Open a repository and confirm the `opencode_plusplus_status` tool is available.
+4. Open a repository and type `/plusplus-task <task>` in a new session to run a task through the harness.
 
-The installer is per-user, does not need Administrator permission, and writes to the OpenCode configuration directory. Read [Windows installation and usage](integrations/opencode-desktop.md) for paths, custom configuration directories, upgrade, uninstall, and troubleshooting.
+The installer is per-user, does not need Administrator permission, and writes to the OpenCode configuration directory. It also writes the global `/plusplus-task`, `/plusplus-verify` Slash Commands and the `opencode-plusplus` skill, so no command line is needed after restart. Read [Windows installation and usage](integrations/opencode-desktop.md) for paths, custom configuration directories, upgrade, uninstall, and troubleshooting.
 
 ## First Session Checklist
 
-1. Run `opencode-plusplus-setup-win-x64.exe --status` for a direct local check, or ask the agent to call the status tool.
+1. Type `/plusplus-task <task>` for a coding task, or `/plusplus-verify` to re-check the current harness state.
 2. Keep the plugin enabled while editing so command/path guards and evidence capture are active.
 3. After a meaningful edit, wait for the session to become idle and inspect `.agent-context/sidecar/latest.md`.
 4. Use the EXE `--disable` option or the disable tool only when you intentionally need an unguarded session; turn it back on afterward.
 
-OpenCode Slash Commands are normally model prompts. The installer patches three exact OpenCode++ commands so they run locally in Desktop without a model turn. Desktop tools remain model-mediated, and the EXE status/enable/disable options remain available outside Desktop.
+OpenCode Slash Commands are normally model prompts. The installer patches three exact OpenCode++ control commands (`/opencode-plusplus-status`, `/opencode-plusplus-on`, `/opencode-plusplus-off`) so they run locally in Desktop without a model turn. The harness workflow commands (`/plusplus-task`, `/plusplus-verify`) are model-mediated, and the EXE status/enable/disable options remain available outside Desktop.
 
 ## Developer Surfaces (CLI / MCP)
 
