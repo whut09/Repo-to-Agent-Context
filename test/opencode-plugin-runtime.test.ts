@@ -53,6 +53,24 @@ test("disabled OpenCode plugin keeps controls available and skips command guards
   }
 });
 
+test("enabled OpenCode plugin guard rejection tells the model what to run instead", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-guard-action-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const before = plugin["tool.execute.before"] as (input: unknown, output: unknown) => Promise<void>;
+
+    await assert.rejects(before({ tool: "shell", callID: "call-1" }, { args: { command: "git reset --hard HEAD" } }), (error: Error) => {
+      assert.match(error.message, /BLOCKED: Hard git reset/);
+      assert.match(error.message, /Evidence: git reset --hard HEAD/);
+      assert.match(error.message, /Do instead:/);
+      return true;
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("OpenCode plugin keeps compatibility with legacy before hook arguments", () => {
   const result = normalizeToolExecuteBefore({ tool: "write", args: { file: "src/index.ts" } }, undefined);
 
