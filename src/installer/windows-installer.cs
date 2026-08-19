@@ -358,8 +358,8 @@ internal static class OpenCodePlusPlusInstaller
             File.Copy(paths.hostAsar, paths.hostBackup, true);
             WriteBackupManifest(paths.hostBackupManifest, desktopVersion, paths.hostAsar);
             FailAt("backup");
-            ReplaceFile(temporaryPath, paths.hostAsar);
             FailAt("replace");
+            ReplaceFile(temporaryPath, paths.hostAsar);
         }
         finally
         {
@@ -494,6 +494,8 @@ internal static class OpenCodePlusPlusInstaller
 
     private static bool OpenCodeRunning()
     {
+        if (String.Equals(Environment.GetEnvironmentVariable("OPENCODE_PLUSPLUS_TEST_FORCE_RUNNING"), "1", StringComparison.Ordinal)) return true;
+        if (String.Equals(Environment.GetEnvironmentVariable("OPENCODE_PLUSPLUS_TEST_IGNORE_RUNNING"), "1", StringComparison.Ordinal)) return false;
         try
         {
             return Process.GetProcessesByName("OpenCode").Length > 0;
