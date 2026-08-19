@@ -4,6 +4,8 @@
 
 OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录和一个范围严格受限的宿主补丁接入。补丁只在内置 `SessionPrompt.command` 分发器中拦截三个 OpenCode++ 命令名，不修改 renderer、更新器、账户系统、认证逻辑或其他应用逻辑。
 
+这个 EXE 是 OpenCode++ 唯一面向用户的安装与使用路径。CLI（`opencode-plusplus`）和 MCP 服务（`opencode-plusplus-mcp`）保留在仓库中作为内部 dev/test 兼容面，不出现在安装器 payload 里。完整边界划分见 [产品边界说明](../developer/product-boundary.zh-CN.md)。
+
 ## 安装
 
 1. 完全退出 OpenCode Desktop。

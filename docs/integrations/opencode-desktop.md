@@ -4,6 +4,8 @@
 
 OpenCode++ integrates with the official OpenCode Desktop through its user-level plugin directory and a narrowly scoped host patch. The patch only intercepts three OpenCode++ command names in the bundled `SessionPrompt.command` handler; it does not modify the renderer, updater, account system, authentication, or unrelated application logic.
 
+This EXE is the only user-facing installation and usage path for OpenCode++. The CLI (`opencode-plusplus`) and MCP server (`opencode-plusplus-mcp`) remain in the repository as internal dev/test compatibility surfaces and never appear in the installer payload. The full boundary map is in [Product Boundary](../developer/product-boundary.md).
+
 ## Install
 
 1. Close OpenCode Desktop completely.
