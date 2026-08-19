@@ -12,9 +12,17 @@ OpenCode++ 不替换官方 OpenCode Desktop，也不安装第二个桌面外壳�
 2. 完全退出 OpenCode Desktop。
 3. 双击 EXE，等待安装完成。
 4. 重新打开 OpenCode Desktop，打开目标仓库并新建会话。
-5. 确认工具列表中存在 `opencode_plusplus_status`。
+5. 在会话中输入 `/plusplus-task <任务>`，Harness 会接管任务准备、编辑边界、验证和收尾。
 
 安装器只写当前 Windows 用户目录，不需要管理员权限。默认位置为 `%USERPROFILE%\.config\opencode`；如果 OpenCode 使用 `OPENCODE_CONFIG_DIR` 或 `XDG_CONFIG_HOME`，插件会安装到对应目录。
+
+## Harness 工作流
+
+安装器同时写入 `/plusplus-task`、`/plusplus-verify` 两个全局 Slash Command 和 `opencode-plusplus` skill，重启 Desktop 后即可直接使用，无需任何命令行：
+
+- `/plusplus-task <task>`：按 `opencode_plusplus_prepare` → 读 `mustInspect` → 只在 `allowedEditGlobs` 内修改 → 跑 `requiredCommands` → `opencode_plusplus_evaluate` → `opencode_plusplus_next` 的顺序执行；`nextAction` 不是 `finalize` 时不得声称完成。
+- `/plusplus-verify`：重跑 evaluate + next，列出阻塞项、缺失证据和必跑命令。
+- skill 在具体编码任务、跨模块修改和收尾验证时自动加载，纯问答不加载。
 
 ## 状态与开关
 
@@ -46,6 +54,12 @@ OpenCode Slash Command 默认是发给模型的 Prompt Template。安装器会�
 ```text
 %USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
 %USERPROFILE%\.config\opencode\opencode-plusplus\state.json
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
+%USERPROFILE%\.config\opencode\commands\plusplus-task.md
+%USERPROFILE%\.config\opencode\commands\plusplus-verify.md
+%USERPROFILE%\.config\opencode\skills\opencode-plusplus\SKILL.md
 ```
 
 目标仓库中的 Harness 文件位于 `.agent-context/`，包括 context、trace、evidence、policy、guard、loop 和 orchestrator artifact。它们不是 OpenCode Desktop 安装文件。
@@ -54,7 +68,7 @@ OpenCode Slash Command 默认是发给模型的 Prompt Template。安装器会�
 
 - **升级**：退出 OpenCode，下载新 EXE 并再次双击。安装器覆盖插件、清理旧 Prompt Command，并保留有效的启用状态。
 - **临时关闭**：使用 EXE 的 `--disable`，之后用 `--enable` 恢复；也可让 Agent 调用对应工具。
-- **卸载**：使用 EXE 的 `--uninstall`。它只删除 OpenCode++ 写入的插件、遗留命令、状态和安装清单，不删除仓库 `.agent-context/`。
+- **卸载**：使用 EXE 的 `--uninstall`。它只删除 OpenCode++ 写入的插件、命令、skill、状态和安装清单，不删除仓库 `.agent-context/`。
 - **验证状态**：使用 EXE 的 `--status --json`，或在 OpenCode 中调用状态工具。
 
 ## 产品边界

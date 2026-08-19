@@ -12,9 +12,17 @@ OpenCode++ does not replace the official OpenCode Desktop application, and it do
 2. Fully exit OpenCode Desktop.
 3. Double-click the EXE and wait for the completion message.
 4. Reopen OpenCode Desktop, open the target repository, and start a session.
-5. Confirm that `opencode_plusplus_status` appears in the tool list.
+5. Type `/plusplus-task <task>` in the session; the harness takes over task preparation, edit boundaries, verification, and finalization.
 
 The installer writes only to the current Windows user directory and does not require administrator privileges. The default location is `%USERPROFILE%\.config\opencode`; `OPENCODE_CONFIG_DIR` or `XDG_CONFIG_HOME` is honored when OpenCode uses a custom configuration directory.
+
+## Harness Workflow
+
+The installer also writes the global `/plusplus-task` and `/plusplus-verify` Slash Commands plus the `opencode-plusplus` skill. After restarting Desktop they work immediately, with no command line involved:
+
+- `/plusplus-task <task>` follows `opencode_plusplus_prepare` → read `mustInspect` files → edit only inside `allowedEditGlobs` → run `requiredCommands` with the built-in shell tool → `opencode_plusplus_evaluate` → `opencode_plusplus_next`. Completion must not be claimed while `nextAction` is not `finalize`.
+- `/plusplus-verify` re-runs evaluate and next, then reports blocking state, missing evidence, and the commands that still must run.
+- The skill loads automatically for concrete coding tasks, cross-module changes, and final verification; it stays out for pure Q&A.
 
 ## Status and Controls
 
@@ -46,6 +54,12 @@ User-level installation files:
 ```text
 %USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
 %USERPROFILE%\.config\opencode\opencode-plusplus\state.json
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
+%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
+%USERPROFILE%\.config\opencode\commands\plusplus-task.md
+%USERPROFILE%\.config\opencode\commands\plusplus-verify.md
+%USERPROFILE%\.config\opencode\skills\opencode-plusplus\SKILL.md
 ```
 
 Harness files in the target repository live under `.agent-context/` and include context, trace, evidence, policy, guard, loop, and orchestrator artifacts. They are not OpenCode Desktop installation files.
@@ -54,7 +68,7 @@ Harness files in the target repository live under `.agent-context/` and include 
 
 - **Upgrade**: exit OpenCode, download the newer EXE, and double-click it. The installer replaces the plugin, removes legacy prompt commands, and preserves a valid enabled state.
 - **Temporarily disable**: use the EXE `--disable` option and restore with `--enable`, or ask the agent to call the matching tool.
-- **Uninstall**: run the EXE with `--uninstall`. It removes only OpenCode++ plugin, legacy command, state, and manifest files, not `.agent-context/`.
+- **Uninstall**: run the EXE with `--uninstall`. It removes only the OpenCode++ plugin, command, skill, state, and manifest files, not `.agent-context/`.
 - **Check status**: run the EXE with `--status --json`, or call the status tool in OpenCode.
 
 ## Product Boundary
