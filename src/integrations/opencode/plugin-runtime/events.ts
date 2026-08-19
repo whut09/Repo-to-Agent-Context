@@ -8,7 +8,35 @@ export interface OpenCodeSidecarRuntimeContext {
     app?: {
       log?: (input: { service: string; level: string; message: string; extra?: Record<string, unknown> }) => void;
     };
+    tui?: {
+      toast?: {
+        show?: (input: { title: string; message: string }) => void;
+      };
+    };
   };
+}
+
+export function notifyOpenCodePlusPlusToast(context: OpenCodeSidecarRuntimeContext, title: string, message: string): "toast" | "log" {
+  const toast = context.client?.tui?.toast?.show;
+  if (typeof toast === "function") {
+    try {
+      toast.call(context.client?.tui?.toast, { title, message });
+      return "toast";
+    } catch {
+      // Fall through to structured logging; a toast failure must never break the session.
+    }
+  }
+  try {
+    context.client?.app?.log?.({
+      service: "opencode-plusplus",
+      level: "info",
+      message: `${title}: ${message}`,
+      extra: { toast: true }
+    });
+  } catch {
+    // Structured logging is best-effort and must never interrupt OpenCode.
+  }
+  return "log";
 }
 
 export interface OpenCodeSidecarRecorder {
