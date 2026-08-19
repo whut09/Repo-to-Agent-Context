@@ -61,27 +61,31 @@ test("OpenCode init writes commands and agent files without overwriting by defau
     assert.deepEqual(
       first.files.map((file) => `${file.path}:${file.status}`),
       [
-        ".opencode/commands/opencode-plusplus.md:written",
-        ".opencode/commands/opencode-plusplus-verify.md:written",
+        ".opencode/commands/plusplus-task.md:written",
+        ".opencode/commands/plusplus-verify.md:written",
         ".opencode/agents/opencode-plusplus.md:written"
       ]
     );
-    assert.ok(existsSync(path.join(root, ".opencode", "commands", "opencode-plusplus.md")));
-    assert.ok(readFileSync(path.join(root, ".opencode", "commands", "opencode-plusplus.md"), "utf8").includes('opencode-plusplus oc "$ARGUMENTS" .'));
-    assert.ok(
-      readFileSync(path.join(root, ".opencode", "commands", "opencode-plusplus-verify.md"), "utf8").includes("opencode-plusplus oc report --last --summary")
-    );
+    assert.ok(existsSync(path.join(root, ".opencode", "commands", "plusplus-task.md")));
+    const taskContent = readFileSync(path.join(root, ".opencode", "commands", "plusplus-task.md"), "utf8");
+    assert.match(taskContent, /Task: \$ARGUMENTS/);
+    assert.match(taskContent, /opencode_plusplus_prepare/);
+    const verifyContent = readFileSync(path.join(root, ".opencode", "commands", "plusplus-verify.md"), "utf8");
+    assert.match(verifyContent, /opencode_plusplus_evaluate/);
+    for (const content of [taskContent, verifyContent, readFileSync(path.join(root, ".opencode", "agents", "opencode-plusplus.md"), "utf8")]) {
+      assert.doesNotMatch(content, /opencode-plusplus oc\b/, "project init files must not reference the opencode-plusplus oc CLI command");
+    }
     assert.ok(readFileSync(path.join(root, ".opencode", "agents", "opencode-plusplus.md"), "utf8").includes("OpenCode++ Executor Agent"));
-    writeFileSync(path.join(root, ".opencode", "commands", "opencode-plusplus.md"), "custom\n", "utf8");
+    writeFileSync(path.join(root, ".opencode", "commands", "plusplus-task.md"), "custom\n", "utf8");
     const second = initOpencodeProject(root);
 
-    assert.equal(second.files.find((file) => file.path === ".opencode/commands/opencode-plusplus.md")?.status, "skipped");
-    assert.equal(readFileSync(path.join(root, ".opencode", "commands", "opencode-plusplus.md"), "utf8"), "custom\n");
+    assert.equal(second.files.find((file) => file.path === ".opencode/commands/plusplus-task.md")?.status, "skipped");
+    assert.equal(readFileSync(path.join(root, ".opencode", "commands", "plusplus-task.md"), "utf8"), "custom\n");
 
     const forced = initOpencodeProject(root, { force: true });
 
-    assert.equal(forced.files.find((file) => file.path === ".opencode/commands/opencode-plusplus.md")?.status, "written");
-    assert.notEqual(readFileSync(path.join(root, ".opencode", "commands", "opencode-plusplus.md"), "utf8"), "custom\n");
+    assert.equal(forced.files.find((file) => file.path === ".opencode/commands/plusplus-task.md")?.status, "written");
+    assert.notEqual(readFileSync(path.join(root, ".opencode", "commands", "plusplus-task.md"), "utf8"), "custom\n");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -96,7 +100,7 @@ test("OpenCode init dry-run reports files without writing them", () => {
     assert.ok(report.files.every((file) => file.status === "would-write"));
     assert.equal(existsSync(path.join(root, ".opencode")), false);
     assert.match(rendered, /OpenCode\+\+ OpenCode Init/);
-    assert.match(rendered, /\/opencode-plusplus <task>/);
+    assert.match(rendered, /\/plusplus-task <task>/);
     assert.doesNotMatch(rendered, /Legacy aliases/);
   } finally {
     rmSync(root, { recursive: true, force: true });
