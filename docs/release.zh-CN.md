@@ -2,12 +2,12 @@
 
 [English](release.md) | 中文
 
-OpenCode++ 发布两个运行时交付物：
+OpenCode++ 有一个产品交付物和一个开发者交付物：
 
-- npm 包：CLI、MCP、Harness 和共享运行时；
-- Windows EXE：官方 OpenCode Desktop 的用户级全局插件安装器，以及经过特征检查的原生命令补丁。
+- Windows EXE 是产品发布物：官方 OpenCode Desktop 的用户级全局插件安装器，以及经过特征检查的原生命令补丁；
+- npm 包是开发者 artifact：把 CLI、MCP、Harness 和共享运行时作为开发/CI 工具携带，Desktop 用户从不安装它。
 
-benchmark fixture、agent-runs、仓库文档、源代码资产和本地运行时文件不应进入 npm 包。Windows EXE 只修改文档规定且经过特征检查的命令分发器，安装后需要重启 OpenCode。
+benchmark fixture、agent-runs、仓库文档、源代码资产和本地运行时文件不应进入 npm 包，npm 包还必须排除 `release/`、`.installer-build/` 和 `apps/desktop/`。Windows EXE 只修改文档规定且经过特征检查的命令分发器，安装后需要重启 OpenCode。
 
 ## 发布前检查
 
@@ -31,7 +31,7 @@ Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x �
 
 根 package.json 的 version 是唯一版本源。package-info:generate 生成 CLI、MCP、freshness 和插件使用的运行时版本常量。release:verify 检查 npm pack manifest、文件数、包大小和必需入口。
 
-确认 npm 包包含 dist、README、配置示例和 LICENSE，但不包含 node_modules、benchmark fixture、agent-runs、本地 cache 或 .agent-context。Windows Release 同时上传 EXE 和 SHA256，清洁 checkout 能重新构建。
+确认 npm 包包含 dist（含插件入口 `dist/integrations/opencode/global-plugin.js`）、README、配置示例和 LICENSE，但不包含 node_modules、benchmark fixture、agent-runs、本地 cache、`.installer-build/` 或 .agent-context。Windows Release 同时上传 EXE 和 SHA256，清洁 checkout 能重新构建。
 
 ## Windows 发布说明
 

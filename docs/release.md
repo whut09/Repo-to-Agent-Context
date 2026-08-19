@@ -2,12 +2,12 @@
 
 [中文](release.zh-CN.md) | English
 
-OpenCode++ publishes two runtime deliverables:
+OpenCode++ ships one product deliverable and one developer deliverable:
 
-- the npm package for CLI, MCP, Harness, and shared runtime code;
-- the Windows EXE for the user-level official OpenCode Desktop plugin and its marker-checked native command patch.
+- the Windows EXE is the product release: the user-level official OpenCode Desktop plugin and its marker-checked native command patch;
+- the npm package is a developer artifact that carries the CLI, MCP, Harness, and shared runtime code as development/CI tooling. Desktop users never install it.
 
-Benchmark fixtures, agent runs, repository documentation, local runtime artifacts, and stale build output must not enter the npm package.
+Benchmark fixtures, agent runs, repository documentation, local runtime artifacts, and stale build output must not enter the npm package. The npm package must also exclude `release/`, `.installer-build/`, and `apps/desktop/`.
 
 ## Full Gate
 
@@ -29,7 +29,7 @@ npm run build:installer:windows
 
 The root package.json version is the single version source. package-info:generate creates runtime constants used by CLI, MCP, freshness, and the plugin bundle.
 
-Confirm that npm pack contains dist, README files, config examples, package metadata, and LICENSE. It must not contain node_modules, benchmark fixtures, agent-runs, local cache, .agent-context, release EXEs, or stale Desktop/TUI output.
+Confirm that npm pack contains dist, README files, config examples, package metadata, and LICENSE, including the plugin entry `dist/integrations/opencode/global-plugin.js`. It must not contain node_modules, benchmark fixtures, agent-runs, local cache, .agent-context, release EXEs, `.installer-build/`, or stale Desktop/TUI output.
 
 ## Windows EXE
 
