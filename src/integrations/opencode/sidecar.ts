@@ -114,6 +114,8 @@ export interface OpenCodeSidecarToolRecordInput {
   workingTreeHashBefore?: string;
   workingTreeHashAfter?: string;
   sessionId?: string;
+  taskId?: string;
+  source?: "desktop-hook" | "cli" | "ci" | "manual";
   paths?: string[];
 }
 

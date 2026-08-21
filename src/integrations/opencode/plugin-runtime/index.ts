@@ -8,7 +8,7 @@ import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
 import { createSessionLifecycle } from "./session-lifecycle.js";
-import { initializeWorkflowState, updateWorkflowState } from "./harness/workflow.js";
+import { initializeWorkflowState, readWorkflowState, updateWorkflowState } from "./harness/workflow.js";
 import {
   defaultOpenCodePlusPlusStateFile,
   readOpenCodePlusPlusPluginStatus,
@@ -87,6 +87,8 @@ export async function createOpenCodePlusPlusSidecar(
         workingTreeHashBefore: started.workingTreeHashBefore,
         workingTreeHashAfter: currentSidecarWorkingTreeHash(context.directory),
         sessionId: sessionId ? String(sessionId) : undefined,
+        taskId: sessionId ? readWorkflowState(context.directory, String(sessionId))?.taskId ?? undefined : undefined,
+        source: "desktop-hook" as const,
         paths,
         stdoutHash: stdoutEvidence.hash,
         stdoutPreview: stdoutEvidence.preview,

@@ -48,7 +48,9 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
     workingTreeHashBefore,
     workingTreeHashAfter,
     filesTouched,
-    sessionId
+    sessionId,
+    taskId: input.taskId ?? null,
+    source: input.source ?? "desktop-hook"
   };
 
   appendTextLocked(eventLogPath, `${JSON.stringify(event)}\n`);
@@ -75,7 +77,8 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
     stdoutRedacted: stdout.redacted,
     stderrRedacted: stderr.redacted,
     workingTreeHashBefore,
-    workingTreeHashAfter
+    workingTreeHashAfter,
+    source: input.source ?? "desktop-hook"
   });
   const step = trace.steps.at(-1);
   if (!step) throw new Error(`Failed to append OpenCode sidecar trace step: ${traceId}`);

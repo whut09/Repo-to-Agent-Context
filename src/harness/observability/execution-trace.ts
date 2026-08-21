@@ -11,6 +11,7 @@ export type ExecutionFinalState = "planned" | "in_progress" | "partial_success" 
 export type ExecutionStepResult = "passed" | "failed" | "skipped" | "unknown";
 export type ExecutionEvidenceSource = "manual" | "command" | "ci";
 export type ExecutionCapturedBy = "opencode-plusplus" | "external";
+export type ExecutionEvidenceSourceName = "desktop-hook" | "cli" | "ci" | "manual";
 
 export interface ExecutionTraceStep {
   id: string;
@@ -24,6 +25,7 @@ export interface ExecutionTraceStep {
   result?: ExecutionStepResult;
   output?: string;
   evidenceSource?: ExecutionEvidenceSource;
+  source?: ExecutionEvidenceSourceName;
   capturedBy?: ExecutionCapturedBy;
   exitCode?: number | null;
   startedAt?: string;
@@ -67,6 +69,7 @@ export interface TraceStepInput {
   test?: string;
   result?: ExecutionStepResult;
   output?: string;
+  source?: ExecutionEvidenceSourceName;
   finalState?: ExecutionFinalState;
   evidenceSource?: ExecutionEvidenceSource;
   capturedBy?: ExecutionCapturedBy;
@@ -147,8 +150,9 @@ export function appendExecutionTraceStep(root: string, traceId: string, input: T
       test: input.test,
       result: input.result,
       output: input.output,
-      evidenceSource: input.evidenceSource ?? "manual",
-      capturedBy: input.capturedBy,
+       evidenceSource: input.evidenceSource ?? "manual",
+       source: input.source,
+       capturedBy: input.capturedBy,
       exitCode: input.exitCode,
       startedAt: input.startedAt,
       finishedAt: input.finishedAt,
