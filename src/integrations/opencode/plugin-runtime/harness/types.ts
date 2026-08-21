@@ -42,6 +42,20 @@ export interface PluginHarnessSession {
   updatedAt: string;
 }
 
+export interface PluginWorkflowState {
+  sessionId: string;
+  phase: "created" | "prepared" | "editing" | "evaluated" | "next" | "finalize" | "blocked";
+  taskId: string | null;
+  contextFingerprint: string | null;
+  initialWorkingTreeHash: string;
+  currentWorkingTreeHash: string;
+  editBoundary: { allowedEditGlobs: string[]; avoidEditGlobs: string[] };
+  requiredTests: string[];
+  lastEventKey: string | null;
+  sourceChanged: boolean;
+  updatedAt: string;
+}
+
 export type PluginHarnessToolKind = "prepare" | "retrieve" | "evaluate" | "next";
 export type PluginTaskIdSource = "argument" | "session" | "created" | "none";
 

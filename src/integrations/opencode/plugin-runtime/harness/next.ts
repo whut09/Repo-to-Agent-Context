@@ -10,7 +10,7 @@ export async function nextPluginHarnessAction(root: string, args: PluginNextArgs
   const latest = readPluginEvaluateState(root, args.sessionId);
   if (!latest || latest.taskId !== resolved.taskId) return `next requires a current evaluate result for ${resolved.taskId}. Call evaluate first.`;
 
-  const finalize = isFinalizeAction(latest.decision, latest.blocking);
+  const finalize = isFinalizeAction(latest.decision, latest.blocking, latest.missingEvidence, latest.requiredCommands);
   const nextAction = finalize ? "finalize" : latest.decision === "ready-for-review" ? "evaluate" : latest.decision;
   return createPluginHarnessResult(root, {
     ok: true,
