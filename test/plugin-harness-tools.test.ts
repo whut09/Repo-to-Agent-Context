@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { runGit } from "../src/core/git.js";
 import { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "../src/integrations/opencode/plugin-runtime/harness/index.js";
 import { pluginEvaluateStatePath } from "../src/integrations/opencode/plugin-runtime/harness/session.js";
+import { readExecutionTrace } from "../src/harness/observability/execution-trace.js";
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
 
@@ -92,6 +93,22 @@ test("evaluate reads the current working tree and next requires a matching evalu
     const missing = result(await tools.opencode_plusplus_next.execute({ taskId: other.taskId }));
     assert.equal(missing.ok, false);
     assert.equal(missing.error?.code, "HARNESS_ERROR");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Desktop hook evidence is readable from the shared execution trace", async () => {
+  const root = createPluginHarnessRepo();
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "state.json") });
+    const eventLog = plugin["tool.execute.after"] as (input: unknown, output: unknown) => Promise<void>;
+    await eventLog({ tool: "shell", sessionID: "session-evidence", args: { command: "npm run test" } }, { exitCode: 0, stdout: "ok", stderr: "" });
+    const trace = readExecutionTrace(root, "opencode-session-session-evidence");
+    assert.equal(trace?.steps.at(-1)?.evidenceSource, "command");
+    assert.equal(trace?.steps.at(-1)?.capturedBy, "opencode-plusplus");
+    assert.equal(trace?.steps.at(-1)?.source, "desktop-hook");
+    assert.match(trace?.steps.at(-1)?.stdoutHash ?? "", /^[a-f0-9]{64}$/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
