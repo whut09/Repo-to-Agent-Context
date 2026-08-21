@@ -63,8 +63,9 @@ test("structured harness errors never become unparseable text", () => {
 });
 
 test("next completion rule forbids claiming done unless finalize is unblocked", () => {
-  assert.equal(isFinalizeAction("ready-for-review", false), true);
-  assert.equal(isFinalizeAction("run-tests", false), false);
+  assert.equal(isFinalizeAction("ready-for-review", false), false);
+  assert.equal(isFinalizeAction("finalize", false, [], []), true);
+  assert.equal(isFinalizeAction("finalize", true, [], []), false);
   assert.match(completionRuleFor("run-tests", true), /不得声称任务完成/);
-  assert.match(completionRuleFor("ready-for-review", false), /ready for review/);
+  assert.match(completionRuleFor("finalize", false, [], []), /decision=finalize/);
 });

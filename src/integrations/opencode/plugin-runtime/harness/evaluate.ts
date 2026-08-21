@@ -6,12 +6,15 @@ import { evaluateFindings, evaluateMissingEvidence, evaluateRequiredCommands } f
 import { createPluginHarnessResult } from "./protocol.js";
 import { resolvePluginTask, taskRunExists, writePluginEvaluateState } from "./session.js";
 import type { PluginEvaluateArgs, PluginEvaluateResult } from "./types.js";
+import { readWorkflowState, updateWorkflowState } from "./workflow.js";
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
   const resolved = resolvePluginTask(root, args.taskId, args.sessionId);
   if (!resolved.taskId) return "evaluate needs a taskId or a previous prepare in this repository.";
   if (!taskRunExists(root, resolved.taskId)) return `evaluate could not find a task run for ${resolved.taskId}. Call prepare first.`;
 
+  const workflow = resolved.sessionId ? readWorkflowState(root, resolved.sessionId) : undefined;
+  if (resolved.source === "none" || (workflow && !workflow.taskId)) return "evaluate requires prepare before evaluating source changes.";
   const context = await loadPluginHarnessContext(root);
   const task = resolved.task ?? resolved.taskId;
   const guardStack = await runSidecarIncrementalVerifier(root, { base: "main", changedFiles: [] });
@@ -36,6 +39,8 @@ export async function evaluatePluginHarness(root: string, args: PluginEvaluateAr
     avoidEditGlobs: [],
     artifacts: [".agent-context/sidecar/plugin-evaluate.json", ".agent-context/sidecar/latest.json"]
   });
+  if (resolved.sessionId)
+    updateWorkflowState(root, resolved.sessionId, { phase: "evaluated", taskId: resolved.taskId, eventKey: `evaluate:${result.workingTreeHash}` });
   writePluginEvaluateState(root, {
     schemaVersion: result.schemaVersion,
     taskId: resolved.taskId,

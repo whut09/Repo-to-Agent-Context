@@ -69,8 +69,8 @@ test("prepare is idempotent, task state is isolated, and next consumes current e
 
     const next = result(await tools.opencode_plusplus_next.execute({ taskId: first.taskId, sessionId: "session-a" }));
     assert.equal(next.taskId, first.taskId);
-    assert.equal(next.nextAction === "finalize", next.blocking === false);
     if (next.blocking) assert.notEqual(next.nextAction, "finalize");
+    assert.equal(next.decision === "finalize" && next.missingEvidence.length === 0 && next.requiredCommands.length === 0, next.nextAction === "finalize");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

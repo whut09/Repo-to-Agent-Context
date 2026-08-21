@@ -8,6 +8,7 @@ import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
 import { createSessionLifecycle } from "./session-lifecycle.js";
+import { initializeWorkflowState, updateWorkflowState } from "./harness/workflow.js";
 import {
   defaultOpenCodePlusPlusStateFile,
   readOpenCodePlusPlusPluginStatus,
@@ -133,6 +134,15 @@ export async function createOpenCodePlusPlusSidecar(
     "tool.execute.before": async (input: unknown, output: unknown) => {
       if (!enabled()) return;
       const normalized = normalizeToolExecuteBefore(input, output);
+      const sessionId = normalized.sessionId ?? "default";
+      const workflow = initializeWorkflowState(context.directory, sessionId);
+      if (normalized.tool !== "shell" && workflow.sourceChanged && !workflow.taskId) {
+        throw new Error("OpenCode++ requires opencode_plusplus_prepare before source edits.");
+      }
+      updateWorkflowState(context.directory, sessionId, {
+        phase: workflow.taskId ? "editing" : workflow.phase,
+        eventKey: `tool:${normalized.callId ?? toolKey(normalized.tool, normalized.args)}`
+      });
       rememberToolStart(normalized.tool, normalized.args, normalized.callId);
       runCommandGuard(context.directory, recorder, normalized.tool, normalized.args);
     },
@@ -147,6 +157,8 @@ export async function createOpenCodePlusPlusSidecar(
       const eventRecord = event ?? {};
       const type = eventRecord.type;
       if (type === "session.created") {
+        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+        initializeWorkflowState(context.directory, sessionId);
         lifecycle.onSessionCreated();
         return;
       }
@@ -156,16 +168,25 @@ export async function createOpenCodePlusPlusSidecar(
       if (type === "file.edited") {
         const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
         const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
+        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+        const workflow = initializeWorkflowState(context.directory, sessionId);
+        updateWorkflowState(context.directory, sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.edited:${file}` });
         idle.markDirty("file.edited", { file });
       }
 
       if (type === "file.watcher.updated") {
         const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
         const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
+        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+        const workflow = initializeWorkflowState(context.directory, sessionId);
+        if (!workflow.taskId) throw new Error("OpenCode++ requires opencode_plusplus_prepare before source edits.");
+        updateWorkflowState(context.directory, sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.watcher.updated:${file}` });
         idle.markDirty("file.watcher.updated", { file });
       }
 
       if (type === "session.idle") {
+        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+        updateWorkflowState(context.directory, sessionId, { eventKey: `session.idle:${sessionId}` });
         recorder.record("session.idle");
         const verify = await idle.maybeVerifyOnIdle();
         lifecycle.onSessionIdle(verify);

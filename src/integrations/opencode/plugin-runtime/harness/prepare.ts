@@ -5,6 +5,8 @@ import type { TaskRunManifest } from "../../../../outputs/task-run.js";
 import { loadPluginHarnessContext } from "./context.js";
 import { taskRunManifestPath, writePluginHarnessSession } from "./session.js";
 import { createPluginHarnessResult } from "./protocol.js";
+import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
+import { contextFingerprint, updateWorkflowState } from "./workflow.js";
 import type { PluginPrepareArgs, PluginPrepareResult } from "./types.js";
 
 export async function preparePluginHarnessTask(root: string, args: PluginPrepareArgs): Promise<PluginPrepareResult> {
@@ -24,6 +26,17 @@ export async function preparePluginHarnessTask(root: string, args: PluginPrepare
     updatedAt: new Date().toISOString()
   });
   const artifacts = manifest.files ?? [];
+  if (args.sessionId) {
+    updateWorkflowState(root, args.sessionId, {
+      phase: "prepared",
+      taskId: resolvedTaskId,
+      contextFingerprint: contextFingerprint(root, resolvedTaskId),
+      initialWorkingTreeHash: currentSidecarWorkingTreeHash(root),
+      editBoundary: { allowedEditGlobs: manifest.allowedEditGlobs, avoidEditGlobs: manifest.avoidEditGlobs },
+      requiredTests: manifest.requiredCommands,
+      eventKey: `prepare:${resolvedTaskId}`
+    });
+  }
   return createPluginHarnessResult(root, {
     ok: true,
     tool: "prepare",
