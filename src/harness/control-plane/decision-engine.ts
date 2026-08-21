@@ -11,6 +11,9 @@ export const HARNESS_DECISION_PRIORITY: Record<HarnessDecisionAction, number> = 
   repair: 70,
   "run-tests": 65,
   "human-review": 60,
+  "executor-failure": 95,
+  "no-progress": 110,
+  "max-loops-reached": 105,
   finalize: 10
 };
 
@@ -40,7 +43,7 @@ export function collectDecisionCandidates(input: DecisionEngineInput): HarnessDe
       candidate({
         id: "executor.failure",
         source: "executor",
-        action: "block",
+        action: "executor-failure",
         confidence: 0.94,
         reasons: [
           "The selected executor failed before the harness could trust the result.",
@@ -175,7 +178,7 @@ export function arbitrateDecisionCandidates(candidates: HarnessDecisionCandidate
 
 export function maxLoopHarnessDecision(maxLoops: number, lastDecision: HarnessDecision): HarnessDecision {
   return decision({
-    action: "human-review",
+    action: "max-loops-reached",
     blocking: true,
     confidence: 0.9,
     reasons: [
@@ -192,7 +195,7 @@ export function maxLoopHarnessDecision(maxLoops: number, lastDecision: HarnessDe
 
 export function noProgressHarnessDecision(fingerprint: string, lastDecision: HarnessDecision): HarnessDecision {
   return decision({
-    action: "human-review",
+    action: "no-progress",
     blocking: true,
     confidence: 0.94,
     reasons: [

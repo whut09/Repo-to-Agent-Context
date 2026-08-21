@@ -460,7 +460,9 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
           missingEvidence: loop.runtime.missingEvidence,
           requiredCommands: decision.requiredCommands,
           contextFreshness: loop.context.freshness,
-          contextDrift: loop.context.drift
+          contextDrift: loop.context.drift,
+          taskId: taskRun.runId,
+          sessionId: "orchestrator"
         });
         convergence = evaluateConvergence({
           fingerprint,

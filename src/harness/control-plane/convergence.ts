@@ -13,6 +13,8 @@ export interface IterationStateFingerprintInput {
   requiredCommands: string[];
   contextFreshness: string;
   contextDrift: string;
+  taskId?: string;
+  sessionId?: string;
 }
 
 export interface IterationStateFingerprint {
@@ -49,7 +51,9 @@ export function buildIterationStateFingerprint(input: IterationStateFingerprintI
     missingEvidence: normalizeStrings(input.missingEvidence),
     requiredCommands: normalizeStrings(input.requiredCommands),
     contextFreshness: input.contextFreshness,
-    contextDrift: input.contextDrift
+    contextDrift: input.contextDrift,
+    taskId: input.taskId ?? "",
+    sessionId: input.sessionId ?? ""
   };
   const serialized = stableStringify({ schemaVersion: "opencode-plusplus.iteration-fingerprint.v1", state });
   return {
@@ -85,7 +89,7 @@ export function evaluateConvergence(input: EvaluateConvergenceInput): Convergenc
 }
 
 function isTerminalAction(action: HarnessDecisionAction): boolean {
-  return action === "finalize" || action === "block" || action === "rollback" || action === "human-review";
+  return ["finalize", "block", "rollback", "human-review", "executor-failure", "no-progress", "max-loops-reached"].includes(action);
 }
 
 function normalizeStrings(items: string[]): string[] {

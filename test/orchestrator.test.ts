@@ -234,7 +234,7 @@ test("harness orchestrator blocks when a selected executor has no command adapte
 
     assert.equal(result.report.executor, "opencode");
     assert.equal(result.report.executorResult.exitCode, 2);
-    assert.equal(result.report.decision.action, "block");
+    assert.equal(result.report.decision.action, "executor-failure");
     assert.equal(result.report.convergence.status, "executor-failure");
     assert.equal(result.report.convergence.stopReason, "executor-failure");
     assert.match(result.report.executorResult.stderr, /No executor command configured/);
@@ -299,7 +299,7 @@ test("harness orchestrator continues into another iteration after repair", async
     assert.equal(result.report.iterations.length, 3);
     assert.equal(result.report.iterations[0]?.decision.action, "repack");
     assert.equal(result.report.iterations[1]?.decision.action, "repair");
-    assert.equal(result.report.decision.action, "human-review");
+    assert.equal(result.report.decision.action, "no-progress");
     assert.equal(result.report.iterations[1]?.contextRefresh?.mode, "rebuilt");
     assert.equal(result.report.iterations[2]?.contextRefresh?.mode, "reused");
     assert.equal(result.report.iterations[2]?.contextRefresh?.buildCount, 0);
@@ -333,7 +333,7 @@ test("harness orchestrator stops on repeated blocking state with no progress", a
     });
 
     assert.equal(result.report.iterations.length, 2);
-    assert.equal(result.report.decision.action, "human-review");
+    assert.equal(result.report.decision.action, "no-progress");
     assert.equal(result.report.convergence.status, "repeated-state");
     assert.equal(result.report.convergence.stopReason, "repeated-state/no-progress");
     assert.equal(result.report.iterations[0]?.convergence.status, "progressing");
@@ -367,7 +367,7 @@ test("harness orchestrator reports max-loop for a single blocking iteration", as
     });
 
     assert.equal(result.report.iterations.length, 1);
-    assert.equal(result.report.decision.action, "human-review");
+    assert.equal(result.report.decision.action, "max-loops-reached");
     assert.equal(result.report.convergence.status, "max-loops-reached");
     assert.equal(result.report.convergence.stopReason, "max-loops-reached");
     assert.equal(result.report.convergence.repeated, false);

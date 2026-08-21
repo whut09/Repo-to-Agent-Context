@@ -69,6 +69,10 @@ test("prepare is idempotent, task state is isolated, and next consumes current e
     assert.equal(existsSync(pluginEvaluateStatePath(root, "session-a")), true);
 
     const next = result(await tools.opencode_plusplus_next.execute({ taskId: first.taskId, sessionId: "session-a" }));
+    assert.equal(
+      next.findings.some((finding) => /executor|CLI|MCP/i.test(finding)),
+      false
+    );
     assert.equal(next.taskId, first.taskId);
     if (next.blocking) assert.notEqual(next.nextAction, "finalize");
     assert.equal(next.decision === "finalize" && next.missingEvidence.length === 0 && next.requiredCommands.length === 0, next.nextAction === "finalize");

@@ -1,4 +1,14 @@
-export type HarnessDecisionAction = "finalize" | "repair" | "repack" | "run-tests" | "rollback" | "block" | "human-review";
+export type HarnessDecisionAction =
+  | "finalize"
+  | "repair"
+  | "repack"
+  | "run-tests"
+  | "rollback"
+  | "block"
+  | "human-review"
+  | "executor-failure"
+  | "no-progress"
+  | "max-loops-reached";
 
 export interface ArtifactRef {
   path: string;
