@@ -120,7 +120,7 @@ export function testStepFailedByExitCode(step: ExecutionTraceStep): boolean {
 }
 
 export function testStepHasFailureOutput(step: ExecutionTraceStep): boolean {
-  if (step.result === "passed" || step.exitCode === 0) return false;
+  if (step.exitCode === 0 || step.result === "passed") return false;
   return /fail|failed|error|exception/i.test(step.output ?? "");
 }
 
@@ -238,8 +238,9 @@ function normalizeCommand(command: string): string {
 }
 
 function stepPassed(step: ExecutionTraceStep): boolean {
-  if (step.result === "passed") return true;
-  return (step.evidenceSource === "command" || step.evidenceSource === "ci") && step.exitCode === 0;
+  if (testStepFailedByExitCode(step) || testStepHasFailureOutput(step)) return false;
+  if (step.evidenceSource === "command" || step.evidenceSource === "ci") return step.exitCode === 0;
+  return step.result === "passed";
 }
 
 function isHarnessCommandEvidence(step: ExecutionTraceStep): boolean {

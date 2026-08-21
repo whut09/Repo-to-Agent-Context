@@ -133,6 +133,8 @@ export function appendExecutionTraceStep(root: string, traceId: string, input: T
   return updateJsonAtomic<ExecutionTrace>(filePath, (current) => {
     const trace = current ? { ...current, revision: current.revision ?? 0 } : null;
     if (!trace) throw new Error(`Execution trace not found: ${traceId}`);
+    const duplicate = trace.steps.find((step) => traceStepFingerprint(step) === traceStepFingerprint(input));
+    if (duplicate) return trace;
     const now = input.at ?? new Date().toISOString();
     trace.steps.push({
       id: `step-${String(trace.steps.length + 1).padStart(3, "0")}`,
@@ -167,6 +169,21 @@ export function appendExecutionTraceStep(root: string, traceId: string, input: T
     else if (trace.finalState === "planned") trace.finalState = "in_progress";
     return trace;
   });
+}
+
+function traceStepFingerprint(
+  step: Pick<ExecutionTraceStep, "action" | "command" | "test" | "startedAt" | "finishedAt" | "exitCode" | "stdoutHash" | "stderrHash">
+): string {
+  return JSON.stringify([
+    step.action,
+    step.command ?? "",
+    step.test ?? "",
+    step.startedAt ?? "",
+    step.finishedAt ?? "",
+    step.exitCode ?? null,
+    step.stdoutHash ?? "",
+    step.stderrHash ?? ""
+  ]);
 }
 
 export function runTraceCommand(root: string, traceId: string, input: TraceCommandRunInput): TraceCommandRunResult {

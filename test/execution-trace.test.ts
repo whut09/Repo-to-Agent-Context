@@ -75,6 +75,30 @@ test("execution trace run captures command evidence", () => {
   }
 });
 
+test("execution trace duplicate writes do not append duplicate steps", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-trace-dedup-"));
+  try {
+    const trace = startExecutionTrace(root, "deduplicate evidence", { agent: "opencode" });
+    const input = {
+      action: "run-test",
+      command: "npm run test",
+      result: "passed" as const,
+      at: "2026-01-01T00:00:10.000Z",
+      startedAt: "2026-01-01T00:00:01.000Z",
+      finishedAt: "2026-01-01T00:00:10.000Z",
+      exitCode: 0,
+      stdoutHash: "stdout",
+      stderrHash: "stderr"
+    };
+    const first = appendExecutionTraceStep(root, trace.id, input);
+    const second = appendExecutionTraceStep(root, trace.id, input);
+    assert.equal(first.steps.length, second.steps.length);
+    assert.equal(readExecutionTrace(root, trace.id)?.steps.length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("execution trace run rejects shell control operators", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-trace-command-safe-"));
   try {

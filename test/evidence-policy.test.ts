@@ -50,6 +50,32 @@ test("strict accepts valid CI evidence", () => {
   assert.equal(result.verified, true);
 });
 
+test("latest failure supersedes an earlier success for the same command", () => {
+  const result = evidenceSatisfies(
+    requirement("tests", "strict"),
+    trace([commandTest(currentHash, 0, "ok"), commandTest(currentHash, 1, "failed", "2026-01-01T00:00:30.000Z")])
+  );
+  assert.equal(result.satisfied, false);
+  assert.equal(result.verified, false);
+});
+
+test("latest success supersedes an earlier failure for the same command", () => {
+  const result = evidenceSatisfies(
+    requirement("tests", "strict"),
+    trace([commandTest(currentHash, 1, "failed"), commandTest(currentHash, 0, "ok", "2026-01-01T00:00:30.000Z")])
+  );
+  assert.equal(result.satisfied, true);
+  assert.equal(result.verified, true);
+});
+
+test("different test commands do not supersede one another", () => {
+  const result = evidenceSatisfies(
+    { ...requirement("tests", "strict"), requiredCommands: ["npm run test -- auth"] },
+    trace([commandTest(currentHash, 0, "ok"), commandTest(currentHash, 1, "failed", "2026-01-01T00:00:30.000Z", "npm run test -- other")])
+  );
+  assert.equal(result.satisfied, true);
+});
+
 test("strict rejects stale command and CI evidence", () => {
   const commandResult = evidenceSatisfies(requirement("tests", "strict"), trace([commandTest("old-tree")]));
   const ciResult = evidenceSatisfies(requirement("tests", "strict"), trace([ciTest("old-tree")]));
@@ -97,17 +123,24 @@ function manualContract(): ExecutionTraceStep {
   });
 }
 
-function commandTest(workingTreeHashAfter: string): ExecutionTraceStep {
+function commandTest(
+  workingTreeHashAfter: string,
+  exitCode = 0,
+  output = "ok",
+  finishedAt = "2026-01-01T00:00:20.000Z",
+  command = "npm run test"
+): ExecutionTraceStep {
   return step({
-    id: "command-test",
+    id: `command-test-${finishedAt}-${exitCode}-${command}`,
     action: "run-test",
-    command: "npm run test",
-    result: "passed",
+    command,
+    result: exitCode === 0 ? "passed" : "failed",
+    output,
     evidenceSource: "command",
     capturedBy: "opencode-plusplus",
-    exitCode: 0,
+    exitCode,
     startedAt: "2026-01-01T00:00:10.000Z",
-    finishedAt: "2026-01-01T00:00:20.000Z",
+    finishedAt,
     stdoutHash: "stdout",
     stderrHash: "stderr",
     workingTreeHashBefore: workingTreeHashAfter,
