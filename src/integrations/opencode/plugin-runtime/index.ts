@@ -87,7 +87,7 @@ export async function createOpenCodePlusPlusSidecar(
         workingTreeHashBefore: started.workingTreeHashBefore,
         workingTreeHashAfter: currentSidecarWorkingTreeHash(context.directory),
         sessionId: sessionId ? String(sessionId) : undefined,
-        taskId: sessionId ? readWorkflowState(context.directory, String(sessionId))?.taskId ?? undefined : undefined,
+        taskId: sessionId ? (readWorkflowState(context.directory, String(sessionId))?.taskId ?? undefined) : undefined,
         source: "desktop-hook" as const,
         paths,
         stdoutHash: stdoutEvidence.hash,
