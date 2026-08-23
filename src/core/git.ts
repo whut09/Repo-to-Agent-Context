@@ -20,6 +20,22 @@ export function runGit(cwd: string, args: string[]): string {
   throw new Error(`Unable to run git. Tried: ${GIT_CANDIDATES.join(", ")}. ${errors[0] ?? ""}`);
 }
 
+export function resolveGitBase(cwd: string, preferred = "main"): string {
+  const candidate = preferred.trim();
+  if (candidate && gitRefExists(cwd, candidate)) return candidate;
+  if (gitRefExists(cwd, "HEAD")) return "HEAD";
+  return candidate || "HEAD";
+}
+
+function gitRefExists(cwd: string, ref: string): boolean {
+  try {
+    runGit(cwd, ["rev-parse", "--verify", `${ref}^{commit}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function changedFilesSince(cwd: string, base: string): string[] {
   const changed = parseGitPathList(runGit(cwd, ["diff", "--name-only", base]));
   const untracked = parseGitPathList(runGit(cwd, ["ls-files", "--others", "--exclude-standard"]));

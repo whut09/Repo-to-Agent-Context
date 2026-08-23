@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { writeJsonAtomic, writeTextAtomic } from "../../core/atomic-store.js";
-import { collectWorkingTreeFiles, runGit } from "../../core/git.js";
+import { collectWorkingTreeFiles, resolveGitBase, runGit } from "../../core/git.js";
 import type { ExecutionTrace, ExecutionTraceStep } from "../../harness/observability/execution-trace.js";
 import type { ChangeImpactReport } from "../../outputs/impact.js";
 import { renderCommandCheck, renderLatestMarkdown, renderToolRecord, renderVerifyReport } from "./sidecar-report-renderer.js";
@@ -204,7 +204,8 @@ export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecar
   const changedFiles = collectCurrentChangedFiles(root);
   const blockers = detectBlockers(changedFiles);
   const warnings = detectWarnings(changedFiles);
-  const guardStack = await runSidecarIncrementalVerifier(root, { base: "main", changedFiles });
+  const base = resolveGitBase(root);
+  const guardStack = await runSidecarIncrementalVerifier(root, { base, changedFiles });
   blockers.push(...blockersFromGuardStack(guardStack));
   warnings.push(...warningsFromGuardStack(guardStack));
   checks.push({

@@ -1,5 +1,6 @@
 import { buildLoopControllerReport } from "../../../../harness/control-plane/loop-controller.js";
 import { buildPolicyReport } from "../../../../harness/verification-plane/policy-engine.js";
+import { resolveGitBase } from "../../../../core/git.js";
 import { traceIdForOpenCodeSession } from "../../sidecar-evidence-recorder.js";
 import { runSidecarIncrementalVerifier } from "../../sidecar-incremental-verifier.js";
 import { loadPluginHarnessContext } from "./context.js";
@@ -18,10 +19,11 @@ export async function evaluatePluginHarness(root: string, args: PluginEvaluateAr
   if (resolved.source === "none" || (workflow && !workflow.taskId)) return "evaluate requires prepare before evaluating source changes.";
   const context = await loadPluginHarnessContext(root);
   const task = resolved.task ?? resolved.taskId;
-  const guardStack = await runSidecarIncrementalVerifier(root, { base: "main", changedFiles: [] });
+  const base = resolveGitBase(root);
+  const guardStack = await runSidecarIncrementalVerifier(root, { base, changedFiles: [] });
   const traceId = traceIdForOpenCodeSession(resolved.sessionId);
-  const policy = buildPolicyReport(context, { base: "main", traceId, failOn: "required" });
-  const loop = buildLoopControllerReport(context, task, { phase: "after-edit", base: "main", traceId });
+  const policy = buildPolicyReport(context, { base, traceId, failOn: "required" });
+  const loop = buildLoopControllerReport(context, task, { phase: "after-edit", base, traceId });
   const result = createPluginHarnessResult(root, {
     ok: true,
     tool: "evaluate",

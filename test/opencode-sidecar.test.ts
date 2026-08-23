@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { buildContextPackage } from "../src/core/context-builder.js";
-import { runGit } from "../src/core/git.js";
+import { resolveGitBase, runGit } from "../src/core/git.js";
 import { getOpenCodePlusplusPackageVersion } from "../src/core/package-info.js";
 import { writeContextPackage } from "../src/outputs/renderers/writer.js";
 import { runOpenCodePlusplusDoctor } from "../src/cli/opencode-plusplus-commands.js";
@@ -29,6 +29,24 @@ test("OpenCode sidecar runtime extracts commands, paths, output, and hashes", ()
   assert.equal(exitCodeFromOutput({ properties: { stdout: "ok" } }), null);
   assert.equal(outputText({ properties: { stdout: "ok" } }, ["stdout"]), "ok");
   assert.match(hashText("ok"), /^[a-f0-9]{64}$/);
+});
+
+test("sidecar base resolution falls back to HEAD when main is unavailable", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-git-base-"));
+  try {
+    writeFileSync(path.join(root, "README.md"), "fixture\n", "utf8");
+    runGit(root, ["init"]);
+    runGit(root, ["checkout", "-b", "trunk"]);
+    runGit(root, ["config", "user.email", "opencode-plusplus@example.com"]);
+    runGit(root, ["config", "user.name", "OpenCode Plus Plus"]);
+    runGit(root, ["add", "."]);
+    runGit(root, ["commit", "-m", "initial"]);
+
+    assert.equal(resolveGitBase(root), "HEAD");
+    assert.equal(resolveGitBase(root, "trunk"), "trunk");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("OpenCode++ doctor reports CLI/plugin version consistency", async () => {
