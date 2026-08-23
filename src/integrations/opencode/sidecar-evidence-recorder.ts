@@ -21,7 +21,7 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   const tool = input.tool?.trim() || "unknown";
   const command = input.command?.trim() || null;
   const sessionId = normalizeSessionId(input.sessionId);
-  const traceId = `opencode-session-${sessionId}`;
+  const traceId = traceIdForOpenCodeSession(sessionId);
   const stdout = normalizeToolOutputEvidence("stdout", input);
   const stderr = normalizeToolOutputEvidence("stderr", input);
   const workingTreeHashBefore = input.workingTreeHashBefore ?? currentWorkingTreeHash(root);
@@ -83,6 +83,10 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   const step = trace.steps.at(-1);
   if (!step) throw new Error(`Failed to append OpenCode sidecar trace step: ${traceId}`);
   return { repo: root, eventLogPath, traceId, tracePath: executionTracePath(root, traceId), event, trace, step };
+}
+
+export function traceIdForOpenCodeSession(sessionId?: string | null): string {
+  return `opencode-session-${normalizeSessionId(sessionId ?? undefined)}`;
 }
 
 function safeChangedFiles(root: string): string[] {

@@ -89,9 +89,16 @@ test("evaluate reads the current working tree and next requires a matching evalu
     const prepared = result(await tools.opencode_plusplus_prepare.execute({ task: "fix login timeout bug", sessionId: "session-current" }));
     const first = result(await tools.opencode_plusplus_evaluate.execute({ taskId: prepared.taskId }));
     writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'changed'; }\n", "utf8");
+    const recordTool = plugin["tool.execute.after"] as (input: unknown, output: unknown) => Promise<void>;
+    await recordTool({ tool: "shell", sessionID: "session-current", args: { command: "npm run test" } }, { exitCode: 0, stdout: "ok", stderr: "" });
     const second = result(await tools.opencode_plusplus_evaluate.execute({ taskId: prepared.taskId }));
     assert.notEqual(first.workingTreeHash, second.workingTreeHash);
     assert.equal(second.sessionId, "session-current");
+    assert.equal(second.decision, "ready-for-review");
+    assert.equal(
+      second.missingEvidence.some((finding) => /test/i.test(finding)),
+      false
+    );
 
     const other = result(await tools.opencode_plusplus_prepare.execute({ task: "add audit logging", sessionId: "session-other" }));
     const missing = result(await tools.opencode_plusplus_next.execute({ taskId: other.taskId }));
