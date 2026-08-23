@@ -7,6 +7,7 @@ coverage/
 .turbo/
 .cache/
 .agent-context/cache/
+**/.agent-context/cache/
 .env
 .env.*
 !.env.example
