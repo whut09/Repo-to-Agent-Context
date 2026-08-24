@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,6 +15,8 @@ const nativeCommandPatchPath = path.join(staging, "native-command-patch.js");
 const installerTemplate = path.join(root, "src/installer/windows-installer.cs");
 const installerSource = path.join(staging, "windows-installer.generated.cs");
 const executable = path.join(release, "opencode-plusplus-setup-win-x64.exe");
+const releaseManifest = path.join(release, "opencode-plusplus-release.json");
+const maximumInstallerBytes = 12 * 1024 * 1024;
 
 rmSync(staging, { recursive: true, force: true });
 mkdirSync(staging, { recursive: true });
@@ -63,21 +66,44 @@ run(csc, [
   installerSource
 ]);
 
-const checksum = spawnSync("certutil.exe", ["-hashfile", executable, "SHA256"], { encoding: "utf8" });
-const digest =
-  checksum.status === 0
-    ? checksum.stdout
-        .split(/\r?\n/)
-        .slice(1)
-        .find((line) => /^[0-9a-f ]{64,}$/i.test(line.trim()))
-        ?.replace(/\s+/g, "")
-        .toLowerCase()
-    : undefined;
-if (!digest) throw new Error(`Unable to calculate SHA256 for ${executable}: ${checksum.stderr || checksum.stdout}`);
+const executableBytes = statSync(executable).size;
+if (executableBytes > maximumInstallerBytes) throw new Error(`Installer is ${executableBytes} bytes; maximum is ${maximumInstallerBytes}.`);
+const digest = createHash("sha256").update(readFileSync(executable)).digest("hex");
 writeFileSync(`${executable}.sha256`, `${digest}  ${path.basename(executable)}\n`, "utf8");
+writeFileSync(
+  releaseManifest,
+  `${JSON.stringify(
+    {
+      schemaVersion: 1,
+      version: packageVersion,
+      product: "OpenCode++ Desktop plugin",
+      platform: "win32",
+      architecture: "x64",
+      installer: {
+        file: path.basename(executable),
+        bytes: executableBytes,
+        maximumBytes: maximumInstallerBytes,
+        sha256: digest,
+        checksumFile: `${path.basename(executable)}.sha256`
+      },
+      plugin: {
+        entry: "src/integrations/opencode/global-plugin.ts",
+        bundleBytes: statSync(pluginPath).size,
+        compressedBytes: pluginGzip.length,
+        exportCount: pluginExports.length
+      },
+      nativeCommands: ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off"],
+      patchMarker: "OPENCODE_PLUSPLUS_NATIVE_COMMANDS"
+    },
+    null,
+    2
+  )}\n`,
+  "utf8"
+);
 console.log(`Built ${executable}`);
-console.log(`Installer size ${statSync(executable).size} bytes; compressed plugin ${pluginGzip.length} bytes`);
+console.log(`Installer size ${executableBytes} bytes; compressed plugin ${pluginGzip.length} bytes`);
 console.log(`SHA256 ${digest}`);
+console.log(`Release manifest ${releaseManifest}`);
 
 function findCsc() {
   const windows = process.env.WINDIR || process.env.SystemRoot || "C:\\Windows";
