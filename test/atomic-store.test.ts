@@ -75,10 +75,11 @@ test("concurrent trace appends retain every step", async () => {
 });
 
 test("Windows-style nested paths and temporary files are handled safely", () => {
-  const root = createRoot();
+  const root = path.join(createRoot(), "目录 with spaces");
   const filePath = path.join(root, "nested", "windows-style.json");
   writeJsonAtomic(filePath, { ok: true });
-  assert.deepEqual(JSON.parse(readFileSync(filePath, "utf8")), { ok: true });
+  writeJsonAtomic(filePath, { ok: "updated" }, { renameRetries: 2, renameRetryMs: 1 });
+  assert.deepEqual(JSON.parse(readFileSync(filePath, "utf8")), { ok: "updated" });
   assert.deepEqual(readJsonDiagnostic(filePath).status, "ok");
 });
 

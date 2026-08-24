@@ -34,6 +34,8 @@ export class RevisionConflictError extends Error {
 
 export interface AtomicWriteOptions extends FileLockOptions {
   beforeRename?: (temporaryPath: string, filePath: string) => void;
+  renameRetries?: number;
+  renameRetryMs?: number;
 }
 
 export function readJsonDiagnostic<T>(filePath: string): JsonReadResult<T> {
@@ -163,7 +165,7 @@ function writeTextAtomicUnlocked(filePath: string, content: string, options: Ato
     closeSync(descriptor);
     descriptor = undefined;
     options.beforeRename?.(temporaryPath, filePath);
-    replaceFile(temporaryPath, filePath);
+    replaceFile(temporaryPath, filePath, options);
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
     try {
@@ -174,21 +176,21 @@ function writeTextAtomicUnlocked(filePath: string, content: string, options: Ato
   }
 }
 
-function replaceFile(temporaryPath: string, filePath: string): void {
+function replaceFile(temporaryPath: string, filePath: string, options: AtomicWriteOptions): void {
   try {
-    renameSync(temporaryPath, filePath);
+    renameWithRetry(temporaryPath, filePath, options);
     return;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (!existsSync(filePath) || !["EEXIST", "EPERM", "EACCES"].includes(code ?? "")) throw error;
   }
   const backupPath = `${filePath}.bak-${process.pid}-${Date.now()}`;
-  renameSync(filePath, backupPath);
+  renameWithRetry(filePath, backupPath, options);
   try {
-    renameSync(temporaryPath, filePath);
+    renameWithRetry(temporaryPath, filePath, options);
   } catch (error) {
     try {
-      renameSync(backupPath, filePath);
+      renameWithRetry(backupPath, filePath, options);
     } catch {
       /* preserve original failure */
     }
@@ -199,4 +201,22 @@ function replaceFile(temporaryPath: string, filePath: string): void {
   } catch {
     /* a later cleanup may remove the backup */
   }
+}
+
+function renameWithRetry(source: string, target: string, options: AtomicWriteOptions): void {
+  const retries = options.renameRetries ?? 6;
+  const retryMs = options.renameRetryMs ?? 25;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      renameSync(source, target);
+      return;
+    } catch (error) {
+      lastError = error;
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!["EPERM", "EACCES", "EBUSY"].includes(code ?? "") || attempt === retries) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, retryMs * (attempt + 1));
+    }
+  }
+  throw lastError;
 }
