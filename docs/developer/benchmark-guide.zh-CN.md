@@ -32,3 +32,9 @@ npm run benchmark:agent:real -- --executor codex --executor-command "codex exec 
 只能比较相同 executor、model、prompt、任务集和配置的真实报告。mock proxy 与 real executor 不得混在一个总体结论中。高 Precision@8 和 regression Recall 的优化应通过符号相关性、调用链权重、regression memory、task-type Top-K 和 negative examples 验证。
 
 CI 只运行快速层。真实层的命令只能来自 CI secrets，报告只保存 command hash，不保存密钥和完整命令。
+
+确定性 JSON 报告包含 `summary.sampleCount`、`summary.elapsedMs`，每个检索命中还包含评分分解。Precision 表示 Top-K 槽位中预期相关文件的比例，Recall 表示 Top-K 找到的预期相关文件比例。缓存可以报告为 reused、incremental 或 rebuilt，但插件使用 context 前仍会执行 freshness 和 drift 检查。
+
+Desktop 检索按任务类型选择默认 Top-K：bugfix 为 6，feature 为 8，refactor 为 10，auto 为 8。插件同时报告 selected/rejected 文件，便于定位 Precision@K 偏低的具体原因。显式负例会被强降权，但任务明确指定该路径时不会误伤。
+
+Desktop 的 `prepare`、`retrieve` 和 `evaluate` 都返回结构化 `performance`，包括阶段、目标耗时、实际耗时、缓存状态、context 模式、selected 文件和 rejected 文件。超时返回 `ok: false` 与 `error.code: HARNESS_ERROR`，不会伪造验证策略失败结论。
