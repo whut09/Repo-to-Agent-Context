@@ -9,8 +9,38 @@ import { createPluginHarnessResult } from "./protocol.js";
 import { resolvePluginTask, taskRunExists, writePluginEvaluateState } from "./session.js";
 import type { PluginEvaluateArgs, PluginEvaluateResult } from "./types.js";
 import { readWorkflowState, updateWorkflowState } from "./workflow.js";
+import { createPluginHarnessError } from "./protocol.js";
+import { pluginPerformance, runPluginStage } from "./performance.js";
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
+  const staged = await runPluginStage("evaluate", () => evaluatePluginHarnessInternal(root, args));
+  if (staged.status === "timeout") {
+    return createPluginHarnessError(
+      root,
+      "evaluate",
+      `evaluate exceeded the ${5000}ms Desktop target; inspect the returned artifacts and retry.`,
+      args.taskId ?? null,
+      args.sessionId ?? null,
+      args.taskId ? "argument" : "none",
+      pluginPerformance("evaluate", staged, "miss", "rebuilt", [], [])
+    );
+  }
+  const result = staged.value!;
+  if (typeof result === "string") return result;
+  return {
+    ...result,
+    performance: pluginPerformance(
+      "evaluate",
+      staged,
+      result.performance?.cache ?? "miss",
+      result.performance?.contextMode ?? "rebuilt",
+      result.performance?.selectedFiles ?? [],
+      result.performance?.rejectedFiles ?? []
+    )
+  };
+}
+
+async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
   const resolved = resolvePluginTask(root, args.taskId, args.sessionId);
   if (!resolved.taskId) return "evaluate needs a taskId or a previous prepare in this repository.";
   if (!taskRunExists(root, resolved.taskId)) return `evaluate could not find a task run for ${resolved.taskId}. Call prepare first.`;
@@ -41,7 +71,15 @@ export async function evaluatePluginHarness(root: string, args: PluginEvaluateAr
     mustInspect: [],
     allowedEditGlobs: [],
     avoidEditGlobs: [],
-    artifacts: [".agent-context/sidecar/plugin-evaluate.json", ".agent-context/sidecar/latest.json"]
+    artifacts: [".agent-context/sidecar/plugin-evaluate.json", ".agent-context/sidecar/latest.json"],
+    performance: pluginPerformance(
+      "evaluate",
+      { status: "completed", durationMs: 0 },
+      context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
+      context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
+      [],
+      []
+    )
   });
   if (resolved.sessionId)
     updateWorkflowState(root, resolved.sessionId, { phase: "evaluated", taskId: resolved.taskId, eventKey: `evaluate:${result.workingTreeHash}` });
