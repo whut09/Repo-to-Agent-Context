@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag, for example v0.2.3"
+        description: "Release tag, for example v0.2.4"
         required: true
         type: string
       publish:
@@ -64,10 +64,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          $notes = "docs/releases/${env:RELEASE_TAG}.zh-CN.md"
-          if (-not (Test-Path -LiteralPath $notes)) {
-            throw "Missing UTF-8 release notes: $notes"
+          $englishNotes = "docs/releases/${env:RELEASE_TAG}.md"
+          $chineseNotes = "docs/releases/${env:RELEASE_TAG}.zh-CN.md"
+          if (-not (Test-Path -LiteralPath $englishNotes)) {
+            throw "Missing English release notes: $englishNotes"
           }
+          if (-not (Test-Path -LiteralPath $chineseNotes)) {
+            throw "Missing Chinese release notes: $chineseNotes"
+          }
+          $notes = Join-Path $env:RUNNER_TEMP "opencode-plusplus-release-notes.md"
+          $english = Get-Content -LiteralPath $englishNotes -Raw
+          $chinese = Get-Content -LiteralPath $chineseNotes -Raw
+          [System.IO.File]::WriteAllText($notes, "$english`n`n---`n`n$chinese", (New-Object System.Text.UTF8Encoding($false)))
           gh release view $env:RELEASE_TAG 2>$null
           if ($LASTEXITCODE -ne 0) {
             gh release create $env:RELEASE_TAG --target $env:GITHUB_SHA --title "OpenCode++ $env:RELEASE_TAG" --notes-file $notes
