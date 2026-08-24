@@ -71,7 +71,10 @@ async function retrievePluginHarnessContextInternal(root: string, args: PluginRe
         context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
         context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
         hits.map((hit) => hit.path),
-        []
+        context.index.files
+          .map((file) => file.path)
+          .filter((file) => !hits.some((hit) => hit.path === file))
+          .slice(0, 50)
       )
     }
   });

@@ -12,9 +12,13 @@ export interface PluginStageResult<T> {
   value?: T;
 }
 
-export async function runPluginStage<T>(stage: keyof typeof PLUGIN_STAGE_TARGETS, operation: () => Promise<T>): Promise<PluginStageResult<T>> {
+export async function runPluginStage<T>(
+  stage: keyof typeof PLUGIN_STAGE_TARGETS,
+  operation: () => Promise<T>,
+  overrideTargetMs?: number
+): Promise<PluginStageResult<T>> {
   const startedAt = Date.now();
-  const targetMs = PLUGIN_STAGE_TARGETS[stage];
+  const targetMs = overrideTargetMs ?? PLUGIN_STAGE_TARGETS[stage];
   let timer: ReturnType<typeof setTimeout> | undefined;
   let timedOut = false;
   const timeout = new Promise<PluginStageResult<T>>((resolve) => {
