@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import { runOpenCodePlusPlusCli } from "../src/integrations/opencode/plugin-runtime/cli-runner.js";
 import { exitCodeFromOutput } from "../src/integrations/opencode/plugin-runtime/evidence.js";
+import { workflowStatePath } from "../src/integrations/opencode/plugin-runtime/harness/workflow.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "../src/integrations/opencode/plugin-runtime/hook-input.js";
 
 test("OpenCode plugin normalizes current before hook arguments", () => {
@@ -102,6 +103,29 @@ test("OpenCode plugin CLI runner preserves arguments without shell interpretatio
 
     assert.equal(result.status, 0);
     assert.deepEqual(JSON.parse(String(result.stdout).trim()), args);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode plugin event hooks survive corrupt workflow persistence", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-hook-failure-"));
+  const stateFile = path.join(root, "state.json");
+  const workflowFile = workflowStatePath(root, "session-1");
+  try {
+    mkdirSync(path.dirname(workflowFile), { recursive: true });
+    writeFileSync(workflowFile, "{broken", "utf8");
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
+
+    await eventHook({ event: { type: "file.edited", sessionID: "session-1", properties: { file: "src/index.ts" } } });
+
+    const eventLog = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
+    const events = readFileSync(eventLog, "utf8")
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.ok(events.some((event) => event.type === "sidecar.log" && event.message === "workflow initialization failed safely"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
