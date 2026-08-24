@@ -27,7 +27,7 @@ Default rule:
 | `.agent-context/runs/<task-id>/iterations/*`                                                                                                         | Yes                                | Usually no                                                                | High; executor output, diffs, decisions, trace summaries           | `opencode-plusplus orchestrate "<task>" . ...`                       |
 | `.agent-context/worktrees/<run-id>/`                                                                                                                 | Yes                                | No                                                                        | High; isolated executor checkout, manifests, and exported patches  | `opencode-plusplus orchestrate "<task>" . --checkpoint git-worktree` |
 | `.agent-context/traces/*.json`                                                                                                                       | Yes                                | No by default                                                             | High; commands, files, hashes, sanitized output previews           | `opencode-plusplus trace ...` or sidecar hooks                       |
-| `.agent-context/traces/opencode-sidecar-events.jsonl`                                                                                                | Yes                                | No                                                                        | High; local sidecar events                                         | Start OpenCode with `opencode-plusplus`                              |
+| `.agent-context/traces/opencode-sidecar-events.jsonl`                                                                                                | Yes                                | No                                                                        | High; local sidecar events                                         | OpenCode Desktop plugin hooks                                        |
 | `.agent-context/traces/tool-evidence/*.json`                                                                                                         | Yes                                | No                                                                        | High; command evidence payloads with sanitized previews and hashes | Sidecar `tool.execute.after`                                         |
 | `.agent-context/sidecar/latest.json`, `latest.md`                                                                                                    | Yes                                | No                                                                        | Medium to high; local blocker/warning state                        | `opencode-plusplus sidecar verify .`                                 |
 | `.agent-context/sidecar/policy.md`, `task-verify.md`, `hallucination.md`, `regression.md`                                                            | Yes                                | No by default                                                             | Medium to high; local verification reports                         | `opencode-plusplus sidecar verify .`                                 |
@@ -43,6 +43,12 @@ Default rule:
 | `opencode-plusplus.config.yml`                                                                                                                       | Starter generated, then user-owned | Yes                                                                       | Low to medium                                                      | `opencode-plusplus init .`                                           |
 | `opencode-plusplus.local.yml`                                                                                                                        | User-owned local config            | No                                                                        | High; can contain local paths or credentials                       | Copy from `opencode-plusplus.local.example.yml`                      |
 
+## Desktop Release Outputs
+
+The Windows build produces three release assets under `release/`: the EXE, its SHA256 file, and `opencode-plusplus-release.json`. The manifest records the `package.json` version, platform, architecture, size budget, digest, plugin bundle sizes, three local command names, and app.asar patch marker. These files are uploaded to a GitHub Release; they are ignored by Git and excluded from the npm developer package.
+
+`npm run benchmark:desktop` writes `benchmarks/results/desktop/result.json` and `result.md`. They are CI/runtime results, not source files, npm package content, or release assets.
+
 ## Recommended `.gitignore`
 
 For most repositories, commit the stable context and OpenCode integration files, but ignore runtime evidence:
@@ -51,7 +57,9 @@ For most repositories, commit the stable context and OpenCode integration files,
 .agent-context/cache/
 .agent-context/traces/
 .agent-context/sidecar/
-.agent-context/runs/*/iterations/
+.agent-context/runs/
+.agent-context/loops/
+.agent-context/orchestrator/
 .agent-context/worktrees/
 .agent-context/delta/
 .agent-context/memory/candidates/
@@ -73,7 +81,7 @@ This project intentionally keeps a generated `.agent-context/` in the repository
 
 Use this split:
 
-- **Commit:** stable guidance, contracts, generated summaries, OpenCode plugin/commands when shared with the team.
+- **Commit:** stable guidance, contracts, and reviewed generated summaries when the team intentionally uses the developer context surface.
 - **Do not commit:** traces, sidecar latest reports, tool evidence, caches, local config, and transient task iterations.
 
 ## Sensitive Evidence Notes

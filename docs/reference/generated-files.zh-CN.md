@@ -19,13 +19,21 @@
 - opencode-plusplus.local.yml；
 - 用户配置目录中的全局插件、state.json、plusplus 命令和 skill。
 
+## Desktop 发布输出
+
+Windows 构建在 `release/` 下生成 EXE、SHA256 文件和 `opencode-plusplus-release.json`。manifest 记录 `package.json` 版本、平台、架构、体积阈值、digest、plugin bundle 大小、三条本地命令和 app.asar patch marker。这些文件用于 GitHub Release，已被 Git 忽略，也不会进入 npm 开发包。
+
+`npm run benchmark:desktop` 生成 `benchmarks/results/desktop/result.json` 与 `result.md`。它们是 CI/runtime 结果，不是源码、npm 包内容或 Release asset。
+
 ## 推荐 gitignore
 
 ```gitignore
 .agent-context/cache/
 .agent-context/traces/
 .agent-context/sidecar/
-.agent-context/runs/*/iterations/
+.agent-context/runs/
+.agent-context/loops/
+.agent-context/orchestrator/
 .agent-context/worktrees/
 .agent-context/delta/
 .agent-context/memory/candidates/
