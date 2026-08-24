@@ -34,7 +34,7 @@ jobs:
     name: Real OpenCode Desktop launch
     if: inputs.require_real_desktop
     needs: desktop
-    runs-on: [self-hosted, Windows, X64, opencode-desktop]
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,6 +44,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run build:installer:windows
+      - name: Install official OpenCode Desktop
+        if: inputs.desktop_exe == ''
+        run: winget install --id SST.OpenCodeDesktop --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
       - name: Launch real OpenCode Desktop when requested
         env:
           OPENCODE_DESKTOP_EXE: ${{ inputs.desktop_exe }}
