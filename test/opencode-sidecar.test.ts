@@ -129,6 +129,21 @@ test("OpenCode sidecar records tool execution evidence into event logs and trace
     writeFileSync(path.join(root, "src.ts"), "export const value = 1;\n", "utf8");
 
     const result = recordOpencodeSidecarTool(root, {
+      eventId: "tool.execute.after:call-123",
+      tool: "bash",
+      command: "npm run test",
+      exitCode: 0,
+      startedAt: "2026-06-19T10:00:00.000Z",
+      finishedAt: "2026-06-19T10:00:01.000Z",
+      stdout: "ok\n",
+      stderr: "",
+      workingTreeHashBefore: "a".repeat(64),
+      workingTreeHashAfter: "b".repeat(64),
+      sessionId: "session-123",
+      paths: ["src.ts"]
+    });
+    const replay = recordOpencodeSidecarTool(root, {
+      eventId: "tool.execute.after:call-123",
       tool: "bash",
       command: "npm run test",
       exitCode: 0,
@@ -144,6 +159,12 @@ test("OpenCode sidecar records tool execution evidence into event logs and trace
 
     assert.equal(existsSync(result.eventLogPath), true);
     assert.match(readFileSync(result.eventLogPath, "utf8"), /tool\.execute\.after/);
+    assert.equal(
+      readFileSync(result.eventLogPath, "utf8")
+        .split(/\r?\n/)
+        .filter((line) => line.includes('"eventId":"tool.execute.after:call-123"')).length,
+      1
+    );
     assert.equal(typeof result.event.eventId, "string");
     assert.equal(result.event.sequence, 1);
     assert.equal(result.event.schemaVersion, 1);
@@ -167,6 +188,8 @@ test("OpenCode sidecar records tool execution evidence into event logs and trace
     assert.equal(step?.workingTreeHashBefore, "a".repeat(64));
     assert.equal(step?.workingTreeHashAfter, "b".repeat(64));
     assert.ok(step?.files.includes("src.ts"));
+    assert.equal(replay.event.sequence, result.event.sequence);
+    assert.equal(replay.trace.steps.filter((candidate) => candidate.eventId === "tool.execute.after:call-123").length, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
