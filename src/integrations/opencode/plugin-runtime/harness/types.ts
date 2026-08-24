@@ -21,6 +21,7 @@ export interface PluginPrepareArgs {
 export interface PluginRetrieveArgs {
   task: string;
   topK?: number;
+  taskType?: "bugfix" | "feature" | "refactor" | "auto";
   sessionId?: string | null;
 }
 
@@ -59,6 +60,19 @@ export interface PluginWorkflowState {
 export type PluginHarnessToolKind = "prepare" | "retrieve" | "evaluate" | "next";
 export type PluginTaskIdSource = "argument" | "session" | "created" | "none";
 
+export type PluginPerformanceStatus = "completed" | "timeout";
+
+export interface PluginPerformance {
+  stage: "prepare" | "retrieve" | "evaluate";
+  durationMs: number;
+  targetMs: number;
+  status: PluginPerformanceStatus;
+  cache: "hit" | "miss";
+  contextMode: "reused" | "incremental" | "rebuilt";
+  selectedFiles: string[];
+  rejectedFiles: string[];
+}
+
 export interface PluginHarnessResult {
   schemaVersion: string;
   ok: boolean;
@@ -81,7 +95,8 @@ export interface PluginHarnessResult {
   avoidEditGlobs: string[];
   artifacts: string[];
   nextAction: string;
-  hits?: Array<{ path: string; score: number; reason: string }>;
+  hits?: Array<{ path: string; score: number; reason: string; scoreBreakdown?: Record<string, number> }>;
+  performance?: PluginPerformance;
 }
 
 export type PluginPrepareResult = PluginHarnessResult;

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
-import type { PluginHarnessResult, PluginHarnessToolKind, PluginTaskIdSource } from "./types.js";
+import type { PluginHarnessResult, PluginHarnessToolKind, PluginPerformance, PluginTaskIdSource } from "./types.js";
 
 export const PLUGIN_HARNESS_SCHEMA_VERSION = "opencode-plusplus.desktop-harness.v1";
 
@@ -44,7 +44,8 @@ export function createPluginHarnessError(
   message: string,
   taskId: string | null = null,
   sessionId: string | null = null,
-  taskIdSource: PluginTaskIdSource = "none"
+  taskIdSource: PluginTaskIdSource = "none",
+  performance?: PluginPerformance
 ): PluginHarnessResult {
   return createPluginHarnessResult(root, {
     ok: false,
@@ -57,7 +58,8 @@ export function createPluginHarnessError(
     currentPhase: tool,
     decision: "error",
     blocking: true,
-    nextAction: "prepare"
+    nextAction: "prepare",
+    performance
   });
 }
 
