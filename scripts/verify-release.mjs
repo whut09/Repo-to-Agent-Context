@@ -102,6 +102,13 @@ async function verifyDesktopRelease() {
   const patchSource = readFileSync(path.join(root, ".installer-build", "native-command-patch.js"), "utf8");
   if (!patchSource.includes(manifest.patchMarker)) throw new Error("Desktop patch resource is missing its marker.");
   for (const command of expectedCommands) if (!patchSource.includes(`"${command}"`)) throw new Error(`Desktop patch resource is missing command ${command}.`);
+  const smoke = spawnSync(process.execPath, [path.join(root, "scripts", "smoke-windows-installer.mjs"), "--release-gate"], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024
+  });
+  if (smoke.status !== 0) throw new Error(`Desktop installer smoke failed: ${smoke.stderr || smoke.stdout}`);
+  process.stdout.write(smoke.stdout);
   console.log(`desktop: ${formatBytes(bytes)} installer, SHA256 ${digest}, plugin bundle load passed`);
 }
 
