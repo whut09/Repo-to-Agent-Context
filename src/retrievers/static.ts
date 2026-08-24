@@ -22,7 +22,7 @@ export class StaticContextRetriever implements ContextRetriever {
         const changedBoost = changed.has(doc.path) ? 50 : 0;
         const importance = typeof doc.metadata.importanceScore === "number" ? doc.metadata.importanceScore / 20 : 0;
         const taskTypeBoost = taskTypeWeight(options.taskType, doc.kind, doc.path);
-        const symbolBoost = symbolWeight(doc.text, terms);
+        const symbolBoost = symbolRelevance(file, terms);
         const chainBoost = chainWeight(this.context, doc.path, changed);
         const regressionBoost = regressionWeight(doc.path, doc.text);
         const negativePenalty = negativeExamplePenalty(doc.path, doc.text, task);
@@ -102,8 +102,11 @@ function taskTypeWeight(taskType: ContextRetrieverOptions["taskType"], kind: str
   return 0;
 }
 
-function symbolWeight(text: string, terms: string[]): number {
-  return terms.some((term) => new RegExp(`\\b(export|function|class|interface|type)\\s+${escapeRegExp(term)}\\b`, "i").test(text)) ? 12 : 0;
+export function symbolRelevance(file: IndexedFile | undefined, terms: string[]): number {
+  if (!file || !terms.length) return 0;
+  const symbols = [...file.symbols.map((symbol) => symbol.name), ...file.exports].map((value) => value.toLowerCase());
+  const matches = terms.filter((term) => symbols.some((symbol) => symbol === term || symbol.includes(term)));
+  return Math.min(24, matches.length * 12);
 }
 
 function chainWeight(context: ContextPackage, filePath: string, changed: Set<string>): number {
@@ -119,10 +122,6 @@ function regressionWeight(filePath: string, text: string): number {
 
 function negativeExamplePenalty(filePath: string, text: string, task: string): number {
   return /negative|unrelated|fixture|example/i.test(`${filePath} ${text}`) && !task.toLowerCase().includes(filePath.toLowerCase()) ? 8 : 0;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function sortHits<T extends { score: number; path: string }>(hits: T[]): T[] {
