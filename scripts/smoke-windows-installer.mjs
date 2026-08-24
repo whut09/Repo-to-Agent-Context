@@ -19,6 +19,7 @@ try {
   await runConfigSmoke();
   await runHostPatchSmoke();
   verifyRealBundle();
+  if (process.argv.includes("--require-real-desktop-launch")) await verifyRealDesktopLaunch();
   console.log(`Windows installer smoke test passed (${statSync(executable).size} bytes).`);
 } finally {
   rmSync(configDir, { recursive: true, force: true });
@@ -208,6 +209,34 @@ function verifyRealBundle() {
   const markers = files.reduce((sum, file) => sum + (file.content.toString("utf8").split("OPENCODE_PLUSPLUS_NATIVE_COMMANDS").length - 1), 0);
   if (markers > 0) assert.equal(existsSync(`${asar}.opencode-plusplus.original`), true);
   console.log(`Real OpenCode Desktop bundle verified read-only (${files.length} entries, patched=${markers > 0}).`);
+}
+
+async function verifyRealDesktopLaunch() {
+  const executablePath = findRealDesktopExecutable();
+  if (!executablePath) throw new Error("Real OpenCode Desktop executable was not found. Set OPENCODE_DESKTOP_EXE on the Windows smoke runner.");
+  if (isOpenCodeRunning()) throw new Error("Close the existing OpenCode Desktop process before the real launch smoke test.");
+  const desktop = spawn(executablePath, [], { cwd: path.dirname(executablePath), stdio: "ignore", windowsHide: true });
+  try {
+    await delay(5000);
+    assert.equal(desktop.exitCode, null, `OpenCode Desktop exited before the launch smoke completed (${String(desktop.exitCode)}).`);
+    assert.equal(isOpenCodeRunning(), true, "OpenCode Desktop process was not observable after launch.");
+    console.log(`Real OpenCode Desktop launch passed (${executablePath}).`);
+  } finally {
+    if (desktop.pid) spawnSync("taskkill.exe", ["/F", "/T", "/PID", String(desktop.pid)], { stdio: "ignore", windowsHide: true });
+  }
+}
+
+function findRealDesktopExecutable() {
+  const configured = process.env.OPENCODE_DESKTOP_EXE;
+  if (configured) return existsSync(configured) ? configured : undefined;
+  const local = process.env.LOCALAPPDATA;
+  if (!local) return undefined;
+  return [path.join(local, "Programs", "@opencode-aidesktop", "OpenCode.exe"), path.join(local, "Programs", "OpenCode", "OpenCode.exe")].find(existsSync);
+}
+
+function isOpenCodeRunning() {
+  const result = spawnSync("tasklist.exe", ["/FI", "IMAGENAME eq OpenCode.exe", "/FO", "CSV", "/NH"], { encoding: "utf8", windowsHide: true });
+  return result.status === 0 && /"OpenCode\.exe"/i.test(result.stdout);
 }
 
 function awaitImport(file) {
