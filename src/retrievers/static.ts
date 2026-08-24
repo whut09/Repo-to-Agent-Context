@@ -1,4 +1,5 @@
 import type { ContextPackage, IndexedFile } from "../core/types.js";
+import { buildRegressionReport } from "../harness/verification-plane/guards/regression.js";
 import { buildRagDocuments } from "../outputs/rag.js";
 import type { ContextHit, ContextRetriever, ContextRetrieverOptions } from "./types.js";
 
@@ -11,6 +12,7 @@ export class StaticContextRetriever implements ContextRetriever {
     const terms = taskTerms(task);
     const fileMap = new Map(this.context.index.files.map((file) => [file.path, file]));
     const changed = new Set(options.changedFiles ?? []);
+    const regression = buildRegressionReport(this.context, { task, changedFiles: [...changed] });
     const docs = buildRagDocuments(this.context);
     const hits = docs
       .map((doc) => {
@@ -24,7 +26,7 @@ export class StaticContextRetriever implements ContextRetriever {
         const taskTypeBoost = taskTypeWeight(options.taskType, doc.kind, doc.path);
         const symbolBoost = symbolRelevance(file, terms);
         const chainBoost = dependencyChainWeight(this.context, doc.path, changed);
-        const regressionBoost = regressionWeight(doc.path, doc.text);
+        const regressionBoost = regressionWeight(doc.path, doc.moduleName, regression);
         const negativePenalty = negativeExamplePenalty(doc.path, doc.text, task);
         const score = pathScore + textScore + changedBoost + importance + taskTypeBoost + symbolBoost + chainBoost + regressionBoost - negativePenalty;
         if (score <= 0 && terms.length > 0 && !changedBoost) return null;
@@ -140,8 +142,12 @@ export function dependencyChainWeight(context: ContextPackage, filePath: string,
   return Math.min(20, score);
 }
 
-function regressionWeight(filePath: string, text: string): number {
-  return /regression|known-issues|historical|fragile/i.test(`${filePath} ${text}`) ? 10 : 0;
+function regressionWeight(filePath: string, moduleName: string, report: ReturnType<typeof buildRegressionReport>): number {
+  if (!report.matches.length) return 0;
+  const fileMatch = report.matches.some((match) => match.files.includes(filePath));
+  const moduleMatch = report.matches.some((match) => match.module === moduleName);
+  const memorySource = report.matches.some((match) => filePath === `.agent-context/regression/${match.source}.json`);
+  return (fileMatch ? 24 : 0) + (moduleMatch ? 12 : 0) + (memorySource ? 8 : 0);
 }
 
 function negativeExamplePenalty(filePath: string, text: string, task: string): number {
