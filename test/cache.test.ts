@@ -66,11 +66,13 @@ test("dependency and repository config changes invalidate cached indexes", async
     writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test", check: "tsc --noEmit" } }), "utf8");
     const packageContext = await buildContextPackage(root);
     assert.equal(packageContext.cacheStats.indexHits, 0);
+    assert.equal(packageContext.cacheStats.dependencyInvalidated, true);
     assert.ok(packageContext.cacheStats.indexMisses >= 3);
 
     writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { module: "NodeNext", strict: true } }), "utf8");
     const tsconfigContext = await buildContextPackage(root);
     assert.equal(tsconfigContext.cacheStats.indexHits, 0);
+    assert.equal(tsconfigContext.cacheStats.dependencyInvalidated, true);
     assert.ok(tsconfigContext.cacheStats.indexMisses >= 3);
 
     writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "tokenBudget: 12000\n", "utf8");

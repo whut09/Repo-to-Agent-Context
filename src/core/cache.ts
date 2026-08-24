@@ -104,8 +104,10 @@ export class ContextCache implements TokenCountCache {
   }
 
   dependencyFingerprint(scan: RepoScan): string {
+    const previousFingerprint = this.fileHashes.dependencyFingerprint;
     const dependencyFiles = scan.files.filter((file) => isDependencyResolutionFile(file.path)).sort((a, b) => a.path.localeCompare(b.path));
     const fingerprint = hashText([this.configFingerprint, ...dependencyFiles.map((file) => `${file.path}:${this.fileHash(file)}`)].join("\n"));
+    this.stats.dependencyInvalidated = Boolean(previousFingerprint && previousFingerprint !== fingerprint);
     this.fileHashes.dependencyFingerprint = fingerprint;
     this.fileHashes.configFingerprint = this.configFingerprint;
     return fingerprint;
@@ -241,7 +243,8 @@ export function createCacheStats(enabled: boolean): CacheStats {
     tokenHits: 0,
     tokenMisses: 0,
     prunedFileHashes: 0,
-    prunedIndexEntries: 0
+    prunedIndexEntries: 0,
+    dependencyInvalidated: false
   };
 }
 

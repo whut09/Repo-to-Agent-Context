@@ -7,7 +7,7 @@ import { taskRunManifestPath, writePluginHarnessSession } from "./session.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { contextFingerprint, updateWorkflowState } from "./workflow.js";
-import { pluginPerformance, runPluginStage } from "./performance.js";
+import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
 import { createPluginHarnessError } from "./protocol.js";
 import type { PluginPrepareArgs, PluginPrepareResult } from "./types.js";
 
@@ -87,8 +87,8 @@ async function preparePluginHarnessTaskInternal(root: string, args: PluginPrepar
       ...pluginPerformance(
         "prepare",
         { status: "completed", durationMs: 0 },
-        context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
-        context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
+        cacheStatusForStats(context.cacheStats),
+        contextModeForStats(context.cacheStats),
         manifest.mustInspect,
         manifest.files.filter((file) => !manifest.mustInspect.includes(file))
       )

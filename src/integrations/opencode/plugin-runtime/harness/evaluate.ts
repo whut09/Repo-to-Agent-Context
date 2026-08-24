@@ -10,7 +10,7 @@ import { resolvePluginTask, taskRunExists, writePluginEvaluateState } from "./se
 import type { PluginEvaluateArgs, PluginEvaluateResult } from "./types.js";
 import { readWorkflowState, updateWorkflowState } from "./workflow.js";
 import { createPluginHarnessError } from "./protocol.js";
-import { pluginPerformance, runPluginStage } from "./performance.js";
+import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
   const staged = await runPluginStage("evaluate", () => evaluatePluginHarnessInternal(root, args));
@@ -75,8 +75,8 @@ async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateA
     performance: pluginPerformance(
       "evaluate",
       { status: "completed", durationMs: 0 },
-      context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
-      context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
+      cacheStatusForStats(context.cacheStats),
+      contextModeForStats(context.cacheStats),
       [],
       []
     )

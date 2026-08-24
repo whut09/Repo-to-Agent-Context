@@ -5,7 +5,7 @@ import { loadPluginHarnessContext } from "./context.js";
 import { readPluginHarnessSession } from "./session.js";
 import type { PluginRetrieveArgs, PluginRetrieveResult } from "./types.js";
 import { createPluginHarnessError } from "./protocol.js";
-import { pluginPerformance, runPluginStage } from "./performance.js";
+import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
 
 export async function retrievePluginHarnessContext(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
   const staged = await runPluginStage("retrieve", () => retrievePluginHarnessContextInternal(root, args));
@@ -68,8 +68,8 @@ async function retrievePluginHarnessContextInternal(root: string, args: PluginRe
       ...pluginPerformance(
         "retrieve",
         { status: "completed", durationMs: 0 },
-        context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
-        context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
+        cacheStatusForStats(context.cacheStats),
+        contextModeForStats(context.cacheStats),
         hits.map((hit) => hit.path),
         context.index.files
           .map((file) => file.path)

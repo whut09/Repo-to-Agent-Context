@@ -1,10 +1,21 @@
 import type { PluginPerformance, PluginPerformanceStatus } from "./types.js";
+import type { CacheStats } from "../../../../core/types.js";
 
 export const PLUGIN_STAGE_TARGETS = {
   prepare: 5000,
   retrieve: 3000,
   evaluate: 5000
 } as const;
+
+export function contextModeForStats(stats: CacheStats): PluginPerformance["contextMode"] {
+  if (!stats.enabled || stats.dependencyInvalidated || (stats.indexMisses > 0 && stats.indexHits === 0)) return "rebuilt";
+  if (stats.indexMisses > 0 || stats.graphMisses > 0) return "incremental";
+  return "reused";
+}
+
+export function cacheStatusForStats(stats: CacheStats): "hit" | "miss" {
+  return stats.enabled && stats.fileHashMisses + stats.indexMisses + stats.graphMisses + stats.tokenMisses === 0 ? "hit" : "miss";
+}
 
 export interface PluginStageResult<T> {
   status: PluginPerformanceStatus;

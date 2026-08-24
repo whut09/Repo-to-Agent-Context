@@ -184,6 +184,7 @@ export interface CacheStats {
   tokenMisses: number;
   prunedFileHashes: number;
   prunedIndexEntries: number;
+  dependencyInvalidated: boolean;
 }
 
 export interface SummaryBundle {
