@@ -80,3 +80,12 @@ test("release boundary: PR CI uses Windows Desktop gates without paid executors"
   assert.match(desktopSmoke, /self-hosted, Windows, X64, opencode-desktop/);
   assert.match(desktopSmoke, /--require-real-desktop-launch/);
 });
+
+test("release boundary: Desktop version comes only from package.json", () => {
+  const buildScript = readFileSync(path.join(root, "scripts", "build-windows-installer.mjs"), "utf8");
+  const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version as string;
+  assert.match(buildScript, /JSON\.parse\(readFileSync\(path\.join\(root, "package\.json"\)/);
+  assert.match(buildScript, /replaceAll\("__PACKAGE_VERSION__", packageVersion\)/);
+  assert.match(buildScript, /version: packageVersion/);
+  assert.doesNotMatch(buildScript, new RegExp(packageVersion.replaceAll(".", "\\.")));
+});
