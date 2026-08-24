@@ -20,9 +20,11 @@ npm run docs:bilingual:check
 npm test
 npm run benchmark
 npm run benchmark:agent
+npm run benchmark:desktop
 npm run build
-npm run release:verify
 npm run build:installer:windows
+npm run test:installer:windows
+npm run release:verify
 ```
 
 ## npm Package
@@ -37,6 +39,7 @@ Build on Windows with Node.js 20+ and .NET Framework 4.x build tools. esbuild mi
 
 - opencode-plusplus-setup-win-x64.exe;
 - opencode-plusplus-setup-win-x64.exe.sha256;
+- opencode-plusplus-release.json;
 - release notes that state the supported architecture, per-user install boundary, restart requirement, and unsigned SmartScreen behavior.
 
 Smoke test with an isolated --config-dir:
@@ -46,10 +49,14 @@ Smoke test with an isolated --config-dir:
 3. disable and confirm enabled=false;
 4. enable and confirm enabled=true;
 5. load or syntax-check the installed plugin;
-6. uninstall and confirm only owned files are removed.
+6. uninstall and confirm only owned files are removed;
 7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget;
-8. on a supported Desktop install, verify the patched `app.asar` is readable and uninstall restores the original bundle.
+8. run `npm run release:verify` to verify the EXE, SHA256, release manifest, standalone plugin load, three command names, patch marker, original backup, rollback, and uninstall restoration;
+9. run `npm run benchmark:desktop`; it is a deterministic in-process plugin benchmark with zero paid model calls;
+10. use the manual `Desktop smoke` workflow on a self-hosted Windows runner labeled `opencode-desktop` to run `npm run test:desktop:real` against an installed OpenCode Desktop executable.
+
+PR CI runs on Ubuntu and Windows. It never runs a paid executor. Linux verifies the npm developer package and deterministic proxy benchmarks; Windows builds the EXE, runs the installer/recovery gate, and runs the deterministic Desktop plugin benchmark. Real Desktop launch is manual only because hosted runners do not contain the official GUI application.
 
 ## Publish Verification
 
-After publishing, verify npm version, GitHub tag, Release assets, EXE digest, asset size, and origin/main commit. A clean checkout must reproduce both npm package checks and the installer build without relying on local dist or release files.
+After publishing, verify npm version, GitHub tag, Release assets, EXE digest, asset size, manifest version, and origin/main commit. A clean checkout must reproduce both npm package checks and the installer build without relying on local dist or release files. The root `package.json` remains the single version source; generated package info and the Desktop release manifest must match it.
