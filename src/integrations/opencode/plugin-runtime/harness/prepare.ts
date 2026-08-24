@@ -90,7 +90,7 @@ async function preparePluginHarnessTaskInternal(root: string, args: PluginPrepar
         cacheStatusForStats(context.cacheStats),
         contextModeForStats(context.cacheStats),
         manifest.mustInspect,
-        manifest.files.filter((file) => !manifest.mustInspect.includes(file))
+        (manifest.contextFiles ?? manifest.mustInspect).filter((file) => !manifest.mustInspect.includes(file))
       )
     }
   });

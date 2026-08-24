@@ -28,6 +28,7 @@ export interface TaskRunManifest {
   task: string;
   type: TaskPack["type"];
   mustInspect: string[];
+  contextFiles?: string[];
   allowedEditGlobs: string[];
   avoidEditGlobs: string[];
   relatedTests: string[];
@@ -141,6 +142,7 @@ function buildTaskRunManifest(
     task: pack.task,
     type: pack.type,
     mustInspect,
+    contextFiles: dedupe(pack.files.map((file) => file.path)),
     allowedEditGlobs: options.allowedEditGlobs,
     avoidEditGlobs: options.avoidEditGlobs,
     relatedTests: dedupe([...options.testSelection.minimalTests, ...options.testSelection.recommendedRegressionTests]),
