@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { buildApplicationContext } from "../../application/context-service.js";
+import { writeTextAtomic } from "../../core/atomic-store.js";
 import { buildPolicyReport, renderPolicyReport, type PolicyEngineReport } from "../../harness/verification-plane/policy-engine.js";
 import { buildHallucinationReport, renderHallucinationReport, type HallucinationGuardReport } from "../../harness/verification-plane/guards/hallucination.js";
 import { buildRegressionReport, renderRegressionReport, type RegressionGuardReport } from "../../harness/verification-plane/guards/regression.js";
@@ -90,9 +90,8 @@ function writeGuardStackArtifacts(
   artifacts: { policyMarkdown: string; taskVerifyMarkdown: string; hallucinationMarkdown: string; regressionMarkdown: string }
 ): void {
   const dir = path.join(root, ".agent-context", "sidecar");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(path.join(dir, "policy.md"), `${artifacts.policyMarkdown}\n`, "utf8");
-  writeFileSync(path.join(dir, "task-verify.md"), `${artifacts.taskVerifyMarkdown}\n`, "utf8");
-  writeFileSync(path.join(dir, "hallucination.md"), `${artifacts.hallucinationMarkdown}\n`, "utf8");
-  writeFileSync(path.join(dir, "regression.md"), `${artifacts.regressionMarkdown}\n`, "utf8");
+  writeTextAtomic(path.join(dir, "policy.md"), `${artifacts.policyMarkdown}\n`);
+  writeTextAtomic(path.join(dir, "task-verify.md"), `${artifacts.taskVerifyMarkdown}\n`);
+  writeTextAtomic(path.join(dir, "hallucination.md"), `${artifacts.hallucinationMarkdown}\n`);
+  writeTextAtomic(path.join(dir, "regression.md"), `${artifacts.regressionMarkdown}\n`);
 }
