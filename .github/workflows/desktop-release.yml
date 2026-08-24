@@ -27,6 +27,15 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Validate release tag
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -ne "v$version") {
+            throw "Release tag $env:RELEASE_TAG must match package.json version v$version"
+          }
       - run: npm run check
       - run: npm run lint
       - run: npm run format:check
