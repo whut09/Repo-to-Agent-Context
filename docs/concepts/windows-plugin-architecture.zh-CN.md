@@ -61,6 +61,20 @@ OpenCode Markdown Command 默认是模型 Prompt Template，不是插件直接�
 
 如果宿主没有暴露命令、退出码、路径或 session id，运行时记录 unknown 或 partial，不伪造证据。
 
+## Artifact 一致性模型
+
+Desktop hook、CLI 诊断和后台验证可能并发写入同一仓库。因此 runtime state、session state、workflow state、execution trace 和 Markdown report 统一使用共享 atomic store：
+
+1. 写入方先获取目标文件旁的 lock file，并记录 PID、owner token、创建时间和 lock schema version。
+2. JSON 或文本先写入目标目录中的唯一临时文件，执行 `fsync` 后 rename 替换正式文件；平台支持时还会同步父目录。
+3. Windows 上如果杀毒软件扫描或其他进程短暂占用文件，替换操作会对 `EPERM`、`EACCES` 和 `EBUSY` 做有界重试。
+4. revision JSON 在持锁期间比较调用方预期 revision；不一致时返回 revision conflict 诊断，绝不覆盖较新的值。
+5. JSONL 事件追加在同一把锁内完成读取、按 `eventId` 去重、分配下一个 `sequence`、追加和 flush。每个事件还包含 `schemaVersion`、`sessionId`、`taskId` 和 `timestamp`。
+
+如果进程在 rename 前终止，旧的完整文件仍可读取。超过 stale 阈值后可以清理死进程持有的 lock 和旧临时文件；活进程的 lock 与近期临时文件会保留。损坏 JSON 会在存储边界返回明确诊断，不会被当作“状态不存在”。
+
+持久化失败不能成为 OpenCode Desktop 崩溃的原因。普通生命周期 hook 和 after-hook 的写入异常会在插件边界捕获，并尽力发送到宿主日志；明确的命令/路径 Guard 拒绝仍会阻止不安全工具调用。`.agent-context/sidecar/`、`.agent-context/traces/`、`.agent-context/runs/`、`.agent-context/loops/` 和 `.agent-context/orchestrator/` 等仓库运行时目录属于本地产物，不进入 Git 或 npm 包。
+
 ## Harness 边界
 
 CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是用户安装路径。它可以生成 context、调用 executor、收集 diff、评估 policy 和 Guard Gate，并选择 finalize、repair、repack、block、rollback 或 human-review。Desktop 插件不会启动多轮 executor，也不会对用户工作树执行破坏性回滚。
@@ -81,11 +95,14 @@ CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是
 
 ## Windows 故障处理
 
-| 故障                     | 预期行为                                                          |
-| ------------------------ | ----------------------------------------------------------------- |
-| 安装时 OpenCode 仍在运行 | 关闭并重启，让插件模块重新加载。                                  |
-| 使用自定义配置目录       | 设置 OPENCODE_CONFIG_DIR 或传 EXE --config-dir。                  |
-| 状态 JSON 损坏           | 安装器返回诊断，不静默覆盖。                                      |
-| SmartScreen 警告         | 先核对发布的 SHA256；发布二进制未做商业代码签名。                 |
-| 存在旧项目插件           | 删除 .opencode/plugins/opencode-plusplus.ts，避免 hook 重复。     |
-| 其他程序编辑文件         | Sidecar 无法观察所有外部编辑，应运行 CLI verify 或 Harness 评估。 |
+| 故障                      | 预期行为                                                          |
+| ------------------------- | ----------------------------------------------------------------- |
+| 安装时 OpenCode 仍在运行  | 关闭并重启，让插件模块重新加载。                                  |
+| 使用自定义配置目录        | 设置 OPENCODE_CONFIG_DIR 或传 EXE --config-dir。                  |
+| 状态 JSON 损坏            | 安装器返回诊断，不静默覆盖。                                      |
+| Desktop hook 并发写入     | 持锁追加/更新保留事件，或返回 revision conflict 诊断。            |
+| 杀毒软件短暂占用 artifact | 原子替换对 Windows 共享/访问错误做有界重试。                      |
+| 插件 artifact 写入失败    | 普通 hook 正常返回并记录宿主日志；明确 Guard blocker 仍保持阻塞。 |
+| SmartScreen 警告          | 先核对发布的 SHA256；发布二进制未做商业代码签名。                 |
+| 存在旧项目插件            | 删除 .opencode/plugins/opencode-plusplus.ts，避免 hook 重复。     |
+| 其他程序编辑文件          | Sidecar 无法观察所有外部编辑，应运行 CLI verify 或 Harness 评估。 |

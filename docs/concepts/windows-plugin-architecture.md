@@ -61,6 +61,20 @@ OpenCode Markdown commands are normally model prompt templates, not direct plugi
 
 If the host does not expose a command, exit code, path, or session id, the runtime records an unknown or partial value. It must not invent evidence.
 
+## Artifact Consistency Model
+
+Desktop hooks, CLI diagnostics, and background verification can write to the same repository concurrently. Runtime state, session state, workflow state, execution traces, and Markdown reports therefore use the shared atomic store:
+
+1. A writer acquires a sibling lock file and records its PID, owner token, creation time, and lock schema version.
+2. JSON or text is written to a unique temporary file in the target directory, flushed with `fsync`, and renamed over the target. The parent directory is flushed where the platform supports it.
+3. Windows replacement retries short `EPERM`, `EACCES`, and `EBUSY` failures caused by antivirus scanning or another process briefly holding the file.
+4. Revisioned JSON compares the caller's expected revision while holding the lock. A mismatch returns a revision-conflict diagnostic and never overwrites the newer value.
+5. Event JSONL append reads, deduplicates by `eventId`, allocates the next `sequence`, appends, and flushes while holding one lock. Each event also carries `schemaVersion`, `sessionId`, `taskId`, and `timestamp`.
+
+If a process stops before rename, the previous complete file remains readable. Old temporary files and locks owned by dead processes can be cleaned after the stale threshold; a live process's lock or recent temporary file is preserved. Corrupt JSON is reported explicitly at the storage boundary rather than treated as missing state.
+
+Persistence is not a reason to crash OpenCode Desktop. Ordinary lifecycle and after-hook write failures are caught at the plugin boundary and sent to the host logger on a best-effort basis. A deliberate command/path Guard rejection still blocks the unsafe tool call. Repository runtime directories such as `.agent-context/sidecar/`, `.agent-context/traces/`, `.agent-context/runs/`, `.agent-context/loops/`, and `.agent-context/orchestrator/` are local artifacts excluded from Git and npm packages.
+
 ## Harness Boundary
 
 The CLI/MCP Harness is a separate control plane and an internal developer/automation surface, not a user installation path. It can build context, invoke an executor, collect a diff, evaluate policy and Guard Gates, and choose finalize, repair, repack, block, rollback, or human-review. The Desktop plugin does not start a multi-loop executor and does not make destructive rollback decisions.
@@ -81,11 +95,14 @@ The entry point determines authority:
 
 ## Windows Failure Modes
 
-| Failure                                  | Expected behavior                                                                 |
-| ---------------------------------------- | --------------------------------------------------------------------------------- |
-| OpenCode is still running during install | Close and restart it so the plugin module is reloaded.                            |
-| Custom config directory                  | Set OPENCODE_CONFIG_DIR or use EXE --config-dir.                                  |
-| Corrupt state JSON                       | Installer reports a diagnostic and does not overwrite it silently.                |
-| SmartScreen warning                      | Verify the published SHA256; the release binary is not commercially code-signed.  |
-| Legacy project plugin exists             | Remove .opencode/plugins/opencode-plusplus.ts to avoid duplicate hooks.           |
-| Another program edits files              | Sidecar cannot observe every external edit; run CLI verify or Harness evaluation. |
+| Failure                                  | Expected behavior                                                                  |
+| ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| OpenCode is still running during install | Close and restart it so the plugin module is reloaded.                             |
+| Custom config directory                  | Set OPENCODE_CONFIG_DIR or use EXE --config-dir.                                   |
+| Corrupt state JSON                       | Installer reports a diagnostic and does not overwrite it silently.                 |
+| Concurrent Desktop hooks                 | Locked append/update preserves events or returns a revision-conflict diagnostic.   |
+| Antivirus briefly holds an artifact      | Atomic replacement retries bounded Windows sharing/access failures.                |
+| Plugin artifact write fails              | The normal hook returns safely and logs to the host; explicit Guard blocks remain. |
+| SmartScreen warning                      | Verify the published SHA256; the release binary is not commercially code-signed.   |
+| Legacy project plugin exists             | Remove .opencode/plugins/opencode-plusplus.ts to avoid duplicate hooks.            |
+| Another program edits files              | Sidecar cannot observe every external edit; run CLI verify or Harness evaluation.  |

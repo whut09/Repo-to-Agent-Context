@@ -26,7 +26,7 @@ The plugin exposes `opencode_plusplus_status`, `opencode_plusplus_enable`, and `
 
 ## Evidence and Artifacts
 
-After a tool call, the plugin records sanitized previews and hashes instead of unrestricted output. It records an exit code when the host supplies one; otherwise the result is `unknown`. It records before/after working-tree hashes and changed paths when available. Reports and traces are written under the current repository's `.agent-context/` through the shared atomic store.
+After a tool call, the plugin records sanitized previews and hashes instead of unrestricted output. It records an exit code when the host supplies one; otherwise the result is `unknown`. It records before/after working-tree hashes and changed paths when available. Reports and traces are written under the current repository's `.agent-context/` through the shared atomic store. Tool events use the OpenCode call ID when available, so a repeated after-hook is idempotent in both the event log and execution trace. Concurrent hooks serialize through file locks and receive monotonic event sequences.
 
 The sidecar is an evidence collection and verification layer. It is not a replacement for unit tests, code review, CI, an OS sandbox, or a security boundary against other applications.
 

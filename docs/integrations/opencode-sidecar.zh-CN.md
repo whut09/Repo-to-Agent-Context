@@ -26,7 +26,7 @@ flowchart LR
 
 ## 证据与 Artifact
 
-工具调用完成后，插件记录脱敏预览和 hash，不保留不受限制的完整输出。宿主提供退出码时记录退出码，否则结果为 `unknown`。在能够确定时记录调用前后 working-tree hash 和变更路径。报告和 trace 通过共享原子存储写入当前仓库的 `.agent-context/`。
+工具调用完成后，插件记录脱敏预览和 hash，不保留不受限制的完整输出。宿主提供退出码时记录退出码，否则结果为 `unknown`。在能够确定时记录调用前后 working-tree hash 和变更路径。报告和 trace 通过共享原子存储写入当前仓库的 `.agent-context/`。宿主提供 OpenCode call ID 时，工具事件会使用它作为事件身份，因此重复 after-hook 在 event log 和 execution trace 中都保持幂等；并发 hook 通过文件锁串行写入并获得单调递增的事件 sequence。
 
 Sidecar 是证据采集和验证层，不是单元测试、代码审查、CI、操作系统沙箱，也不是防止其他应用修改文件的安全边界。
 
