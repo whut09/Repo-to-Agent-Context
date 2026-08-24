@@ -18,11 +18,11 @@ OpenCode++ 的主要使用方式是作为插件运行在官方 OpenCode Desktop 
 1. 编码任务输入 `/plusplus-task <task>`，收尾验证输入 `/plusplus-verify`。
 2. 编辑期间保持插件启用，以获得命令/路径 Guard 和证据记录。
 3. 完成重要编辑后等待会话空闲，在 `.agent-context/sidecar/latest.md` 查看报告。
-4. 只有明确需要无 Guard 会话时才使用 EXE 的 `--disable` 或禁用工具，完成后重新启用。
+4. 使用 `/opencode-plusplus-status` 查看状态，使用 `/opencode-plusplus-off` 暂停保护，使用 `/opencode-plusplus-on` 恢复保护。
 
 OpenCode Slash Command 默认是模型 Prompt。安装器会补丁三个精确的 OpenCode++ 控制命令（`/opencode-plusplus-status`、`/opencode-plusplus-on`、`/opencode-plusplus-off`），使它们在 Desktop 中直接本地执行，不经过模型。Harness 工作流命令（`/plusplus-task`、`/plusplus-verify`）经过模型；EXE 的状态、启用和禁用参数也可以在 Desktop 外本地执行。
 
-## 开发者面（CLI / MCP，内部）
+## 开发者与兼容面（CLI / MCP，内部）
 
 CLI 和 MCP 是内部 dev/test 兼容面，不是用户路径。Desktop 用户只通过 EXE 安装，从不执行 `npm install`。开发者可用它们做 CI、脚本、仓库 context 生成、诊断，或需要明确 artifact/退出码的 Harness-led 循环：
 

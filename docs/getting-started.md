@@ -18,11 +18,11 @@ The installer is per-user, does not need Administrator permission, and writes to
 1. Type `/plusplus-task <task>` for a coding task, or `/plusplus-verify` to re-check the current harness state.
 2. Keep the plugin enabled while editing so command/path guards and evidence capture are active.
 3. After a meaningful edit, wait for the session to become idle and inspect `.agent-context/sidecar/latest.md`.
-4. Use the EXE `--disable` option or the disable tool only when you intentionally need an unguarded session; turn it back on afterward.
+4. Use `/opencode-plusplus-status` to inspect state, `/opencode-plusplus-off` to pause protection, and `/opencode-plusplus-on` to restore it.
 
 OpenCode Slash Commands are normally model prompts. The installer patches three exact OpenCode++ control commands (`/opencode-plusplus-status`, `/opencode-plusplus-on`, `/opencode-plusplus-off`) so they run locally in Desktop without a model turn. The harness workflow commands (`/plusplus-task`, `/plusplus-verify`) are model-mediated, and the EXE status/enable/disable options remain available outside Desktop.
 
-## Developer Surfaces (CLI / MCP)
+## Developer And Compatibility Surfaces (CLI / MCP)
 
 CLI and MCP are internal dev/test compatibility surfaces, not a user path. Desktop users install only from the EXE and never run `npm install`. Developers may use them for CI, scripts, repository context generation, diagnostics, or a harness-led loop that needs explicit artifacts and exit codes:
 
