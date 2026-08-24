@@ -78,7 +78,9 @@ export async function createOpenCodePlusPlusSidecar(
       const stderr = outputText(output, ["stderr", "error"]);
       const stdoutEvidence = sanitizeToolOutput(stdout);
       const stderrEvidence = sanitizeToolOutput(stderr);
+      const eventId = normalized.callId ? `tool.execute.after:${normalized.callId}` : undefined;
       const payload = {
+        eventId,
         tool: String(tool),
         command: command ?? undefined,
         exitCode,
@@ -100,7 +102,15 @@ export async function createOpenCodePlusPlusSidecar(
         stderrRedacted: stderrEvidence.redacted
       };
       recordOpencodeSidecarTool(context.directory, payload);
-      recorder.record("sidecar.record-tool", { tool, command, paths, exitCode: 0 });
+      recorder.record("sidecar.record-tool", {
+        eventId: normalized.callId ? `sidecar.record-tool:${normalized.callId}` : undefined,
+        sessionId: sessionId ? String(sessionId) : undefined,
+        taskId: payload.taskId,
+        tool,
+        command,
+        paths,
+        exitCode
+      });
     } catch (error) {
       recorder.log("debug", "tool evidence record failed", { message: error instanceof Error ? error.message : String(error) });
     }

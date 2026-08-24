@@ -61,6 +61,9 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   let trace = readExecutionTrace(root, traceId);
   if (!trace) trace = startExecutionTrace(root, `OpenCode sidecar session ${sessionId}`, { id: traceId, agent: "opencode" });
   trace = appendExecutionTraceStep(root, traceId, {
+    eventId: persistedEvent.eventId,
+    sessionId,
+    taskId: input.taskId,
     agent: "opencode",
     action: inferToolAction(tool, command),
     files: filesTouched,
