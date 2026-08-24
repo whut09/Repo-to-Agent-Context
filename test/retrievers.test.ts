@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { buildContextPackage } from "../src/core/context-builder.js";
+import { adaptiveTopK } from "../src/retrievers/types.js";
 import { createContextRetriever, renderContextHits } from "../src/retrievers/index.js";
+import { negativeExamplePenalty } from "../src/retrievers/static.js";
 
 function createRetrieverRepo(): string {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-retriever-"));
@@ -87,4 +89,36 @@ test("external retriever protocols fail with adapter guidance", async () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("adaptive top-k follows task type", () => {
+  assert.equal(adaptiveTopK("bugfix"), 6);
+  assert.equal(adaptiveTopK("feature"), 8);
+  assert.equal(adaptiveTopK("refactor"), 10);
+  assert.equal(adaptiveTopK("auto"), 8);
+  assert.equal(adaptiveTopK("bugfix", 3), 3);
+});
+
+test("static retrieval exposes symbol and dependency-chain signals", async () => {
+  const root = createRetrieverRepo();
+  try {
+    const context = await buildContextPackage(root);
+    const retriever = createContextRetriever(context, "static");
+    const hits = await retriever.search("refresh session timeout", {
+      topK: 8,
+      changedFiles: ["src/auth/session.ts"],
+      includeTests: true
+    });
+    const middleware = hits.find((hit) => hit.path === "src/auth/middleware.ts");
+    assert.ok(middleware);
+    assert.ok((middleware.metadata.scoreBreakdown?.dependencyChain ?? 0) > 0);
+    assert.ok((hits.find((hit) => hit.path === "src/auth/session.ts")?.metadata.scoreBreakdown?.symbol ?? 0) > 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("explicit negative examples are strongly down-ranked", () => {
+  assert.equal(negativeExamplePenalty("examples/session.ts", "fixture", "fix session", ["examples"]), 40);
+  assert.equal(negativeExamplePenalty("examples/session.ts", "fixture", "fix examples/session.ts", ["examples"]), 0);
 });
