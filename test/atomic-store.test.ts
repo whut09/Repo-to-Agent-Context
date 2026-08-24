@@ -6,7 +6,7 @@ import path from "node:path";
 import { afterEach, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { cleanupStaleLock } from "../src/core/file-lock.js";
-import { readJsonDiagnostic, RevisionConflictError, writeJsonAtomic, writeJsonAtomicWithRevision } from "../src/core/atomic-store.js";
+import { appendJsonLineLocked, readJsonDiagnostic, RevisionConflictError, writeJsonAtomic, writeJsonAtomicWithRevision } from "../src/core/atomic-store.js";
 import { readExecutionTrace, startExecutionTrace } from "../src/harness/observability/execution-trace.js";
 
 const temporaryRoots: string[] = [];
@@ -96,6 +96,15 @@ test("stale lock cleanup removes dead-owner locks but preserves live-owner locks
   utimesSync(liveLock, old, old);
   assert.equal(cleanupStaleLock(liveLock, 1000), false);
   assert.equal(existsSync(liveLock), true);
+});
+
+test("locked JSONL append assigns sequence and deduplicates event IDs", () => {
+  const root = createRoot();
+  const filePath = path.join(root, "events.jsonl");
+  assert.deepEqual(appendJsonLineLocked(filePath, { eventId: "event-a", payload: "first" }), { appended: true, sequence: 1 });
+  assert.deepEqual(appendJsonLineLocked(filePath, { eventId: "event-a", payload: "duplicate" }), { appended: false, sequence: 1 });
+  assert.deepEqual(appendJsonLineLocked(filePath, { eventId: "event-b", payload: "second" }), { appended: true, sequence: 2 });
+  assert.equal(readFileSync(filePath, "utf8").trim().split(/\r?\n/).length, 2);
 });
 
 function createRoot(): string {

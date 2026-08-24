@@ -17,6 +17,11 @@ export interface JsonReadCorrupt {
 }
 export type JsonReadResult<T> = JsonReadSuccess<T> | JsonReadMissing | JsonReadCorrupt;
 
+export interface JsonlAppendResult {
+  appended: boolean;
+  sequence: number;
+}
+
 export class RevisionConflictError extends Error {
   constructor(
     readonly filePath: string,
@@ -62,6 +67,46 @@ export function appendTextLocked(filePath: string, content: string, options: Fil
       } finally {
         closeSync(descriptor);
       }
+    },
+    options
+  );
+}
+
+export function appendJsonLineLocked<T extends { eventId: string; sequence?: number }>(
+  filePath: string,
+  value: T,
+  options: FileLockOptions = {}
+): JsonlAppendResult {
+  return withFileLock(
+    filePath,
+    () => {
+      mkdirSync(path.dirname(filePath), { recursive: true });
+      let sequence = 0;
+      if (existsSync(filePath)) {
+        const lines = readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean);
+        for (const line of lines) {
+          let existing: Partial<T>;
+          try {
+            existing = JSON.parse(line) as Partial<T>;
+          } catch (error) {
+            throw new Error(`Unable to read JSONL event log ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          if (existing.eventId === value.eventId) return { appended: false, sequence: Number(existing.sequence ?? 0) };
+          sequence = Math.max(sequence, Number(existing.sequence ?? 0));
+        }
+      }
+      const next = { ...value, sequence: sequence + 1 } as T;
+      const descriptor = openSync(filePath, "a");
+      try {
+        const content = `${JSON.stringify(next)}\n`;
+        const buffer = Buffer.from(content, "utf8");
+        let offset = 0;
+        while (offset < buffer.length) offset += writeSync(descriptor, buffer, offset, buffer.length - offset);
+        fsyncSync(descriptor);
+      } finally {
+        closeSync(descriptor);
+      }
+      return { appended: true, sequence: next.sequence ?? sequence + 1 };
     },
     options
   );
