@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import path from "node:path";
-import { readJsonDiagnostic, writeJsonAtomicWithRevision } from "../../../core/atomic-store.js";
+import { readJsonDiagnostic, RevisionConflictError, writeJsonAtomicWithRevision } from "../../../core/atomic-store.js";
 import { getOpenCodePlusplusPackageVersion } from "../../../core/package-info.js";
 
 export const OPENCODE_PLUSPLUS_PLUGIN_STATE_SCHEMA_VERSION = 1;
@@ -90,21 +90,31 @@ export function readOpenCodePlusPlusPluginStatus(stateFile = defaultOpenCodePlus
   };
 }
 
-export function setOpenCodePlusPlusPluginEnabled(enabled: boolean, stateFile = defaultOpenCodePlusPlusStateFile()): OpenCodePlusPlusPluginStatus {
+export function setOpenCodePlusPlusPluginEnabled(
+  enabled: boolean,
+  stateFile = defaultOpenCodePlusPlusStateFile(),
+  expectedRevision?: number
+): OpenCodePlusPlusPluginStatus {
   const current = readOpenCodePlusPlusPluginStatus(stateFile);
   const now = new Date().toISOString();
-  writeJsonAtomicWithRevision(
-    stateFile,
-    {
-      schemaVersion: OPENCODE_PLUSPLUS_PLUGIN_STATE_SCHEMA_VERSION,
-      revision: current.revision,
-      enabled,
-      version: getOpenCodePlusplusPackageVersion(),
-      installedAt: current.installedAt ?? now,
-      updatedAt: now
-    },
-    current.revision
-  );
+  try {
+    writeJsonAtomicWithRevision(
+      stateFile,
+      {
+        schemaVersion: OPENCODE_PLUSPLUS_PLUGIN_STATE_SCHEMA_VERSION,
+        revision: current.revision,
+        enabled,
+        version: getOpenCodePlusplusPackageVersion(),
+        installedAt: current.installedAt ?? now,
+        updatedAt: now
+      },
+      expectedRevision ?? current.revision
+    );
+  } catch (error) {
+    if (!(error instanceof RevisionConflictError)) throw error;
+    const latest = readOpenCodePlusPlusPluginStatus(stateFile);
+    return { ...latest, diagnostic: error.message };
+  }
   return readOpenCodePlusPlusPluginStatus(stateFile);
 }
 
