@@ -277,6 +277,25 @@ function readEventLines(root: string): Array<Record<string, unknown>> {
     .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
+test("sidecar event records have stable metadata and duplicate event IDs are idempotent", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-event-envelope-"));
+  try {
+    const recorder = createSidecarRecorder({ directory: root });
+    recorder.record("tool.execute.after", { eventId: "call-1", sessionId: "session-a", taskId: "task-a" });
+    recorder.record("tool.execute.after", { eventId: "call-1", sessionId: "session-a", taskId: "task-a" });
+    const events = readEventLines(root);
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.eventId, "call-1");
+    assert.equal(events[0]?.sequence, 1);
+    assert.equal(events[0]?.sessionId, "session-a");
+    assert.equal(events[0]?.taskId, "task-a");
+    assert.equal(events[0]?.schemaVersion, 1);
+    assert.equal(typeof events[0]?.timestamp, "string");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function writeJsonFile(root: string, relativePath: string, value: unknown): void {
   mkdirSafe(path.join(root, path.dirname(relativePath)));
   writeFileSync(path.join(root, relativePath), `${JSON.stringify(value, null, 2)}\n`, "utf8");
