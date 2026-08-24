@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pluginPerformance, runPluginStage } from "../src/integrations/opencode/plugin-runtime/harness/performance.js";
+import { createCacheStats } from "../src/core/cache.js";
+import {
+  cacheStatusForStats,
+  contextModeForStats,
+  pluginPerformance,
+  runPluginStage
+} from "../src/integrations/opencode/plugin-runtime/harness/performance.js";
 
 test("plugin stages return structured timeout state", async () => {
   const result = await runPluginStage(
@@ -26,4 +32,21 @@ test("plugin stages report completed duration and preserve values", async () => 
   assert.equal(result.status, "completed");
   assert.equal(result.value, "ready");
   assert.ok(result.durationMs >= 0);
+});
+
+test("context performance mode distinguishes reuse, incremental refresh, and invalidation", () => {
+  const reused = createCacheStats(true);
+  reused.indexHits = 4;
+  reused.graphHits = 1;
+  assert.equal(contextModeForStats(reused), "reused");
+  assert.equal(cacheStatusForStats(reused), "hit");
+
+  const incremental = createCacheStats(true);
+  incremental.indexHits = 3;
+  incremental.indexMisses = 1;
+  assert.equal(contextModeForStats(incremental), "incremental");
+
+  const rebuilt = createCacheStats(true);
+  rebuilt.dependencyInvalidated = true;
+  assert.equal(contextModeForStats(rebuilt), "rebuilt");
 });
