@@ -2,7 +2,7 @@
 
 [中文目录](README.zh-CN.md) | English
 
-OpenCode++ is Windows-first: install the plugin for the official OpenCode Desktop with the release EXE, then use status, enable, and disable from the chat UI. CLI and MCP are internal dev/test compatibility surfaces, not user paths and not a second Desktop application.
+OpenCode++ is a Windows-first Harness plugin for the official OpenCode Desktop. Install the EXE, select the **OpenCode++** primary mode, and let it provide context, edit boundaries, evidence, and verification decisions around normal coding work. CLI and MCP are developer/compatibility surfaces, not user installation paths and not a second Desktop application.
 
 ## Start Here
 
@@ -18,6 +18,7 @@ OpenCode++ is Windows-first: install the plugin for the official OpenCode Deskto
 | Operate the CLI (developer surface)                | [CLI Reference](reference/cli-reference.md)                                           |
 | Configure evidence trust                           | [Configuration](reference/config.md)                                                  |
 | Build and publish releases                         | [Release Checklist](release.md)                                                       |
+| Contribute or customize the Harness                | [Contribution Guide](../CONTRIBUTING.md)                                              |
 
 ## Concepts
 

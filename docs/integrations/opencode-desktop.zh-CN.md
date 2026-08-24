@@ -1,120 +1,80 @@
-# Windows 官方 OpenCode Desktop 安装与使用
+# Windows 官方 OpenCode Desktop
 
 [English](opencode-desktop.md) | 中文
 
-OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录和一个范围严格受限的宿主补丁接入。补丁只在内置 `SessionPrompt.command` 分发器中拦截三个 OpenCode++ 命令名，不修改 renderer、更新器、账户系统、认证逻辑或其他应用逻辑。
-
-这个 EXE 是 OpenCode++ 唯一面向用户的安装与使用路径。CLI（`opencode-plusplus`）和 MCP 服务（`opencode-plusplus-mcp`）保留在仓库中作为内部 dev/test 兼容面，不出现在安装器 payload 里。完整边界划分见 [产品边界说明](../developer/product-boundary.zh-CN.md)。
+OpenCode++ 作为全局用户级插件安装到官方 OpenCode Desktop。用户真正使用的入口只有一个 primary agent mode：**OpenCode++**。安装器不增加 Slash Command，也不修改 `app.asar`。
 
 ## 安装
 
 1. 完全退出 OpenCode Desktop。
 2. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
-3. 双击 EXE，不需要管理员权限。
-4. 重新打开 OpenCode Desktop，打开一个仓库。
-5. 新建会话，输入 `/plusplus-task <task>` 即可让 Harness 接管编码任务。
+3. 双击 EXE，等待确认窗口。
 
-安装器写入：
+![安装器确认窗口](../images/opencode-plusplus-installer.png)
+
+4. 重启 OpenCode Desktop。
+5. 打开一个仓库，在模式选择器中选择 **OpenCode++**。
+
+![模式选择器](../images/opencode-plusplus-mode.png)
+
+安装器按当前用户安装，不需要管理员权限。默认使用 `%USERPROFILE%\.config\opencode`；设置 `OPENCODE_CONFIG_DIR` 时优先使用它。
+
+## 安装内容
 
 ```text
 <OpenCode 配置目录>\plugins\opencode-plusplus.js
+<OpenCode 配置目录>\agents\opencode-plusplus.md
 <OpenCode 配置目录>\opencode-plusplus\state.json
 <OpenCode 配置目录>\opencode-plusplus\installation.json
-<OpenCode 配置目录>\commands\opencode-plusplus-on.md
-<OpenCode 配置目录>\commands\opencode-plusplus-off.md
-<OpenCode 配置目录>\commands\opencode-plusplus-status.md
-<OpenCode 配置目录>\commands\plusplus-task.md
-<OpenCode 配置目录>\commands\plusplus-verify.md
-<OpenCode 配置目录>\skills\opencode-plusplus\SKILL.md
 ```
 
-默认配置目录是 `%USERPROFILE%\.config\opencode`。运行时优先使用 `OPENCODE_CONFIG_DIR`，也会遵循 OpenCode 已使用的 `XDG_CONFIG_HOME`。
+agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `agents` 目录发现它，并在模式选择器中和 Build、Plan 一起显示。插件和 agent 文件是两个独立部分，模式 Prompt 与运行时工具不会混在一起。
 
-## Harness 工作流
+## 使用模式
 
-重启后，会话提供 `/plusplus-task` 和 `/plusplus-verify` 两个普通模型 Slash Command，以及 OpenCode 在具体编码任务时自动加载的 `opencode-plusplus` skill，全程无需命令行：
+选择模式后，像平时一样描述任务。模式会要求当前 OpenCode 模型：
 
-- `/plusplus-task <task>` 按 Harness 顺序执行：`opencode_plusplus_prepare` → 读取 `mustInspect` 文件 → 只在 `allowedEditGlobs` 内修改 → 用内置 shell 工具跑 `requiredCommands` → `opencode_plusplus_evaluate` → `opencode_plusplus_next`。`nextAction` 不是 `finalize` 前不得声称完成。
-- `/plusplus-verify` 重新执行 `opencode_plusplus_evaluate` 和 `opencode_plusplus_next`，并汇报阻塞状态、缺失证据和仍必须运行的命令。
-- skill 负责在正确的时机引导模型调用正确工具，并把 blocking 视为未完成。
+1. 需要时先检索相关文件；
+2. 准备任务并阅读所有 `mustInspect` 文件；
+3. 只在返回的边界内编辑；
+4. 用内置 shell 跑完所有 required command；
+5. 按当前工作树 freshness 评估证据；
+6. 持续执行 `next`，直到 Harness 返回 `finalize` 或 human review。
 
-## 状态与开关
+真正读文件、改代码和执行命令的仍是当前 OpenCode 模型。OpenCode++ 提供 context、规则、证据和决策工具；Desktop 插件不会启动第二个模型，也不会调用自己的 CLI。
 
-| 操作     | Desktop 本地命令            |
-| -------- | --------------------------- |
-| 查看状态 | `/opencode-plusplus-status` |
-| 启用     | `/opencode-plusplus-on`     |
-| 禁用     | `/opencode-plusplus-off`    |
+## 状态和报告
 
-OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这三个精确命令名注入宿主分发器拦截逻辑。补丁有效时，`/opencode-plusplus-status`、`/opencode-plusplus-on` 和 `/opencode-plusplus-off` 会在模板展开前被拦截，直接读取或更新本地 state 文件，并向当前会话写入本地结果；不会调用模型，也不会执行 Shell。其他 Markdown Command 仍保持 OpenCode 的默认行为。
+插件状态写在 OpenCode 配置目录。仓库运行文件写在 `.agent-context/`：
 
-禁用是暂停，不是卸载。插件仍保持加载，因此状态和重新启用仍可用。安装或升级后必须完全重启 OpenCode，让宿主重新加载插件模块。
+- `traces/`：标准化工具和测试证据；
+- `runs/`：任务 context、边界和迭代文件；
+- `loops/`：决策、缺失证据和收敛状态；
+- `sidecar/latest.md`：最近一次验证摘要。
 
-## 补丁边界
+这些是运行时文件，不是源码。应按需要将 `.agent-context/` 加入本地 Git 排除，绝不要提交包含密钥的输出。
 
-- 安装器要求 Desktop bundle 中存在预期的 `SessionPrompt.command` 特征。
-- 安装或卸载时必须完全退出 OpenCode，因为安装器会原子替换 `app.asar`。
-- 原始文件会备份为 `app.asar.opencode-plusplus.original`，卸载时恢复。
-- OpenCode 更新并替换 `app.asar` 后，原生命令会暂时消失；重新运行安装器即可重新检测、备份并补丁新版本。
-- 如果 bundle 结构不支持或已变化，安装器会拒绝操作，不写入命令文件。
-- 备份旁车文件记录 `schemaVersion`、补丁 marker、Desktop 版本、源 `app.asar` 和安装时间。卸载只恢复 OpenCode++ 自己创建且经过校验的未补丁备份。
-- `/opencode-plusplus-status` 会报告 `active`、`stale`、`absent` 或 `skipped`；OpenCode 更新替换 `app.asar` 后，已有安装会显示 `stale`，不会误报 active。
-- 宿主替换和每次配置写入都使用临时文件及原子替换。补丁、plugin、command 或 state 任一步失败，宿主 bundle 仍可恢复，并且不会继续写入后续文件。
-- EXE 只包含 .NET 安装器、插件 bundle 和补丁资源，不携带 Node、Electron 或完整 OpenCode runtime。
+## 升级和旧版本清理
 
-## 插件做什么
+运行新 EXE 前必须关闭 OpenCode Desktop。安装器会替换插件、刷新 `agents/opencode-plusplus.md`、保留有效的 enabled 状态，并清理旧版本创建的：
 
-启用时，插件会：
+- `commands/opencode-plusplus-status.md`、`opencode-plusplus-on.md`、`opencode-plusplus-off.md`；
+- `commands/plusplus-task.md` 和 `commands/plusplus-verify.md`；
+- `skills/opencode-plusplus/SKILL.md`；
+- 检测到的旧 OpenCode++ `app.asar` 补丁及其备份。
 
-- 在工具执行前检查命令语法、已知 package script、危险 Shell 操作、受保护路径和疑似密钥路径；被拦下的命令返回固定双语结构（`BLOCKED: <原因>` / `Evidence: <命令或路径>` / `Do instead: <具体替代>`），让模型知道下一步改跑什么；不确定的路径参数记为 warning 而不是 blocker；
-- 在工具执行后记录工具、命令、退出码、时间、变更路径、working-tree hash 以及脱敏/截断输出；
-- 把 trace 和事件 artifact 写入当前仓库的 `.agent-context/`；
-- 在文件编辑且会话进入 idle 后运行共享增量验证栈；
-- 通过普通 OpenCode 插件工具提供状态、启用和禁用控制；
-- 以 `opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate`、`opencode_plusplus_next` 四个工具提供 `/plusplus-task` 和 `/plusplus-verify` 背后的会话内 Harness 工作流。
+升级后重启 OpenCode 并重新选择模式。如果看不到模式，先检查实际生效的配置目录，以及是否存在覆盖 OpenCode 配置根目录的其他配置文件。
 
-## Harness 工具协议
+## 边界
 
-`opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate` 和 `opencode_plusplus_next` 都返回同一种稳定 JSON envelope，既供模型解析，也带有适合聊天显示的 `summary`。每次结果包含 `schemaVersion`、`taskId`、`sessionId`、`taskIdSource`、`repository`、`workingTreeHash`、阶段、decision、blocking、findings、证据/命令/编辑边界、artifacts 与 `nextAction`。
+- 插件观察 OpenCode 的工具 hook，不是操作系统级沙箱；
+- 无法阻止其他进程修改文件；
+- 命令成功不等于业务语义正确；
+- manual、stale 或 superseded evidence 在当前 policy 下仍可能阻塞；
+- 不会自动 commit、push、merge 或破坏性回滚仓库。
 
-同一 task 的 `prepare` 幂等，并且在 evaluate 与 next 完成前始终 blocking。省略 `taskId` 时会从匹配的插件 session 恢复，并显示 `taskIdSource: "session"`。`evaluate` 会针对当前 working tree 重算并持久化 session-scoped 结果；`next` 只消费这一结果，blocking 时不能返回 `finalize`。参数错误或内部失败同样返回 JSON error envelope，不会令 OpenCode 崩溃。
+## 定制插件
 
-## 会话生命周期
+如果需要不同 Harness，可以 fork 仓库或添加项目级 agent。可以定制 agent Prompt、retrieval 排序、命令 Guard、evidence policy 和 loop 决策逻辑；修改后补测试并重新构建 Windows 安装器。详见 [Windows 插件架构](../concepts/windows-plugin-architecture.zh-CN.md) 和[定制说明](../../README.zh-CN.md#定制自己的-harness)。
 
-插件会把 Harness 状态推回会话，而不是只写进 `.agent-context/` 文件：
-
-- `session.created`：启用时把仓库标记为 dirty，并在 debounce（≥2 秒）后后台构建 context。成功时弹出 "OpenCode++ 已就绪" toast；构建失败只记录日志，绝不中断会话。
-- `session.idle`：沿用现有 idle 验证。出现 blocker 时弹出一行 toast：`OpenCode++ 未通过：<第一条 blocker>。下一步调用 opencode_plusplus_next`。不会 throw。
-- `experimental.session.compacting`：模型压缩长会话前，插件把当前 Harness 状态（taskId、allowed/avoid 编辑 glob、blocking、缺失证据、上次 decision、`.agent-context/sidecar/latest.md` 摘要）追加到 `output.context`，绝不替换 `output.prompt`。
-- `session.error`：把错误记入 sidecar 事件日志作为证据，不打断宿主。
-
-插件禁用时，除 `status`/`enable`/`disable` 工具外的生命周期处理全部立即返回。若当前 OpenCode 版本没有 toast API，通知会降级为结构化 `app.log` 记录，而不是假设不存在的 SDK 方法。
-
-## 插件不能做什么
-
-- 不能增加原生 OpenCode Desktop 设置页面；原生补丁只负责三个明确的 Slash Command。
-- 不能给进程提供操作系统级沙箱，也不能控制其他应用做出的编辑。
-- 不能仅凭命令退出码证明业务语义正确。
-- 不能保证完全识别不透明的工具参数。
-- 不会自动提交、推送、合并或破坏性回滚用户工作树。
-
-## 升级
-
-关闭 OpenCode Desktop 后运行新 EXE。安装器更新内置插件，检查或重新应用宿主补丁，写入三个原生命令菜单项以及 `/plusplus-task`、`/plusplus-verify` 命令和 `opencode-plusplus` skill，更新 `installation.json`，并保留现有有效启用状态。
-
-如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。旧版仓库级命令 `.opencode/commands/opencode-plusplus.md` 和 `.opencode/commands/opencode-plusplus-verify.md` 已不再生成，应直接删除。
-
-## 排障
-
-如果工具没有出现：
-
-1. 完全退出并重启 OpenCode；
-2. 确认插件文件位于 OpenCode 当前实际使用的配置目录；
-3. 新建仓库会话；
-4. 在 Desktop 中执行 `/opencode-plusplus-status`；
-5. 删除遗留的项目级插件；
-6. 每次 OpenCode Desktop 更新后重新运行安装器。
-
-## 开发者与兼容细节
-
-安装器自动化参数、源码构建、CLI/MCP 兼容面、确定性 benchmark、自动卸载和真实 Desktop smoke 配置见 [产品边界说明](../developer/product-boundary.zh-CN.md) 与 [发布检查](../release.zh-CN.md)。这些都不是普通 Desktop 用户流程。
+CLI 和 MCP 文档只面向开发者和兼容集成。

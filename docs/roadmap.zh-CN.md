@@ -8,7 +8,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 
 - 不携带 Node 或 Electron、内嵌压缩插件的轻量 Windows EXE；
 - 安装到当前用户实际使用的 OpenCode 配置目录；
-- 通过 OpenCode 模型可见工具查看状态、启用和关闭，并提供无需模型的 EXE 控制；
+- 通过 OpenCode 模型可见工具查看状态、启用和关闭，普通 Desktop 入口是 `opencode-plusplus` primary mode；
 - 工具执行前的命令/路径 Guard；
 - 工具执行后的脱敏 evidence 和 working-tree hash；
 - idle 增量验证和仓库 Sidecar 报告；
@@ -37,7 +37,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 
 - 对支持的 OpenCode Desktop 版本做兼容测试并记录插件 API 版本；
 - 增加真实 Desktop smoke test，覆盖工具注册、hook input、控制命令和 idle verify；
-- 跟踪 OpenCode bundle 变化，保持经过特征检查的原生命令补丁兼容；
+- 跟踪 OpenCode agent/config 变化，保持标准全局 primary mode 兼容；
 - 只有 OpenCode 提供稳定第三方扩展点后，才考虑原生设置面板。
 
 ### P2：Windows 运维
@@ -58,7 +58,7 @@ OpenCode++ 当前以 Windows 为重点。主要产品是官方 OpenCode Desktop 
 ## 不会改变的边界
 
 - 不做第二个 OpenCode Desktop 外壳；
-- 不修改无关的 OpenCode binary、renderer、updater 或认证；Windows 安装器只允许修改文档规定的命令分发器，并支持恢复原始 bundle；
+- 不修改 OpenCode `app.asar`、renderer、updater 或认证；Windows 安装器只写入用户 plugin 和 primary agent 配置；
 - 不声称命令成功就等于语义正确；
 - 不静默 commit、push、merge 或 destructive reset 用户工作树；
 - 保护关闭后，Desktop 控制工具仍然可用。

@@ -2,7 +2,7 @@
 
 [English index](README.md) | 中文
 
-OpenCode++ 当前以 Windows 为重点：使用 Release EXE 把插件安装到官方 OpenCode Desktop，然后在聊天界面中查看状态、启用和关闭。CLI 与 MCP 是内部 dev/test 兼容面，不是用户路径，也不是第二个 Desktop 应用。
+OpenCode++ 是面向官方 OpenCode Desktop 的 Windows Harness 插件。安装 EXE 后选择 **OpenCode++** primary mode，它会围绕正常编码任务提供 context、编辑边界、证据和验证决策。CLI 与 MCP 只面向开发者和兼容集成，不是普通安装方式，也不是第二个 Desktop 应用。
 
 ## 从这里开始
 
@@ -18,6 +18,7 @@ OpenCode++ 当前以 Windows 为重点：使用 Release EXE 把插件安装到�
 | 使用 CLI（开发者面）                  | [CLI 参考](reference/cli-reference.zh-CN.md)                            |
 | 配置证据可信等级                      | [配置参考](reference/config.zh-CN.md)                                   |
 | 构建和发布                            | [发布检查](release.zh-CN.md)                                            |
+| 贡献或定制 Harness                    | [贡献指南](../CONTRIBUTING.zh-CN.md)                                    |
 
 ## 原理和开发
 

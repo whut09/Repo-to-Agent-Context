@@ -1,112 +1,60 @@
-# Windows 插件架构与边界
+# Windows 插件架构
 
 [English](windows-plugin-architecture.md) | 中文
 
-本文是 Windows Desktop 集成的原理和边界说明。产品是通过 Release EXE 安装的用户级 OpenCode 插件。Harness 作为进程内工具运行在插件内部；同样的实现也通过内部 CLI/MCP 开发者面暴露。它们共享领域实现，但不共享控制权。
+## 产品形态
 
-## 系统模型
+OpenCode++ 只有一个面向普通用户的产品：按当前用户安装的 Windows x64 安装器。它注册一个全局 OpenCode 插件，并写入标准 `mode: primary` agent 文件。OpenCode Desktop 继续负责界面、模型、认证、会话生命周期和工具分发。
 
-```mermaid
-flowchart TD
-  EXE["Windows EXE 安装器"] --> Config["用户 OpenCode 配置"]
-  Config --> Plugin["内置全局插件"]
-  Desktop["官方 OpenCode Desktop"] --> Plugin
-  Plugin --> Hooks["OpenCode hook 事件"]
-  Hooks --> Runtime["插件运行时"]
-  Runtime --> Guard["命令/路径 Guard"]
-  Runtime --> Evidence["Trace/Evidence 记录器"]
-  Runtime --> Idle["空闲验证器"]
-  Guard --> Repo["目标仓库"]
-  Evidence --> Repo
-  Idle --> Repo
-  Repo --> Artifacts[".agent-context artifact"]
-  CLI["CLI / MCP（内部开发者面）"] --> Repo
+```text
+OpenCode Desktop
+  -> 选择 primary agent：opencode-plusplus
+  -> OpenCode++ 插件工具和 hook
+  -> 仓库 .agent-context 运行文件
 ```
 
-## 安装边界
+模式 Prompt 会告诉当前模型何时调用 `retrieve`、`prepare`、`evaluate` 和 `next`。这些工具在插件进程内运行，不需要第二个模型、CLI 子进程或第二套 Desktop shell。
 
-EXE 是当前用户级安装器。它把内置插件、状态文件、安装清单、三个原生命令菜单文件、`/plusplus-task` 和 `/plusplus-verify` Harness 工作流命令以及 `opencode-plusplus` skill 写入当前 OpenCode 配置目录，并对内置 `SessionPrompt.command` 分发器应用经过特征检查的窄范围补丁，使这三个原生命令可以不经过模型直接执行。原始 `app.asar` 会备份，卸载时恢复。安装器不替换更新器、不修改凭据，也不安装操作系统服务。
+## 安装契约
 
-esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不携带 Node.js、第二套 UI runtime、OpenCode 或源代码仓库。构建强制 12 MiB 上限，并在 Desktop release manifest 中记录准确 EXE 大小和 SHA256。
+EXE 写入：
 
-## 插件边界
+```text
+<配置目录>\plugins\opencode-plusplus.js
+<配置目录>\agents\opencode-plusplus.md
+<配置目录>\opencode-plusplus\state.json
+<配置目录>\opencode-plusplus\installation.json
+```
 
-OpenCode 负责模型、聊天界面、工具调度、认证、进程生命周期和事件投递。OpenCode++ 只负责插件回调以及由回调产生的仓库 artifact：
+安装器按单文件原子方式写入，并在 state 文件有效时保留 enabled 状态。它会清理旧版本的命令文件；如果检测到旧 `app.asar` 补丁且同时存在 marker 和原始备份，会先恢复原文件。新版本安装器永远不修改 `app.asar`。
 
-| 边界 | OpenCode 负责          | OpenCode++ 负责                                 |
-| ---- | ---------------------- | ----------------------------------------------- |
-| 界面 | 聊天、设置、会话显示   | 模型可见工具；不提供原生设置页或直接命令        |
-| 执行 | 模型和工具调用         | 工具前命令/路径检查、工具后证据记录             |
-| 状态 | 插件加载、会话生命周期 | 启用状态、revision、trace、policy、sidecar 报告 |
-| 仓库 | 源代码和用户工作流     | .agent-context 运行时输出                       |
-| 安全 | 宿主进程权限           | 确定性 Guard finding，不是 OS 沙箱              |
+## 运行流程
 
-## 启用状态
+1. OpenCode 加载全局插件，并从 `agents/opencode-plusplus.md` 发现 primary agent。
+2. 模型调用 `retrieve`、`prepare`，获得相关文件、编辑边界、必跑命令和 task ID。
+3. OpenCode 仍通过自己的工具执行读文件、编辑和 shell 调用。
+4. 插件 hook 在执行前检查命令和路径，在执行后记录脱敏证据。
+5. idle 验证和显式 `evaluate` 针对当前工作树重新计算 freshness、guard、policy、regression 和 convergence。
+6. `next` 返回确定性动作。blocking action 不是完成。
 
-状态文件是用户级且带版本的。enabled 为 false 时插件仍加载，前后 hook 提前返回，但三个控制工具继续可用。状态文件损坏或版本不支持时，保护逻辑默认保持启用并返回诊断，不会静默关闭 Guard。
+## 证据和持久化
 
-OpenCode Markdown Command 默认是模型 Prompt Template，不是插件直接回调。宿主补丁只为三个精确命令增加例外：注入分支直接读取或更新 OpenCode++ state，并在正常模板处理前写入本地结果。它不提供通用第三方设置面板，也不改变其他命令。
+插件记录 event identity、session/task identity、时间、命令结果、变更路径、working-tree hash 和脱敏输出。state、trace、report、session 使用共享 atomic store 和兼容 Windows 的锁。损坏 JSON 会返回可诊断状态，不会静默变成空状态。
 
-## 事件与证据流程
+仓库运行文件包括 `.agent-context/traces/`、`.agent-context/runs/`、`.agent-context/loops/`、`.agent-context/delta/` 和 `.agent-context/sidecar/`。它们不能进入发布包或 Git 提交。
 
-1. tool.execute.before 规范化宿主输入，检查命令和路径。
-2. 运行时记录开始时间和 working-tree hash。
-3. tool.execute.after 规范化输出，在可用时记录退出码，脱敏密钥并记录 hash/预览。
-4. file.edited 或 file.watcher.updated 标记会话 dirty。
-5. session.created（启用时）把仓库标记 dirty，并在 debounce 后后台构建 context，成功后弹出 "OpenCode++ 已就绪" toast；失败只记日志。
-6. session.idle 为当前仓库启动增量验证；验证未通过时弹出第一条 blocker 的 toast，并提示调用 `opencode_plusplus_next`。
-7. experimental.session.compacting 把当前 taskId、编辑 glob、blocking 状态、缺失证据、上次 decision 和 sidecar latest 摘要追加到 `output.context`（绝不替换 `output.prompt`）。
-8. session.error 记为证据，不打断宿主。
-9. Sidecar 报告和 trace 通过原子方式写入 .agent-context。
+## 硬边界
 
-如果宿主没有暴露命令、退出码、路径或 session id，运行时记录 unknown 或 partial，不伪造证据。
+| 边界               | 含义                                             |
+| ------------------ | ------------------------------------------------ |
+| 不是沙箱           | 其他进程仍可修改文件或执行命令。                 |
+| 不是模型           | 实际编码工作由 OpenCode 当前选择的模型完成。     |
+| 不是语义证明       | 命令通过不等于业务正确。                         |
+| 不是宿主 fork      | 安装器不修改 renderer 或 `app.asar`。            |
+| 不是自动合并机器人 | 不会自动 commit、push、merge 或破坏性 rollback。 |
 
-## Artifact 一致性模型
+## 扩展点
 
-Desktop hook、CLI 诊断和后台验证可能并发写入同一仓库。因此 runtime state、session state、workflow state、execution trace 和 Markdown report 统一使用共享 atomic store：
+Fork 可以定制 primary agent Prompt、retrieval ranker、命令/路径 Guard、evidence policy、loop convergence、decision arbitration 和 Desktop 工具处理。所有变更都应留在插件/runtime 边界内，增加对应契约测试，并说明新增信号能观察什么、不能观察什么。
 
-1. 写入方先获取目标文件旁的 lock file，并记录 PID、owner token、创建时间和 lock schema version。
-2. JSON 或文本先写入目标目录中的唯一临时文件，执行 `fsync` 后 rename 替换正式文件；平台支持时还会同步父目录。
-3. Windows 上如果杀毒软件扫描或其他进程短暂占用文件，替换操作会对 `EPERM`、`EACCES` 和 `EBUSY` 做有界重试。
-4. revision JSON 在持锁期间比较调用方预期 revision；不一致时返回 revision conflict 诊断，绝不覆盖较新的值。
-5. JSONL 事件追加在同一把锁内完成读取、按 `eventId` 去重、分配下一个 `sequence`、追加和 flush。每个事件还包含 `schemaVersion`、`sessionId`、`taskId` 和 `timestamp`。
-
-如果进程在 rename 前终止，旧的完整文件仍可读取。超过 stale 阈值后可以清理死进程持有的 lock 和旧临时文件；活进程的 lock 与近期临时文件会保留。损坏 JSON 会在存储边界返回明确诊断，不会被当作“状态不存在”。
-
-持久化失败不能成为 OpenCode Desktop 崩溃的原因。普通生命周期 hook 和 after-hook 的写入异常会在插件边界捕获，并尽力发送到宿主日志；明确的命令/路径 Guard 拒绝仍会阻止不安全工具调用。`.agent-context/sidecar/`、`.agent-context/traces/`、`.agent-context/runs/`、`.agent-context/loops/` 和 `.agent-context/orchestrator/` 等仓库运行时目录属于本地产物，不进入 Git 或 npm 包。
-
-## Harness 边界
-
-CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是用户安装路径。它可以生成 context、调用 executor、收集 diff、评估 policy 和 Guard Gate，并选择 finalize、repair、repack、block、rollback 或 human-review。Desktop 插件不会启动多轮 executor，也不会对用户工作树执行破坏性回滚。
-
-入口决定权限：
-
-- Desktop 插件：事件驱动、交互式，宿主持有执行权。
-- Agent-led CLI/MCP：外部 Agent 持有执行权，OpenCode++ 返回报告和约束。
-- Harness-led CLI：OpenCode++ 持有有界编排权，外部 Agent 仍是实际改代码的 executor。
-
-## 非目标
-
-- 不提供第二个桌面应用或独立 UI runtime。
-- 不修改无关的 Desktop 代码；安装器只修改经过特征检查的 `SessionPrompt.command` 分发器，并可恢复原始 `app.asar`。
-- 不替代操作系统沙箱或杀毒软件。
-- 不声称命令通过就等于语义正确。
-- 不自动提交、推送、合并或破坏性回滚用户工作树。
-
-## Windows 故障处理
-
-| 故障                      | 预期行为                                                             |
-| ------------------------- | -------------------------------------------------------------------- |
-| 安装时 OpenCode 仍在运行  | 关闭并重启，让插件模块重新加载。                                     |
-| 使用自定义配置目录        | 安装器遵循 OpenCode 当前使用的用户配置。                             |
-| 状态 JSON 损坏            | 安装器返回诊断，不静默覆盖。                                         |
-| Desktop hook 并发写入     | 持锁追加/更新保留事件，或返回 revision conflict 诊断。               |
-| 杀毒软件短暂占用 artifact | 原子替换对 Windows 共享/访问错误做有界重试。                         |
-| 插件 artifact 写入失败    | 普通 hook 正常返回并记录宿主日志；明确 Guard blocker 仍保持阻塞。    |
-| SmartScreen 警告          | 先核对发布的 SHA256；发布二进制未做商业代码签名。                    |
-| 存在旧项目插件            | 删除 .opencode/plugins/opencode-plusplus.ts，避免 hook 重复。        |
-| 其他程序编辑文件          | Sidecar 无法观察所有外部编辑，应在 Desktop 运行 `/plusplus-verify`。 |
-
-## 发布验证边界
-
-Windows CI 构建 EXE，并验证 release manifest、SHA256、体积阈值、独立 plugin export、三条本地命令、patch marker、original backup、中断替换恢复和 uninstall restore；同时运行不调用模型或外部 executor 的确定性 Desktop Harness benchmark。真实 OpenCode Desktop 启动只在手动 Windows workflow 中执行，workflow 会先安装官方 `SST.OpenCodeDesktop` winget 包再检查启动；PR CI 不启动 GUI，也不调用付费模型。
+详见 [OpenCode Desktop 安装](../integrations/opencode-desktop.zh-CN.md)、[总体架构](architecture.zh-CN.md) 和[生成文件](../reference/generated-files.zh-CN.md)。

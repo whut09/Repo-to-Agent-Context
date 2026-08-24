@@ -1,77 +1,99 @@
 # OpenCode++
 
-[English](README.en.md) | 中文
+[中文说明](README.zh-CN.md)
 
-**官方 OpenCode Desktop 的 Windows Harness 插件。**
+**A Windows-first Harness plugin for the official OpenCode Desktop application.**
 
-OpenCode++ 不提供第二个桌面软件，也不要求普通用户安装 npm 包或使用命令行。Release EXE 会把自包含插件安装到当前用户的 OpenCode 配置目录，并为三个本地状态命令安装窄范围 `app.asar` 补丁。日常操作全部在官方 OpenCode Desktop 中完成。
+## What Problem It Solves
 
-## 安装
+An AI coding session can produce a plausible diff while reading the wrong files, editing outside the intended scope, running an unrelated command, or declaring success without fresh test evidence. OpenCode++ adds a verification control plane around OpenCode Desktop so the model has to work from repository context, explicit edit boundaries, traceable evidence, and a final decision.
 
-1. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
-2. 完全退出 OpenCode Desktop。
-3. 双击 EXE，等待安装完成。
-4. 重新打开 OpenCode Desktop，并打开目标仓库。
-5. 新建会话，输入 `/plusplus-task <任务>`。
+OpenCode++ is not another chat application and it is not a replacement model. It is a user-level Desktop plugin that observes the tools OpenCode already exposes and provides Harness tools for:
 
-安装器作用于当前 Windows 用户，不需要管理员权限。默认使用 `%USERPROFILE%\.config\opencode`，也会遵循 OpenCode 已配置的 `OPENCODE_CONFIG_DIR` 或 `XDG_CONFIG_HOME`。
+- selecting relevant files and symbols before blind search;
+- preparing task boundaries and required checks;
+- guarding commands and protected paths;
+- recording sanitized execution evidence against the current working tree;
+- evaluating policy, freshness, regression, hallucination, and convergence gates;
+- explaining whether the next action is repair, repack, human review, or finalize.
 
-## 在 Desktop 中使用 Harness
+## What It Can Do Now
 
-- `/plusplus-task <任务>`：调用 `opencode_plusplus_prepare`，阅读 `mustInspect`，遵守编辑边界，运行 `requiredCommands`，再调用 `opencode_plusplus_evaluate` 和 `opencode_plusplus_next`。
-- `/plusplus-verify`：重新评估当前任务，显示 blocker、缺失证据、必跑命令和下一步。
-- `opencode_plusplus_retrieve`：在盲目搜索前返回与任务相关的文件和 score breakdown。
-- 只有 `opencode_plusplus_next` 返回 `finalize` 且没有 blocker 时，任务才能视为完成。
+The Windows installer adds one selectable OpenCode primary mode named **OpenCode++**. Select it from the mode picker shown at the bottom of the prompt box, then describe the coding task normally. There are no OpenCode++ Slash Commands to remember.
 
-这些 Harness 工具运行在 Desktop 插件进程内，不会启动 OpenCode++ CLI，也不会自行调用另一个付费 Agent。
+![Select the OpenCode++ mode](docs/images/opencode-plusplus-mode.png)
 
-## 状态与开关
+When the mode is selected, its prompt instructs the current OpenCode model to use the in-process plugin tools. The plugin does not start a second model or a CLI process. It runs inside OpenCode Desktop and writes auditable runtime artifacts into the repository's `.agent-context/` directory.
 
-在 OpenCode Desktop 中直接使用：
+The EXE installer is per-user, works on Windows x64, and does not require Administrator permission.
 
-| Slash Command               | 结果                              |
-| --------------------------- | --------------------------------- |
-| `/opencode-plusplus-status` | 显示安装、启用、版本和 patch 状态 |
-| `/opencode-plusplus-on`     | 启用 Guard、证据和 idle 验证      |
-| `/opencode-plusplus-off`    | 暂停 Guard、证据和 idle 验证      |
+## Install And Use
 
-这三个命令由安装器补丁在本地处理，不发送给模型，也不执行 shell。`/plusplus-task` 和 `/plusplus-verify` 是 Harness 工作流 Prompt，会由当前会话模型执行对应插件工具。
+1. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
+2. Fully exit OpenCode Desktop.
+3. Double-click the EXE and accept the installation message.
 
-## 查看报告
+![Installer confirmation](docs/images/opencode-plusplus-installer.png)
 
-插件在当前仓库的 `.agent-context/` 写入本地运行报告：
+4. Restart OpenCode Desktop and open a repository.
+5. Select **OpenCode++** in the mode picker.
+6. Enter a normal request, such as `Fix the login timeout and add a regression test`.
+7. Let the selected mode call `prepare`, `retrieve`, `evaluate`, and `next` while it works. Do not switch back to Build for a task that needs the Harness gates.
+8. Inspect `.agent-context/` when you need the trace, findings, required commands, or final report.
 
-- `.agent-context/sidecar/latest.md`：最近一次 idle 验证摘要；
-- `.agent-context/traces/`：带 `eventId`、`sequence`、session/task 身份的执行证据；
-- `.agent-context/runs/`：任务 context、编辑边界和验证状态；
-- `.agent-context/loops/`：下一步和 blocker 决策。
+The installer writes only these OpenCode configuration files:
 
-这些目录是本地 runtime artifact，默认不进入 Git 或 npm 发布包。卸载插件不会删除仓库里的历史报告。
-
-## 原理与边界
-
-- EXE 只补丁经过 marker 检查的 `SessionPrompt.command` 分发器，并保留可恢复的 original backup。
-- 插件观察 OpenCode 暴露的工具和事件；它不是操作系统沙箱，不能阻止其他程序修改文件。
-- Guard 检查危险命令、未知脚本和受保护路径；Evidence 记录脱敏、截断后的结果，不代表完整业务正确性证明。
-- state、session、trace 和 report 使用带锁原子写入；普通 artifact 写入故障不会让 OpenCode Desktop hook 崩溃。
-- Windows 发布验证覆盖 EXE 大小、SHA256、插件 bundle 加载、三条本地命令、patch marker、backup 和卸载恢复。
-
-详细说明：
-
-- [Windows 安装与使用](docs/integrations/opencode-desktop.zh-CN.md)
-- [Windows 插件架构与边界](docs/concepts/windows-plugin-architecture.zh-CN.md)
-- [生成文件与提交策略](docs/reference/generated-files.zh-CN.md)
-- [发布检查](docs/release.zh-CN.md)
-
-## 开发者与兼容面
-
-CLI 和 MCP 只保留用于源码开发、CI、诊断和兼容集成，不是普通用户安装或使用方式。开发者构建与完整检查见 [产品边界说明](docs/developer/product-boundary.zh-CN.md) 和 [发布检查](docs/release.zh-CN.md)。
-
-确定性 Desktop benchmark 不调用付费模型：
-
-```powershell
-npm ci
-npm run benchmark:desktop
+```text
+<OpenCode config>\plugins\opencode-plusplus.js
+<OpenCode config>\agents\opencode-plusplus.md
+<OpenCode config>\opencode-plusplus\state.json
+<OpenCode config>\opencode-plusplus\installation.json
 ```
 
-许可证：[MIT](LICENSE)。
+It removes files from older releases that created Slash Commands or patched `app.asar`. It no longer changes the OpenCode Desktop bundle. The default configuration directory is `%USERPROFILE%\.config\opencode`; `OPENCODE_CONFIG_DIR` takes precedence.
+
+## Reports And Boundaries
+
+Runtime evidence is local to each repository:
+
+- `.agent-context/traces/` contains execution and test evidence;
+- `.agent-context/runs/` contains task context and edit boundaries;
+- `.agent-context/loops/` contains decisions and convergence state;
+- `.agent-context/sidecar/latest.md` contains the latest verification summary.
+
+The plugin is not an operating-system sandbox. It cannot stop another application from editing a file, prove business semantics from an exit code, or guarantee that an opaque tool argument is correctly classified. A passing command is evidence, not a complete correctness proof. Blocking results require the selected mode to repair or request human review.
+
+## Customize Your Own Harness
+
+OpenCode++ is intentionally an extension point. If OpenCode feels too permissive, too strict, or simply does not match your team's workflow, fork or extend the plugin and define your own Harness policy instead of hiding the problem in a prompt.
+
+Useful customization points include:
+
+- the primary agent prompt in `src/installer/opencode-plusplus-prompts.ts`;
+- command and protected-path rules in `src/integrations/opencode/plugin-runtime/`;
+- retrieval ranking in `src/retrievers/` and `src/core/ranker.ts`;
+- evidence trust and freshness in `src/outputs/evidence.ts` and `src/harness/verification-plane/`;
+- loop stopping and decision arbitration in `src/harness/control-plane/`;
+- Desktop-specific tool behavior in `src/integrations/opencode/plugin-runtime/harness/`.
+
+The safe customization pattern is: add a test for the desired policy, change the plugin or agent mode, run the full checks, and distribute a new checksummed Windows installer. Keep the Harness explicit about what it can observe and what remains a human decision.
+
+## Contributing
+
+1. Fork the repository and create a focused branch.
+2. Read `AGENTS.md`, the relevant source files, and the matching English and Chinese documentation.
+3. Add or update deterministic tests before changing behavior.
+4. Keep Desktop runtime artifacts, `dist/`, installer staging, secrets, and local `.agent-context/` files out of commits.
+5. Run `npm run check`, `npm run lint`, `npm run format:check`, `npm run docs:bilingual:check`, and `npm test`.
+6. For installer changes, also run `npm run build:installer:windows`, `npm run test:installer:windows`, and `npm run release:verify` on Windows.
+7. Update both language versions of user-facing documentation and explain compatibility boundaries in the pull request.
+
+See [the documentation index](docs/README.md), [Windows architecture](docs/concepts/windows-plugin-architecture.md), and [the contribution guide](CONTRIBUTING.md).
+
+## Developer Compatibility Surface
+
+The repository retains CLI and MCP entry points for source development, CI, diagnostics, and compatibility integrations. They are not the normal Desktop installation path and are not required by ordinary users.
+
+## License
+
+[MIT](LICENSE)

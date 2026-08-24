@@ -2,49 +2,24 @@
 
 [中文](getting-started.zh-CN.md) | English
 
-## Recommended Windows Path
+OpenCode++ is for coding sessions where a plausible answer is not enough. It makes the selected OpenCode model gather repository context, stay inside explicit edit boundaries, produce current evidence, and explain why a task can or cannot be finalized.
 
-OpenCode++ is primarily used as a plugin inside the official OpenCode Desktop application.
+## Five Minutes
 
-1. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
-2. Exit OpenCode Desktop completely before installation or upgrade.
-3. Double-click the EXE, then restart OpenCode Desktop.
-4. Open a repository and type `/plusplus-task <task>` in a new session to run a task through the harness.
+1. Download the Windows EXE from [Releases](https://github.com/whut09/opencode-plusplus/releases).
+2. Exit OpenCode Desktop, double-click the EXE, and restart OpenCode.
+3. Open a repository and select **OpenCode++** in the mode picker.
+4. Describe a coding task normally.
+5. Review `.agent-context/` when you need the evidence or decision report.
 
-The installer is per-user, does not need Administrator permission, and writes to the OpenCode configuration directory. It also writes the global `/plusplus-task`, `/plusplus-verify` Slash Commands and the `opencode-plusplus` skill, so no command line is needed after restart. Read [Windows installation and usage](integrations/opencode-desktop.md) for paths, custom configuration directories, upgrade, uninstall, and troubleshooting.
+![OpenCode++ mode](images/opencode-plusplus-mode.png)
 
-## First Session Checklist
+## What Happens
 
-1. Type `/plusplus-task <task>` for a coding task, or `/plusplus-verify` to re-check the current harness state.
-2. Keep the plugin enabled while editing so command/path guards and evidence capture are active.
-3. After a meaningful edit, wait for the session to become idle and inspect `.agent-context/sidecar/latest.md`.
-4. Use `/opencode-plusplus-status` to inspect state, `/opencode-plusplus-off` to pause protection, and `/opencode-plusplus-on` to restore it.
+The mode prompt steers the current model through `retrieve` and `prepare` before edits, built-in shell execution for required commands, and `evaluate` plus `next` after edits. If a check is stale, missing, forbidden, or repeated without progress, the Harness reports the reason instead of silently claiming success.
 
-OpenCode Slash Commands are normally model prompts. The installer patches three exact OpenCode++ control commands (`/opencode-plusplus-status`, `/opencode-plusplus-on`, `/opencode-plusplus-off`) so they run locally in Desktop without a model turn. The harness workflow commands (`/plusplus-task`, `/plusplus-verify`) are model-mediated, and the EXE status/enable/disable options remain available outside Desktop.
+## When To Customize
 
-## Developer And Compatibility Surfaces (CLI / MCP)
+Use the default mode first. Fork or extend the plugin when your repository needs different protected paths, test trust, retrieval weighting, evidence policy, or loop stopping rules. Add a test for the new rule and keep the Windows installer and bilingual docs synchronized.
 
-CLI and MCP are internal dev/test compatibility surfaces, not a user path. Desktop users install only from the EXE and never run `npm install`. Developers may use them for CI, scripts, repository context generation, diagnostics, or a harness-led loop that needs explicit artifacts and exit codes:
-
-```powershell
-npm ci
-opencode-plusplus build .
-opencode-plusplus status .
-opencode-plusplus verify --diff .
-opencode-plusplus policy . --base main --fail-on required
-opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor mock --max-loops 3
-```
-
-See [Product Boundary](developer/product-boundary.md) for what is user-facing, what is internal, and what was removed.
-
-## Local Development
-
-```powershell
-npm ci
-npm run check
-npm run build
-npm test
-npm run build:installer:windows
-```
-
-Repository runtime files are written to `.agent-context/`. `opencode-plusplus run "task" .` writes a task pack and trace without executing an external agent; `orchestrate` is the executor-owning flow.
+CLI and MCP are developer/compatibility surfaces. They are not needed for this installation path.

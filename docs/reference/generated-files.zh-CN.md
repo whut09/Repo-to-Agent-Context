@@ -17,11 +17,11 @@
 - runs 下的 transient iterations、worktrees 和 executor 输出；
 - tool evidence、hallucination report、memory candidates；
 - opencode-plusplus.local.yml；
-- 用户配置目录中的全局插件、state.json、plusplus 命令和 skill。
+- 用户配置目录中的全局插件、state.json 和 `agents/opencode-plusplus.md` 模式文件。
 
 ## Desktop 发布输出
 
-Windows 构建在 `release/` 下生成 EXE、SHA256 文件和 `opencode-plusplus-release.json`。manifest 记录 `package.json` 版本、平台、架构、体积阈值、digest、plugin bundle 大小、三条本地命令和 app.asar patch marker。这些文件用于 GitHub Release，已被 Git 忽略，也不会进入 npm 开发包。
+Windows 构建在 `release/` 下生成 EXE、SHA256 文件和 `opencode-plusplus-release.json`。manifest 记录 `package.json` 版本、平台、架构、体积阈值、digest、plugin bundle 大小、`opencode-plusplus` mode 和旧版本清理契约。这些文件用于 GitHub Release，已被 Git 忽略，也不会进入 npm 开发包。
 
 `npm run benchmark:desktop` 生成 `benchmarks/results/desktop/result.json` 与 `result.md`。它们是 CI/runtime 结果，不是源码、npm 包内容或 Release asset。
 

@@ -8,7 +8,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 
 - compact Windows EXE that embeds the compressed plugin without bundling Node or Electron;
 - per-user install into the active OpenCode configuration directory;
-- status, enable, and disable through model-visible OpenCode tools, plus model-free EXE controls;
+- status, enable, and disable through model-visible OpenCode tools, with the `opencode-plusplus` primary mode as the normal Desktop entry;
 - command/path Guard before tool execution;
 - redacted evidence and working-tree hashes after tool execution;
 - idle incremental verification and repository sidecar reports;
@@ -37,7 +37,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 
 - Test against supported OpenCode Desktop versions and record the plugin API version.
 - Add real Desktop smoke tests for tool registration, hook input normalization, command controls, and idle verification.
-- Track OpenCode bundle changes and keep the marker-checked native command patch compatible.
+- Track OpenCode agent/config changes and keep the standard global primary mode compatible.
 - Add a native settings panel only if OpenCode exposes a stable third-party extension point.
 
 ### P2: Windows Operations
@@ -58,7 +58,7 @@ OpenCode++ is now Windows-first. The primary product is a user-level plugin for 
 ## Boundaries That Will Not Change
 
 - OpenCode++ will not become a second OpenCode Desktop shell.
-- It will not patch unrelated OpenCode code, renderer code, updater, or authentication; the Windows installer may patch only the documented command dispatcher and can restore the original bundle.
+- It will not patch OpenCode `app.asar`, renderer code, updater, or authentication. The Windows installer only writes the user plugin and primary agent configuration.
 - It will not claim that command success proves semantic correctness.
 - It will not silently commit, push, merge, or destructively reset a user's worktree.
 - Desktop plugin controls remain available when protection is disabled.

@@ -1,120 +1,80 @@
-# OpenCode Desktop on Windows
+# OpenCode Desktop On Windows
 
 [中文](opencode-desktop.zh-CN.md) | English
 
-OpenCode++ integrates with the official OpenCode Desktop through its user-level plugin directory and a narrowly scoped host patch. The patch only intercepts three OpenCode++ command names in the bundled `SessionPrompt.command` handler; it does not modify the renderer, updater, account system, authentication, or unrelated application logic.
-
-This EXE is the only user-facing installation and usage path for OpenCode++. The CLI (`opencode-plusplus`) and MCP server (`opencode-plusplus-mcp`) remain in the repository as internal dev/test compatibility surfaces and never appear in the installer payload. The full boundary map is in [Product Boundary](../developer/product-boundary.md).
+OpenCode++ is installed into the official OpenCode Desktop as a global user-level plugin. The user-facing integration is one primary agent mode named **OpenCode++**. The installer does not add Slash Commands and does not patch `app.asar`.
 
 ## Install
 
-1. Close OpenCode Desktop completely.
+1. Fully exit OpenCode Desktop.
 2. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
-3. Double-click the EXE. Administrator elevation is not required.
-4. Reopen OpenCode Desktop and open a repository.
-5. Start a new session and type `/plusplus-task <task>` to run a coding task through the harness.
+3. Double-click the EXE and wait for the confirmation dialog.
 
-The installer writes:
+![Installer confirmation](../images/opencode-plusplus-installer.png)
+
+4. Restart OpenCode Desktop.
+5. Open a repository and select **OpenCode++** in the mode picker.
+
+![Mode picker](../images/opencode-plusplus-mode.png)
+
+The installer is per-user and does not require Administrator permission. It uses `%USERPROFILE%\.config\opencode` by default and honors `OPENCODE_CONFIG_DIR` when set.
+
+## What Gets Installed
 
 ```text
 <OpenCode config>\plugins\opencode-plusplus.js
+<OpenCode config>\agents\opencode-plusplus.md
 <OpenCode config>\opencode-plusplus\state.json
 <OpenCode config>\opencode-plusplus\installation.json
-<OpenCode config>\commands\opencode-plusplus-on.md
-<OpenCode config>\commands\opencode-plusplus-off.md
-<OpenCode config>\commands\opencode-plusplus-status.md
-<OpenCode config>\commands\plusplus-task.md
-<OpenCode config>\commands\plusplus-verify.md
-<OpenCode config>\skills\opencode-plusplus\SKILL.md
 ```
 
-The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONFIG_DIR` takes precedence; `XDG_CONFIG_HOME` is also honored when OpenCode already uses it.
+The agent file is a standard OpenCode `mode: primary` agent. OpenCode discovers it from the global `agents` directory and displays it in the mode picker beside Build and Plan. The plugin is loaded independently from the agent file, so the mode prompt and runtime tools remain separate concerns.
 
-## Harness Workflow
+## Use The Mode
 
-After restart, the session exposes `/plusplus-task` and `/plusplus-verify` as normal model-mediated slash commands, plus the `opencode-plusplus` skill that OpenCode loads automatically for concrete coding work. No command line is required:
+Select the mode, then describe the task normally. The mode instructs the active OpenCode model to:
 
-- `/plusplus-task <task>` runs the task through the harness workflow: `opencode_plusplus_prepare` → read `mustInspect` files → edit only inside `allowedEditGlobs` → run `requiredCommands` with the built-in shell tool → `opencode_plusplus_evaluate` → `opencode_plusplus_next`. The model must not claim completion while `nextAction` is not `finalize`.
-- `/plusplus-verify` re-runs `opencode_plusplus_evaluate` and `opencode_plusplus_next`, then reports blocking state, missing evidence, and the commands that still must run.
-- The skill steers the model to the right tool at the right moment and treats a blocking evaluation as not-complete.
+1. retrieve relevant files when needed;
+2. prepare a task and read every `mustInspect` file;
+3. edit only within the returned boundaries;
+4. run every required command with the built-in shell;
+5. evaluate current evidence and working-tree freshness;
+6. follow `next` until the Harness returns `finalize` or human review.
 
-## Control and Status
+The model still performs the actual reading, editing, and command execution. OpenCode++ provides the context, rules, evidence, and decision tools. It does not start a second model or invoke its CLI from the Desktop plugin.
 
-| Action      | Local Desktop command       |
-| ----------- | --------------------------- |
-| Show status | `/opencode-plusplus-status` |
-| Enable      | `/opencode-plusplus-on`     |
-| Disable     | `/opencode-plusplus-off`    |
+## State And Reports
 
-OpenCode Markdown commands normally are prompt templates, but the installer patches the host command dispatcher for these exact names. When the patch is active, `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off` are intercepted before template expansion and directly read or update the local state file. They append a local assistant result to the current session and do not call the model or execute a shell command. Other Markdown commands retain normal OpenCode behavior.
+The plugin state is stored under the OpenCode config directory. Repository runtime artifacts are stored under `.agent-context/`:
 
-Disable is a pause, not an uninstall. The plugin remains loaded so status and enable remain available. Install and upgrade require a full OpenCode restart because the host must reload the plugin module.
+- `traces/`: normalized tool and test evidence;
+- `runs/`: task context, boundaries, and iteration artifacts;
+- `loops/`: decisions, missing evidence, and convergence state;
+- `sidecar/latest.md`: latest verification summary.
 
-## Patch Boundary
+These are runtime artifacts, not source files. Add `.agent-context/` to local Git exclusions when appropriate and never commit credentials or command output containing secrets.
 
-- The installer requires a supported Desktop bundle containing the expected `SessionPrompt.command` marker.
-- OpenCode must be fully closed while installing or uninstalling because `app.asar` is replaced atomically.
-- The original `app.asar` is saved beside the bundle as `app.asar.opencode-plusplus.original` and restored on uninstall.
-- If OpenCode updates and replaces `app.asar`, the native commands disappear until the installer is run again. The installer detects the missing marker and creates a new backup before patching the new bundle.
-- An unsupported or changed bundle is rejected without writing the command files.
-- The backup sidecar records `schemaVersion`, the patch marker, Desktop version, source `app.asar`, and install time. Uninstall restores only a valid, unpatched backup created by OpenCode++.
-- `/opencode-plusplus-status` reports `active`, `stale`, `absent`, or `skipped`; after an OpenCode update replaces `app.asar`, an existing installation is reported as `stale`, not active.
-- Host replacement and every config write use temporary files and atomic replacement. A failed patch, plugin write, command write, or state write leaves the host bundle recoverable and does not continue to later writes.
-- The EXE contains only the .NET installer, plugin bundle, and patch resource, not Node, Electron, or the OpenCode runtime.
+## Upgrade And Legacy Cleanup
 
-## What the Plugin Does
+Close OpenCode Desktop before running a newer EXE. The installer replaces the plugin, refreshes `agents/opencode-plusplus.md`, preserves the valid enabled state, and removes files created by older releases:
 
-When enabled, the plugin:
+- `commands/opencode-plusplus-status.md`, `opencode-plusplus-on.md`, and `opencode-plusplus-off.md`;
+- `commands/plusplus-task.md` and `commands/plusplus-verify.md`;
+- `skills/opencode-plusplus/SKILL.md`;
+- the old OpenCode++ `app.asar` patch and its backup, when detected.
 
-- checks command syntax, known package scripts, dangerous shell operations, protected paths, and secret-like paths before execution; a blocked command returns a fixed bilingual structure (`BLOCKED: <reason>` / `Evidence: <command or path>` / `Do instead: <concrete alternative>`) so the model can run the next action, and uncertain path-like arguments are recorded as warnings instead of blockers;
-- records tool, command, exit code, timestamps, changed paths, working-tree hashes, and redacted/truncated output after execution;
-- writes trace and event artifacts under the current repository's `.agent-context/`;
-- runs the shared incremental verification stack after file edits and an idle session;
-- exposes status, enable, and disable controls as normal OpenCode plugin tools;
-- exposes `opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next` as the in-session harness workflow behind `/plusplus-task` and `/plusplus-verify`.
+After the upgrade, restart OpenCode and choose the mode again. If the mode is missing, check the active config directory and whether another config file is overriding the OpenCode config root.
 
-## Harness Tool Protocol
+## Boundaries
 
-`opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next` all return the same stable JSON envelope for both model parsing and chat display. Every result includes `schemaVersion`, `summary`, `taskId`, `sessionId`, `taskIdSource`, `repository`, `workingTreeHash`, phase, decision, blocking state, findings, evidence/command/edit boundaries, artifacts, and `nextAction`.
+- The plugin observes OpenCode tool hooks; it is not an operating-system sandbox.
+- It cannot prevent another process from editing files.
+- Command success does not prove semantic correctness.
+- Manual, stale, or superseded evidence may remain blocking under the configured evidence policy.
+- It does not automatically commit, push, merge, or destructively roll back the repository.
 
-`prepare` is idempotent for the same task and remains blocking until evaluate and next run. Omitting `taskId` recovers it from the matching plugin session and reports `taskIdSource: "session"`. `evaluate` recomputes against the current working tree and persists a session-scoped result; `next` consumes that exact result and cannot return `finalize` while blocking. Malformed input and internal failures return the same JSON error envelope without crashing OpenCode.
+## Customize It
 
-## Session Lifecycle
+Fork the repository or add a project-level agent when you need a different Harness. Customize the agent prompt, retrieval ranking, command guards, evidence policy, or loop decision logic, then add tests and rebuild the Windows installer. See [Windows plugin architecture](../concepts/windows-plugin-architecture.md) and [customization guidance](../../README.md#customize-your-own-harness).
 
-The plugin pushes harness state back into the session so it is not trapped in `.agent-context/` files:
-
-- `session.created`: when enabled, the repository is marked dirty and a debounced (≥2s) background context build runs. On success a "OpenCode++ 已就绪" toast is shown; a build failure is only logged and never interrupts the session.
-- `session.idle`: the existing idle verification runs. When it reports blockers, a one-line toast shows `OpenCode++ 未通过：<first blocker>。下一步调用 opencode_plusplus_next`. It never throws.
-- `experimental.session.compacting`: before the model compacts a long session, the plugin appends the current harness state (taskId, allowed/avoid edit globs, blocking, missing evidence, last decision, and a summary of `.agent-context/sidecar/latest.md`) to `output.context`. It never replaces `output.prompt`.
-- `session.error`: the error is recorded as evidence in the sidecar event log without interrupting the host.
-
-When the plugin is disabled, every lifecycle handler except the `status`/`enable`/`disable` tools returns immediately. If the active OpenCode build does not expose a toast API, notifications degrade to structured `app.log` entries instead of assuming a missing SDK method.
-
-## What It Cannot Do
-
-- It cannot add a native OpenCode Desktop settings page; the native command patch is intentionally limited to the three slash commands.
-- It cannot sandbox processes or control edits made by another application.
-- It cannot prove semantic correctness from a command exit code alone.
-- It cannot guarantee that opaque tool arguments are fully classified.
-- It does not automatically commit, push, merge, or destructively rollback the user's working tree.
-
-## Upgrade
-
-Close OpenCode Desktop and run the newer EXE. The installer updates the bundled plugin, verifies or reapplies the host command patch, writes the three native command menu entries plus the `/plusplus-task` and `/plusplus-verify` commands and the `opencode-plusplus` skill, updates `installation.json`, and preserves an existing valid enabled state.
-
-If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice. Legacy repository commands `.opencode/commands/opencode-plusplus.md` and `.opencode/commands/opencode-plusplus-verify.md` are no longer generated and should be removed.
-
-## Troubleshooting
-
-If the tools do not appear:
-
-1. fully exit and restart OpenCode;
-2. verify that the plugin file exists in the active OpenCode config directory;
-3. start a new repository session;
-4. run `/opencode-plusplus-status` in Desktop;
-5. remove the legacy project plugin if present;
-6. run the installer again after every OpenCode Desktop update.
-
-## Developer And Compatibility Details
-
-Installer automation options, source builds, CLI/MCP compatibility surfaces, deterministic benchmarks, uninstall automation, and real Desktop smoke setup are documented in [Product Boundary](../developer/product-boundary.md) and [Release checks](../release.md). They are not ordinary Desktop user workflows.
+CLI and MCP documentation is kept for developers and compatibility integrations only.

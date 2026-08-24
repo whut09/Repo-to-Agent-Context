@@ -4,7 +4,7 @@
 
 OpenCode++ ships one product deliverable and one developer deliverable:
 
-- the Windows EXE is the product release: the user-level official OpenCode Desktop plugin and its marker-checked native command patch;
+- the Windows EXE is the product release: the user-level official OpenCode Desktop plugin and its `opencode-plusplus` primary mode;
 - the npm package is a developer artifact that carries the CLI, MCP, Harness, and shared runtime code as development/CI tooling. Desktop users never install it.
 
 Benchmark fixtures, agent runs, repository documentation, local runtime artifacts, and stale build output must not enter the npm package. The npm package must also exclude `release/`, `.installer-build/`, and `apps/desktop/`.
@@ -45,13 +45,13 @@ Build on Windows with Node.js 20+ and .NET Framework 4.x build tools. esbuild mi
 Smoke test with an isolated --config-dir:
 
 1. install and inspect status JSON;
-2. verify the plugin, three native command menu files, and the host patch exist;
+2. verify the plugin and `agents/opencode-plusplus.md` primary mode exist, and confirm legacy command files are removed;
 3. disable and confirm enabled=false;
 4. enable and confirm enabled=true;
 5. load or syntax-check the installed plugin;
 6. uninstall and confirm only owned files are removed;
 7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget;
-8. run `npm run release:verify` to verify the EXE, SHA256, release manifest, standalone plugin load, three command names, patch marker, original backup, rollback, and uninstall restoration;
+8. run `npm run release:verify` to verify the EXE, SHA256, release manifest, standalone plugin load, mode path, legacy cleanup, and uninstall restoration;
 9. run `npm run benchmark:desktop`; it is a deterministic in-process plugin benchmark with zero paid model calls;
 10. use the manual `Desktop smoke` workflow to install the official `SST.OpenCodeDesktop` winget package and run `npm run test:desktop:real` against it.
 

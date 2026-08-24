@@ -22,7 +22,7 @@ The plugin handles `tool.execute.before`, `tool.execute.after`, `file.edited`, `
 
 ## Control Surface
 
-The plugin exposes `opencode_plusplus_status`, `opencode_plusplus_enable`, and `opencode_plusplus_disable` as model-visible tools. The Windows installer also adds three command menu entries and patches their exact dispatcher names to run locally without a model turn. A disabled plugin remains loaded and only bypasses Guard, evidence capture, and idle verification. The installer EXE can also use `--status`, `--enable`, or `--disable` outside Desktop.
+The plugin exposes status and enable/disable controls as model-visible tools for compatibility, while the normal Desktop entry is the `opencode-plusplus` primary mode. The Windows installer no longer adds command menu entries or patches the Desktop bundle. A disabled plugin remains loaded and only bypasses Guard, evidence capture, and idle verification. The installer EXE can still use `--status`, `--enable`, or `--disable` outside Desktop for diagnostics.
 
 ## Evidence and Artifacts
 

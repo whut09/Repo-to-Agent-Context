@@ -4,10 +4,10 @@
 
 OpenCode++ 有一个产品交付物和一个开发者交付物：
 
-- Windows EXE 是产品发布物：官方 OpenCode Desktop 的用户级全局插件安装器，以及经过特征检查的原生命令补丁；
+- Windows EXE 是产品发布物：官方 OpenCode Desktop 的用户级全局插件安装器，以及 `opencode-plusplus` primary mode；
 - npm 包是开发者 artifact：把 CLI、MCP、Harness 和共享运行时作为开发/CI 工具携带，Desktop 用户从不安装它。
 
-benchmark fixture、agent-runs、仓库文档、源代码资产和本地运行时文件不应进入 npm 包，npm 包还必须排除 `release/`、`.installer-build/` 和 `apps/desktop/`。Windows EXE 只修改文档规定且经过特征检查的命令分发器，安装后需要重启 OpenCode。
+benchmark fixture、agent-runs、仓库文档、源代码资产和本地运行时文件不应进入 npm 包，npm 包还必须排除 `release/`、`.installer-build/` 和 `apps/desktop/`。Windows EXE 只写入用户级 plugin 和 `agents/opencode-plusplus.md`，安装后需要重启 OpenCode。
 
 ## 发布前检查
 
@@ -27,9 +27,9 @@ npm run test:installer:windows
 npm run release:verify
 ```
 
-Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x 构建工具环境执行。esbuild 压缩插件，gzip 生成 payload，再由 Windows C# 编译器嵌入 EXE，并生成 `.sha256` 与 `opencode-plusplus-release.json`。发布前运行 `npm run test:installer:windows`，验证安装、status、disable、enable、插件加载、三个命令文件、original backup、失败回滚、uninstall restore 和 12 MiB 体积上限。
+Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x 构建工具环境执行。esbuild 压缩插件，gzip 生成 payload，再由 Windows C# 编译器嵌入 EXE，并生成 `.sha256` 与 `opencode-plusplus-release.json`。发布前运行 `npm run test:installer:windows`，验证安装、primary mode、disable、enable、插件加载、旧文件清理和 12 MiB 体积上限。
 
-`npm run release:verify` 还会核对 EXE 存在、大小、SHA256、manifest、独立 plugin bundle 加载、三条本地 command、patch marker、backup 与卸载恢复。`npm run benchmark:desktop` 是确定性的进程内插件 benchmark，付费模型调用数固定为 0。
+`npm run release:verify` 还会核对 EXE 存在、大小、SHA256、manifest、独立 plugin bundle 加载、mode 路径、旧文件清理与卸载恢复。`npm run benchmark:desktop` 是确定性的进程内插件 benchmark，付费模型调用数固定为 0。
 
 PR CI 同时运行 Ubuntu 和 Windows，绝不调用付费 executor。Linux 验证 npm 开发包和确定性 proxy benchmark；Windows 构建 EXE、执行安装/恢复 gate，并运行 Desktop plugin benchmark。真实 Desktop 启动只通过手动 `Desktop smoke` workflow：先用 winget 安装官方 `SST.OpenCodeDesktop`，再运行 `npm run test:desktop:real`。手动 Desktop release workflow 在上传或发布资产前也强制通过同一启动 gate。
 

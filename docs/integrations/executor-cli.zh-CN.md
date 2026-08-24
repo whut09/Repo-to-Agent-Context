@@ -6,6 +6,8 @@ Executor 是 Harness 调用的外部代码 Agent。OpenCode++ 负责 prompt、sa
 
 ## OpenCode
 
+普通 Desktop 用户应安装 EXE 并选择 `opencode-plusplus` primary mode；本页只说明开发者兼容面。
+
 Windows 推荐使用内置 preset：
 
 ```powershell
