@@ -138,3 +138,11 @@ test("injected host branch answers locally with a synthetic message, without mod
   assert.doesNotMatch(branch, /child_process|exec\(|spawn\(|fetch\(/);
   assert.doesNotMatch(branch, /\.completion|\.stream\(|exports_provider|require\(/);
 });
+
+test("real Desktop launch smoke is explicit and cleans up its process", () => {
+  const smoke = readFileSync(path.resolve("scripts/smoke-windows-installer.mjs"), "utf8");
+  assert.match(smoke, /process\.argv\.includes\("--require-real-desktop-launch"\)/);
+  assert.match(smoke, /OPENCODE_DESKTOP_EXE/);
+  assert.match(smoke, /isOpenCodeRunning\(\)/);
+  assert.match(smoke, /taskkill\.exe/);
+});
