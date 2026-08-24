@@ -115,6 +115,7 @@ export interface BenchmarkCaseResult {
 export interface BenchmarkRunResult {
   benchmarkDir: string;
   topK: number;
+  elapsedMs: number;
   cases: BenchmarkCaseResult[];
   summary: BenchmarkSummary;
   categories: BenchmarkCategorySummary[];
@@ -132,6 +133,8 @@ export interface BenchmarkCategorySummary {
 
 export interface BenchmarkSummary {
   cases: number;
+  sampleCount: number;
+  elapsedMs: number;
   averageRecallAtK: number;
   averagePrecisionAtK: number;
   averageBaselineRecallAtK: number;
@@ -154,6 +157,7 @@ export interface BenchmarkSummary {
 }
 
 export async function runBenchmark(options: BenchmarkOptions = {}): Promise<BenchmarkRunResult> {
+  const startedAt = Date.now();
   const benchmarkDir = path.resolve(options.benchmarkDir ?? "benchmarks");
   const topK = options.topK ?? 8;
   const tasks = readTasks(path.join(benchmarkDir, "tasks"));
@@ -217,11 +221,13 @@ export async function runBenchmark(options: BenchmarkOptions = {}): Promise<Benc
     });
   }
 
+  const elapsedMs = Date.now() - startedAt;
   return {
     benchmarkDir,
     topK,
+    elapsedMs,
     cases,
-    summary: summarize(cases),
+    summary: { ...summarize(cases), elapsedMs },
     categories: summarizeCategories(cases)
   };
 }
@@ -232,6 +238,8 @@ export function renderBenchmarkReport(result: BenchmarkRunResult): string {
     "",
     `Benchmark dir: ${code(result.benchmarkDir)}`,
     `Cases: ${result.summary.cases}`,
+    `Samples: ${result.summary.sampleCount}`,
+    `Elapsed: ${result.summary.elapsedMs} ms`,
     `Cases with agent runs: ${result.summary.agentRunCases}`,
     `Default K: ${result.topK}`,
     "",
@@ -430,6 +438,8 @@ function summarize(cases: BenchmarkCaseResult[]): BenchmarkSummary {
   const categorySummaries = summarizeCategories(cases);
   return {
     cases: cases.length,
+    sampleCount: cases.length,
+    elapsedMs: 0,
     averageRecallAtK: average(cases.map((item) => item.metrics.recallAtK)),
     averagePrecisionAtK: average(cases.map((item) => item.metrics.precisionAtK)),
     averageBaselineRecallAtK: average(cases.map((item) => item.metrics.baselineRecallAtK)),

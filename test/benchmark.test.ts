@@ -7,6 +7,9 @@ test("benchmark evaluates loop behavior against expected files and tests", async
   const result = await runBenchmark({ benchmarkDir: path.resolve("benchmarks"), topK: 8 });
 
   assert.equal(result.summary.cases, 10);
+  assert.equal(result.summary.sampleCount, 10);
+  assert.ok(result.summary.elapsedMs >= 0);
+  assert.ok(result.elapsedMs >= 0);
   assert.ok(result.summary.averageRecallAtK > 0.5);
   assert.ok(result.summary.averagePrecisionAtK > 0);
   assert.ok(result.summary.averageTokenCompressionRatio > 1);
@@ -52,6 +55,8 @@ test("benchmark evaluates loop behavior against expected files and tests", async
   assert.match(markdown, /Evidence Benchmark/);
   assert.match(markdown, /Regression Benchmark/);
   assert.match(markdown, /context_recall@8/);
+  assert.match(markdown, /Samples: 10/);
+  assert.match(markdown, /Elapsed:/);
   assert.match(markdown, /boundary_violation_block_rate/);
   assert.match(markdown, /hallucination_detection_rate/);
   assert.match(markdown, /false_positive_rate/);
