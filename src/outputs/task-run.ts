@@ -247,7 +247,11 @@ function renderAgentPrompt(agent: "OpenCode" | "Codex" | "Claude Code" | "Cursor
 }
 
 function mustInspectFor(pack: TaskPack): string[] {
-  return dedupe([...pack.readFirst, ...pack.files.filter((file) => file.category === "test")].map((file) => file.path)).slice(0, 14);
+  const direct = pack.readFirst.map((file) => file.path);
+  const relatedTests = pack.files
+    .filter((file) => file.category === "test" && file.reasons.some((reason) => /related test|required regression test/i.test(reason)))
+    .map((file) => file.path);
+  return dedupe([...direct, ...relatedTests]).slice(0, 12);
 }
 
 function allowedEditGlobsFor(pack: TaskPack): string[] {
