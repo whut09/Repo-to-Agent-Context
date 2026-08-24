@@ -54,3 +54,16 @@ test("release boundary: npm package files whitelist excludes release and build a
   assert.ok(!pkg.files.some((f: string) => f.includes("docs/")), "package must not include docs/ (only for build-time)");
   assert.ok(!pkg.files.some((f: string) => f.includes("apps/desktop/")), "package must not include apps/desktop/");
 });
+
+test("release boundary: Desktop verification covers executable integrity and plugin loading", () => {
+  const verifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
+  assert.match(verifier, /opencode-plusplus-release\.json/);
+  assert.match(verifier, /createHash\("sha256"\)/);
+  assert.match(verifier, /manifest\.installer\.maximumBytes/);
+  assert.match(verifier, /pathToFileURL\(pluginBundle\)/);
+  assert.match(verifier, /pluginExports\.length !== 1/);
+  assert.match(verifier, /OPENCODE_PLUSPLUS_NATIVE_COMMANDS/);
+  for (const command of ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off"]) {
+    assert.match(verifier, new RegExp(command));
+  }
+});
