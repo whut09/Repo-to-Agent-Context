@@ -28,7 +28,7 @@ OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录和一个范围
 <OpenCode 配置目录>\skills\opencode-plusplus\SKILL.md
 ```
 
-默认配置目录是 `%USERPROFILE%\.config\opencode`。运行时优先使用 `OPENCODE_CONFIG_DIR`，也支持 `XDG_CONFIG_HOME`。隔离测试安装可以传 `--config-dir <path>`。
+默认配置目录是 `%USERPROFILE%\.config\opencode`。运行时优先使用 `OPENCODE_CONFIG_DIR`，也会遵循 OpenCode 已使用的 `XDG_CONFIG_HOME`。
 
 ## Harness 工作流
 
@@ -40,11 +40,11 @@ OpenCode++ 通过官方 OpenCode Desktop 的用户级插件目录和一个范围
 
 ## 状态与开关
 
-| 操作     | Desktop 工具（经过模型）    | 本地直接执行的 EXE 命令                         |
-| -------- | --------------------------- | ----------------------------------------------- |
-| 查看状态 | `opencode_plusplus_status`  | `opencode-plusplus-setup-win-x64.exe --status`  |
-| 启用     | `opencode_plusplus_enable`  | `opencode-plusplus-setup-win-x64.exe --enable`  |
-| 禁用     | `opencode_plusplus_disable` | `opencode-plusplus-setup-win-x64.exe --disable` |
+| 操作     | Desktop 本地命令            |
+| -------- | --------------------------- |
+| 查看状态 | `/opencode-plusplus-status` |
+| 启用     | `/opencode-plusplus-on`     |
+| 禁用     | `/opencode-plusplus-off`    |
 
 OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这三个精确命令名注入宿主分发器拦截逻辑。补丁有效时，`/opencode-plusplus-status`、`/opencode-plusplus-on` 和 `/opencode-plusplus-off` 会在模板展开前被拦截，直接读取或更新本地 state 文件，并向当前会话写入本地结果；不会调用模型，也不会执行 Shell。其他 Markdown Command 仍保持 OpenCode 的默认行为。
 
@@ -58,9 +58,9 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 - OpenCode 更新并替换 `app.asar` 后，原生命令会暂时消失；重新运行安装器即可重新检测、备份并补丁新版本。
 - 如果 bundle 结构不支持或已变化，安装器会拒绝操作，不写入命令文件。
 - 备份旁车文件记录 `schemaVersion`、补丁 marker、Desktop 版本、源 `app.asar` 和安装时间。卸载只恢复 OpenCode++ 自己创建且经过校验的未补丁备份。
-- `--status` 会报告 `active`、`stale`、`absent` 或 `skipped`；OpenCode 更新替换 `app.asar` 后，已有安装会显示 `stale`，不会误报 active。
+- `/opencode-plusplus-status` 会报告 `active`、`stale`、`absent` 或 `skipped`；OpenCode 更新替换 `app.asar` 后，已有安装会显示 `stale`，不会误报 active。
 - 宿主替换和每次配置写入都使用临时文件及原子替换。补丁、plugin、command 或 state 任一步失败，宿主 bundle 仍可恢复，并且不会继续写入后续文件。
-- `--host-asar` 仅供开发/冒烟测试覆盖路径使用；普通用户由安装器自动检测 OpenCode Desktop bundle。EXE 只包含 .NET 安装器、插件 bundle 和补丁资源，不携带 Node、Electron 或完整 OpenCode runtime。
+- EXE 只包含 .NET 安装器、插件 bundle 和补丁资源，不携带 Node、Electron 或完整 OpenCode runtime。
 
 ## 插件做什么
 
@@ -102,42 +102,19 @@ OpenCode 的 Markdown Command 默认是 Prompt Template，但安装器会为这�
 
 关闭 OpenCode Desktop 后运行新 EXE。安装器更新内置插件，检查或重新应用宿主补丁，写入三个原生命令菜单项以及 `/plusplus-task`、`/plusplus-verify` 命令和 `opencode-plusplus` skill，更新 `installation.json`，并保留现有有效启用状态。
 
-如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。旧版仓库级命令 `.opencode/commands/opencode-plusplus.md` 和 `.opencode/commands/opencode-plusplus-verify.md` 会调用 CLI，已不再生成；可删除它们或重新运行 `opencode-plusplus opencode init .` 生成对齐的 `/plusplus-task` 和 `/plusplus-verify`。
-
-## 卸载
-
-```powershell
-opencode-plusplus-setup-win-x64.exe --uninstall
-```
-
-卸载只删除安装器写入的文件，不删除仓库 `.agent-context/`、源代码、OpenCode Desktop 或其他插件。
+如果旧项目集成留下 `.opencode/plugins/opencode-plusplus.ts`，安装全局插件后应删除该旧文件。两者同时存在可能导致 hook 重复加载。旧版仓库级命令 `.opencode/commands/opencode-plusplus.md` 和 `.opencode/commands/opencode-plusplus-verify.md` 已不再生成，应直接删除。
 
 ## 排障
-
-```powershell
-opencode-plusplus-setup-win-x64.exe --status --json
-opencode-plusplus-setup-win-x64.exe --disable --json
-opencode-plusplus-setup-win-x64.exe --enable --json
-opencode-plusplus-setup-win-x64.exe --config-dir "C:\Temp\opencode-config" --status --json
-```
 
 如果工具没有出现：
 
 1. 完全退出并重启 OpenCode；
 2. 确认插件文件位于 OpenCode 当前实际使用的配置目录；
 3. 新建仓库会话；
-4. 使用 EXE 的 `--status --json`；
+4. 在 Desktop 中执行 `/opencode-plusplus-status`；
 5. 删除遗留的项目级插件；
 6. 每次 OpenCode Desktop 更新后重新运行安装器。
 
-## 从源码构建
+## 开发者与兼容细节
 
-Windows + Node.js 20+ 环境下执行：
-
-```powershell
-npm ci
-npm run check
-npm run build:installer:windows
-```
-
-输出为 `release/opencode-plusplus-setup-win-x64.exe` 和 SHA256 文件。构建流程压缩全局插件并嵌入小型 .NET Framework 安装器；EXE 不再携带 Node 或 Electron runtime，也不依赖源代码仓库。受支持的 Windows 10/11 已包含所需的 .NET Framework 4.x。发布二进制未做商业代码签名，遇到 SmartScreen 提示时应先核对 Release SHA256。
+安装器自动化参数、源码构建、CLI/MCP 兼容面、确定性 benchmark、自动卸载和真实 Desktop smoke 配置见 [产品边界说明](../developer/product-boundary.zh-CN.md) 与 [发布检查](../release.zh-CN.md)。这些都不是普通 Desktop 用户流程。

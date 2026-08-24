@@ -28,7 +28,7 @@ The installer writes:
 <OpenCode config>\skills\opencode-plusplus\SKILL.md
 ```
 
-The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONFIG_DIR` takes precedence; `XDG_CONFIG_HOME` is also honored by the runtime. For an isolated installation, pass `--config-dir <path>`.
+The default config directory is `%USERPROFILE%\.config\opencode`. `OPENCODE_CONFIG_DIR` takes precedence; `XDG_CONFIG_HOME` is also honored when OpenCode already uses it.
 
 ## Harness Workflow
 
@@ -40,11 +40,11 @@ After restart, the session exposes `/plusplus-task` and `/plusplus-verify` as no
 
 ## Control and Status
 
-| Action      | Desktop tool (model-mediated) | Direct local EXE command                        |
-| ----------- | ----------------------------- | ----------------------------------------------- |
-| Show status | `opencode_plusplus_status`    | `opencode-plusplus-setup-win-x64.exe --status`  |
-| Enable      | `opencode_plusplus_enable`    | `opencode-plusplus-setup-win-x64.exe --enable`  |
-| Disable     | `opencode_plusplus_disable`   | `opencode-plusplus-setup-win-x64.exe --disable` |
+| Action      | Local Desktop command       |
+| ----------- | --------------------------- |
+| Show status | `/opencode-plusplus-status` |
+| Enable      | `/opencode-plusplus-on`     |
+| Disable     | `/opencode-plusplus-off`    |
 
 OpenCode Markdown commands normally are prompt templates, but the installer patches the host command dispatcher for these exact names. When the patch is active, `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off` are intercepted before template expansion and directly read or update the local state file. They append a local assistant result to the current session and do not call the model or execute a shell command. Other Markdown commands retain normal OpenCode behavior.
 
@@ -58,9 +58,9 @@ Disable is a pause, not an uninstall. The plugin remains loaded so status and en
 - If OpenCode updates and replaces `app.asar`, the native commands disappear until the installer is run again. The installer detects the missing marker and creates a new backup before patching the new bundle.
 - An unsupported or changed bundle is rejected without writing the command files.
 - The backup sidecar records `schemaVersion`, the patch marker, Desktop version, source `app.asar`, and install time. Uninstall restores only a valid, unpatched backup created by OpenCode++.
-- `--status` reports `active`, `stale`, `absent`, or `skipped`; after an OpenCode update replaces `app.asar`, an existing installation is reported as `stale`, not active.
+- `/opencode-plusplus-status` reports `active`, `stale`, `absent`, or `skipped`; after an OpenCode update replaces `app.asar`, an existing installation is reported as `stale`, not active.
 - Host replacement and every config write use temporary files and atomic replacement. A failed patch, plugin write, command write, or state write leaves the host bundle recoverable and does not continue to later writes.
-- `--host-asar` is a development/smoke-test override; end users use the detected OpenCode Desktop bundle. The EXE contains only the .NET installer, plugin bundle, and patch resource, not Node, Electron, or the OpenCode runtime.
+- The EXE contains only the .NET installer, plugin bundle, and patch resource, not Node, Electron, or the OpenCode runtime.
 
 ## What the Plugin Does
 
@@ -102,42 +102,19 @@ When the plugin is disabled, every lifecycle handler except the `status`/`enable
 
 Close OpenCode Desktop and run the newer EXE. The installer updates the bundled plugin, verifies or reapplies the host command patch, writes the three native command menu entries plus the `/plusplus-task` and `/plusplus-verify` commands and the `opencode-plusplus` skill, updates `installation.json`, and preserves an existing valid enabled state.
 
-If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice. Legacy repository commands `.opencode/commands/opencode-plusplus.md` and `.opencode/commands/opencode-plusplus-verify.md` invoke the CLI and are no longer generated; delete them or re-run `opencode-plusplus opencode init .` to get the aligned `/plusplus-task` and `/plusplus-verify` versions.
+If a previous project-level integration left `.opencode/plugins/opencode-plusplus.ts` in a repository, remove that legacy file after installing the global plugin. Keeping both can load the same hooks twice. Legacy repository commands `.opencode/commands/opencode-plusplus.md` and `.opencode/commands/opencode-plusplus-verify.md` are no longer generated and should be removed.
 
-## Uninstall
-
-```powershell
-opencode-plusplus-setup-win-x64.exe --uninstall
-```
-
-Uninstall removes only files written by the installer. It does not remove repository `.agent-context/` data, source code, OpenCode Desktop, or other plugins.
-
-## Diagnostics
-
-```powershell
-opencode-plusplus-setup-win-x64.exe --status --json
-opencode-plusplus-setup-win-x64.exe --disable --json
-opencode-plusplus-setup-win-x64.exe --enable --json
-opencode-plusplus-setup-win-x64.exe --config-dir "C:\Temp\opencode-config" --status --json
-```
+## Troubleshooting
 
 If the tools do not appear:
 
 1. fully exit and restart OpenCode;
 2. verify that the plugin file exists in the active OpenCode config directory;
 3. start a new repository session;
-4. run the EXE with `--status --json`;
+4. run `/opencode-plusplus-status` in Desktop;
 5. remove the legacy project plugin if present;
 6. run the installer again after every OpenCode Desktop update.
 
-## Build From Source
+## Developer And Compatibility Details
 
-On Windows with Node.js 20+:
-
-```powershell
-npm ci
-npm run check
-npm run build:installer:windows
-```
-
-The build emits `release/opencode-plusplus-setup-win-x64.exe` and a SHA256 file. It minifies and compresses the global plugin, then embeds it in a compact .NET Framework installer. The EXE does not carry a Node or Electron runtime and does not require the source checkout. Supported Windows 10/11 systems already include the required .NET Framework 4.x runtime. The published binary is not commercially code-signed, so verify the release SHA256 before bypassing a SmartScreen warning.
+Installer automation options, source builds, CLI/MCP compatibility surfaces, deterministic benchmarks, uninstall automation, and real Desktop smoke setup are documented in [Product Boundary](../developer/product-boundary.md) and [Release checks](../release.md). They are not ordinary Desktop user workflows.
