@@ -27,7 +27,7 @@ export class StaticContextRetriever implements ContextRetriever {
         const symbolBoost = symbolRelevance(file, terms);
         const chainBoost = dependencyChainWeight(this.context, doc.path, changed);
         const regressionBoost = regressionWeight(doc.path, doc.moduleName, regression);
-        const negativePenalty = negativeExamplePenalty(doc.path, doc.text, task);
+        const negativePenalty = negativeExamplePenalty(doc.path, doc.text, task, options.negativeExamples ?? []);
         const score = pathScore + textScore + changedBoost + importance + taskTypeBoost + symbolBoost + chainBoost + regressionBoost - negativePenalty;
         if (score <= 0 && terms.length > 0 && !changedBoost) return null;
         return {
@@ -150,8 +150,13 @@ function regressionWeight(filePath: string, moduleName: string, report: ReturnTy
   return (fileMatch ? 24 : 0) + (moduleMatch ? 12 : 0) + (memorySource ? 8 : 0);
 }
 
-function negativeExamplePenalty(filePath: string, text: string, task: string): number {
-  return /negative|unrelated|fixture|example/i.test(`${filePath} ${text}`) && !task.toLowerCase().includes(filePath.toLowerCase()) ? 8 : 0;
+export function negativeExamplePenalty(filePath: string, text: string, task: string, negativeExamples: string[]): number {
+  const normalizedPath = filePath.toLowerCase();
+  const normalizedTask = task.toLowerCase();
+  if (negativeExamples.some((example) => normalizedPath === example.toLowerCase() || normalizedPath.startsWith(`${example.toLowerCase()}/`))) {
+    return normalizedTask.includes(normalizedPath) ? 0 : 40;
+  }
+  return /negative|unrelated|fixture|example/i.test(`${filePath} ${text}`) && !normalizedTask.includes(normalizedPath) ? 8 : 0;
 }
 
 export function sortHits<T extends { score: number; path: string }>(hits: T[]): T[] {

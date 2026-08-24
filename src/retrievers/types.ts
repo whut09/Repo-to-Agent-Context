@@ -20,6 +20,7 @@ export interface ContextRetrieverOptions {
   taskType?: RetrievalTaskType;
   modules?: string[];
   changedFiles?: string[];
+  negativeExamples?: string[];
   includeTests?: boolean;
 }
 

@@ -13,6 +13,7 @@ export interface RetrieveApplicationInput {
   taskType?: "bugfix" | "feature" | "refactor" | "auto";
   modules?: string[];
   changedFiles?: string[];
+  negativeExamples?: string[];
   includeTests?: boolean;
   context?: ContextPackage;
 }
@@ -26,6 +27,7 @@ export async function retrieveApplicationContext(input: RetrieveApplicationInput
     taskType: input.taskType ?? "auto",
     modules: input.modules,
     changedFiles: input.changedFiles,
+    negativeExamples: input.negativeExamples,
     includeTests: input.includeTests ?? false
   });
   const selectionPaths = unique([
