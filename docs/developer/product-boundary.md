@@ -2,7 +2,7 @@
 
 [中文](product-boundary.zh-CN.md) | English
 
-OpenCode++ has exactly one runtime product: **the Windows plugin for the official OpenCode Desktop**. The entire user journey is: download `opencode-plusplus-setup-win-x64.exe`, double-click to install, restart OpenCode Desktop. There is no `npm install` path for end users, no TUI, and no second desktop shell.
+OpenCode++ has exactly one runtime product: **the Windows plugin for the official OpenCode Desktop**. The entire user journey is: download `opencode-plusplus-setup-win-x64.exe`, double-click to install, restart OpenCode Desktop. There is no `npm install` path for end users and no alternative UI runtime.
 
 ## Single Production Runtime Entry
 
@@ -35,7 +35,7 @@ The following remain in the repository and the npm developer package but are **n
 
 ## Removed and Confirmed Absent
 
-- The old Electron Desktop MVP and TUI shell: no corresponding directory remains in the repository (there is no real `apps/desktop/` code). The `apps/desktop/` entries in `.gitignore`, eslint ignores, and the `verify-release.mjs` forbidden prefixes are kept to keep stale build output out of releases.
+- No alternative Desktop source tree is present. The `apps/desktop/` forbidden prefix remains only as a release guard against stale generated output.
 - Release artifacts do not contain a Node.js or Electron runtime, the OpenCode runtime, or the source checkout.
 
 ## Release Package Boundary

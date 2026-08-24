@@ -2,7 +2,7 @@
 
 [English](product-boundary.md) | 中文
 
-OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Windows 插件**。用户的全部操作是：下载 `opencode-plusplus-setup-win-x64.exe`、双击安装、重启 OpenCode Desktop。没有 `npm install` 用户路径，没有 TUI，没有第二个 Desktop 外壳。
+OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Windows 插件**。用户的全部操作是：下载 `opencode-plusplus-setup-win-x64.exe`、双击安装、重启 OpenCode Desktop。普通用户没有 `npm install` 路径，也不存在替代 UI runtime。
 
 ## 唯一生产运行时入口
 
@@ -35,7 +35,7 @@ OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Window
 
 ## 删除与确认不存在
 
-- 旧 Electron Desktop MVP 和 TUI 外壳：仓库中已无对应目录（不存在 `apps/desktop/` 实体代码）；`.gitignore`、eslint ignores、`verify-release.mjs` forbiddenPrefixes 中的 `apps/desktop/` 条目保留，用于防止旧构建产物误入发布包。
+- 仓库中不存在替代 Desktop 源码目录；`apps/desktop/` forbidden prefix 只作为发布保护，防止陈旧生成物误入发布包。
 - 发布产物不包含 Node.js、Electron、OpenCode 运行时或源代码仓库。
 
 ## 发布包边界

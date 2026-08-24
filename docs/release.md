@@ -31,7 +31,7 @@ npm run release:verify
 
 The root package.json version is the single version source. package-info:generate creates runtime constants used by CLI, MCP, freshness, and the plugin bundle.
 
-Confirm that npm pack contains dist, README files, config examples, package metadata, and LICENSE, including the plugin entry `dist/integrations/opencode/global-plugin.js`. It must not contain node_modules, benchmark fixtures, agent-runs, local cache, .agent-context, release EXEs, `.installer-build/`, or stale Desktop/TUI output.
+Confirm that npm pack contains dist, README files, config examples, package metadata, and LICENSE, including the plugin entry `dist/integrations/opencode/global-plugin.js`. It must not contain node_modules, benchmark fixtures, agent-runs, local cache, .agent-context, release EXEs, `.installer-build/`, or stale UI build output.
 
 ## Windows EXE
 
