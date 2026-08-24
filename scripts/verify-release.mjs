@@ -1,12 +1,18 @@
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const target = valueAfter("--package") ?? "core";
 if (target !== "core") throw new Error(`Unknown release package: ${target}`);
 verifyPackage(target);
+if (process.platform === "win32" || process.argv.includes("--desktop")) {
+  await verifyDesktopRelease();
+} else {
+  console.log("desktop: skipped on non-Windows host; Windows CI enforces the EXE release gate");
+}
 
 function verifyPackage(name) {
   const config = {
@@ -56,6 +62,47 @@ function verifyBins(directory, files) {
     if (!readFileSync(filePath, "utf8").startsWith("#!/usr/bin/env node")) throw new Error(`Bin ${name} is missing a Node shebang.`);
     if (process.platform !== "win32" && (packed.mode & 0o111) === 0) throw new Error(`Bin ${name} is not executable in the packed manifest.`);
   }
+}
+
+async function verifyDesktopRelease() {
+  const release = path.join(root, "release");
+  const manifestPath = path.join(release, "opencode-plusplus-release.json");
+  if (!existsSync(manifestPath)) throw new Error(`Desktop release manifest is missing: ${manifestPath}`);
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+  if (manifest.schemaVersion !== 1) throw new Error(`Unsupported Desktop release manifest schema: ${String(manifest.schemaVersion)}`);
+  if (manifest.version !== packageVersion) throw new Error(`Desktop version ${String(manifest.version)} does not match package.json ${packageVersion}.`);
+  if (manifest.platform !== "win32" || manifest.architecture !== "x64") throw new Error("Desktop release manifest must target win32/x64.");
+
+  const executable = path.join(release, manifest.installer.file);
+  const checksumFile = path.join(release, manifest.installer.checksumFile);
+  if (!existsSync(executable)) throw new Error(`Desktop installer is missing: ${executable}`);
+  if (!existsSync(checksumFile)) throw new Error(`Desktop installer checksum is missing: ${checksumFile}`);
+  const bytes = statSync(executable).size;
+  if (bytes !== manifest.installer.bytes) throw new Error(`Desktop installer size ${bytes} does not match manifest ${String(manifest.installer.bytes)}.`);
+  if (bytes > manifest.installer.maximumBytes) throw new Error(`Desktop installer is ${bytes} bytes; maximum is ${String(manifest.installer.maximumBytes)}.`);
+  const digest = createHash("sha256").update(readFileSync(executable)).digest("hex");
+  if (digest !== manifest.installer.sha256) throw new Error("Desktop installer SHA256 does not match the release manifest.");
+  if (!readFileSync(checksumFile, "utf8").startsWith(`${digest}  ${path.basename(executable)}`)) {
+    throw new Error("Desktop installer checksum file does not match the executable.");
+  }
+
+  const expectedCommands = ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off"];
+  if (JSON.stringify(manifest.nativeCommands) !== JSON.stringify(expectedCommands)) throw new Error("Desktop release manifest has unexpected native commands.");
+  if (manifest.patchMarker !== "OPENCODE_PLUSPLUS_NATIVE_COMMANDS") throw new Error("Desktop release manifest has an unexpected app.asar patch marker.");
+
+  const pluginBundle = path.join(root, ".installer-build", "opencode-plusplus-plugin.cjs");
+  if (!existsSync(pluginBundle)) throw new Error(`Desktop plugin bundle is missing: ${pluginBundle}`);
+  const pluginModule = await import(`${pathToFileURL(pluginBundle).href}?verify=${Date.now()}`);
+  const pluginExports = [...new Set(Object.values(pluginModule))];
+  if (pluginExports.length !== 1 || typeof pluginExports[0] !== "function")
+    throw new Error("Desktop plugin bundle must load with exactly one plugin function export.");
+  if (statSync(pluginBundle).size !== manifest.plugin.bundleBytes) throw new Error("Desktop plugin bundle size does not match the release manifest.");
+
+  const patchSource = readFileSync(path.join(root, ".installer-build", "native-command-patch.js"), "utf8");
+  if (!patchSource.includes(manifest.patchMarker)) throw new Error("Desktop patch resource is missing its marker.");
+  for (const command of expectedCommands) if (!patchSource.includes(`"${command}"`)) throw new Error(`Desktop patch resource is missing command ${command}.`);
+  console.log(`desktop: ${formatBytes(bytes)} installer, SHA256 ${digest}, plugin bundle load passed`);
 }
 
 function valueAfter(name) {
