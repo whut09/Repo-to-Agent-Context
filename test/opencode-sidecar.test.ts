@@ -144,6 +144,10 @@ test("OpenCode sidecar records tool execution evidence into event logs and trace
 
     assert.equal(existsSync(result.eventLogPath), true);
     assert.match(readFileSync(result.eventLogPath, "utf8"), /tool\.execute\.after/);
+    assert.equal(typeof result.event.eventId, "string");
+    assert.equal(result.event.sequence, 1);
+    assert.equal(result.event.schemaVersion, 1);
+    assert.equal(typeof result.event.timestamp, "string");
     assert.equal(path.basename(result.tracePath), "opencode-session-session-123.json");
     const trace = readExecutionTrace(root, result.traceId);
     const step = trace?.steps.at(-1);

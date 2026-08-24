@@ -1,5 +1,6 @@
 import path from "node:path";
-import { appendTextLocked } from "../../core/atomic-store.js";
+import { appendJsonLineLocked } from "../../core/atomic-store.js";
+import { createHash } from "node:crypto";
 import { collectWorkingTreeFiles } from "../../core/git.js";
 import {
   appendExecutionTraceStep,
@@ -29,7 +30,9 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   const filesTouched = [...new Set([...(input.paths ?? []).map(normalizeToolPath).filter(Boolean), ...safeChangedFiles(root)])].sort();
   const event = {
     schemaVersion: 1,
-    revision: Date.now(),
+    eventId: input.eventId ?? eventIdForTool({ sessionId, tool, command, startedAt, finishedAt, stdoutHash: stdout.hash, stderrHash: stderr.hash }),
+    sequence: 0,
+    timestamp: finishedAt,
     type: "tool.execute.after" as const,
     ts: finishedAt,
     tool,
@@ -53,7 +56,8 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
     source: input.source ?? "desktop-hook"
   };
 
-  appendTextLocked(eventLogPath, `${JSON.stringify(event)}\n`);
+  const persisted = appendJsonLineLocked(eventLogPath, event);
+  const persistedEvent = { ...event, sequence: persisted.sequence };
   let trace = readExecutionTrace(root, traceId);
   if (!trace) trace = startExecutionTrace(root, `OpenCode sidecar session ${sessionId}`, { id: traceId, agent: "opencode" });
   trace = appendExecutionTraceStep(root, traceId, {
@@ -82,7 +86,22 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   });
   const step = trace.steps.at(-1);
   if (!step) throw new Error(`Failed to append OpenCode sidecar trace step: ${traceId}`);
-  return { repo: root, eventLogPath, traceId, tracePath: executionTracePath(root, traceId), event, trace, step };
+  return { repo: root, eventLogPath, traceId, tracePath: executionTracePath(root, traceId), event: persistedEvent, trace, step };
+}
+
+function eventIdForTool(input: Record<string, string | null>): string {
+  return `tool.execute.after:${createHash("sha256").update(stableStringify(input)).digest("hex").slice(0, 24)}`;
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 export function traceIdForOpenCodeSession(sessionId?: string | null): string {

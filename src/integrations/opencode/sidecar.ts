@@ -117,6 +117,7 @@ export interface OpenCodeSidecarToolRecordInput {
   taskId?: string;
   source?: "desktop-hook" | "cli" | "ci" | "manual";
   paths?: string[];
+  eventId?: string;
 }
 
 export interface OpenCodeSidecarToolRecordResult {
@@ -125,6 +126,10 @@ export interface OpenCodeSidecarToolRecordResult {
   traceId: string;
   tracePath: string;
   event: {
+    schemaVersion: 1;
+    eventId: string;
+    sequence: number;
+    timestamp: string;
     type: "tool.execute.after";
     ts: string;
     tool: string;
@@ -144,6 +149,8 @@ export interface OpenCodeSidecarToolRecordResult {
     workingTreeHashAfter: string;
     filesTouched: string[];
     sessionId: string;
+    taskId: string | null;
+    source: "desktop-hook" | "cli" | "ci" | "manual";
   };
   trace: ExecutionTrace;
   step: ExecutionTraceStep;
