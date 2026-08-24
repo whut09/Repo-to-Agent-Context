@@ -67,3 +67,16 @@ test("release boundary: Desktop verification covers executable integrity and plu
     assert.match(verifier, new RegExp(command));
   }
 });
+
+test("release boundary: PR CI uses Windows Desktop gates without paid executors", () => {
+  const ci = readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
+  assert.match(ci, /windows-latest/);
+  assert.match(ci, /npm run build:installer:windows/);
+  assert.match(ci, /npm run benchmark:desktop/);
+  assert.doesNotMatch(ci, /benchmark:agent:real|OPENCODE_EXECUTOR_COMMAND|CLAUDE|CODEX|MIMO/i);
+
+  const desktopSmoke = readFileSync(path.join(root, ".github", "workflows", "desktop-smoke.yml"), "utf8");
+  assert.match(desktopSmoke, /workflow_dispatch/);
+  assert.match(desktopSmoke, /self-hosted, Windows, X64, opencode-desktop/);
+  assert.match(desktopSmoke, /--require-real-desktop-launch/);
+});
