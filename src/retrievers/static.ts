@@ -23,7 +23,7 @@ export class StaticContextRetriever implements ContextRetriever {
         const importance = typeof doc.metadata.importanceScore === "number" ? doc.metadata.importanceScore / 20 : 0;
         const taskTypeBoost = taskTypeWeight(options.taskType, doc.kind, doc.path);
         const symbolBoost = symbolRelevance(file, terms);
-        const chainBoost = chainWeight(this.context, doc.path, changed);
+        const chainBoost = dependencyChainWeight(this.context, doc.path, changed);
         const regressionBoost = regressionWeight(doc.path, doc.text);
         const negativePenalty = negativeExamplePenalty(doc.path, doc.text, task);
         const score = pathScore + textScore + changedBoost + importance + taskTypeBoost + symbolBoost + chainBoost + regressionBoost - negativePenalty;
@@ -109,11 +109,35 @@ export function symbolRelevance(file: IndexedFile | undefined, terms: string[]):
   return Math.min(24, matches.length * 12);
 }
 
-function chainWeight(context: ContextPackage, filePath: string, changed: Set<string>): number {
-  const direct = context.graph.fileEdges.filter(
-    (edge) => (edge.from === filePath && changed.has(edge.to)) || (edge.to === filePath && changed.has(edge.from))
-  ).length;
-  return Math.min(15, direct * 5);
+export function dependencyChainWeight(context: ContextPackage, filePath: string, changed: Set<string>): number {
+  if (!changed.size) return 0;
+  const adjacency = new Map<string, Set<string>>();
+  for (const edge of context.graph.fileEdges) {
+    if (edge.isExternal) continue;
+    const from = adjacency.get(edge.from) ?? new Set<string>();
+    const to = adjacency.get(edge.to) ?? new Set<string>();
+    from.add(edge.to);
+    to.add(edge.from);
+    adjacency.set(edge.from, from);
+    adjacency.set(edge.to, to);
+  }
+
+  const visited = new Set(changed);
+  let frontier = [...changed].sort();
+  let score = 0;
+  for (const distance of [1, 2]) {
+    const next = new Set<string>();
+    for (const current of frontier) {
+      for (const neighbor of [...(adjacency.get(current) ?? [])].sort()) {
+        if (visited.has(neighbor)) continue;
+        visited.add(neighbor);
+        next.add(neighbor);
+      }
+    }
+    if (next.has(filePath)) score += distance === 1 ? 8 : 3;
+    frontier = [...next].sort();
+  }
+  return Math.min(20, score);
 }
 
 function regressionWeight(filePath: string, text: string): number {
