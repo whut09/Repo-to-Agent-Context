@@ -4,9 +4,37 @@ import { createPluginHarnessResult } from "./protocol.js";
 import { loadPluginHarnessContext } from "./context.js";
 import { readPluginHarnessSession } from "./session.js";
 import type { PluginRetrieveArgs, PluginRetrieveResult } from "./types.js";
+import { createPluginHarnessError } from "./protocol.js";
+import { pluginPerformance, runPluginStage } from "./performance.js";
 
 export async function retrievePluginHarnessContext(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
-  const startedAt = Date.now();
+  const staged = await runPluginStage("retrieve", () => retrievePluginHarnessContextInternal(root, args));
+  if (staged.status === "timeout") {
+    return createPluginHarnessError(
+      root,
+      "retrieve",
+      `retrieve exceeded the ${3000}ms Desktop target; retry with a smaller topK or after context generation settles.`,
+      null,
+      args.sessionId ?? null,
+      "none",
+      pluginPerformance("retrieve", staged, "miss", "rebuilt", [], [])
+    );
+  }
+  const result = staged.value!;
+  return {
+    ...result,
+    performance: pluginPerformance(
+      "retrieve",
+      staged,
+      result.performance?.cache ?? "miss",
+      result.performance?.contextMode ?? "rebuilt",
+      result.performance?.selectedFiles ?? [],
+      result.performance?.rejectedFiles ?? []
+    )
+  };
+}
+
+async function retrievePluginHarnessContextInternal(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
   const context = await loadPluginHarnessContext(root);
   const taskType = args.taskType ?? "auto";
   const topK = adaptiveTopK(taskType, args.topK);
@@ -37,11 +65,14 @@ export async function retrievePluginHarnessContext(root: string, args: PluginRet
     hits,
     artifacts: context.scan.root ? [".agent-context/manifest.json"] : [],
     performance: {
-      durationMs: Date.now() - startedAt,
-      cache: context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
-      contextMode: context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
-      selectedFiles: hits.map((hit) => hit.path),
-      rejectedFiles: []
+      ...pluginPerformance(
+        "retrieve",
+        { status: "completed", durationMs: 0 },
+        context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
+        context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
+        hits.map((hit) => hit.path),
+        []
+      )
     }
   });
 }
