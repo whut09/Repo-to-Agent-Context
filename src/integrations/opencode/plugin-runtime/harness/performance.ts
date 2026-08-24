@@ -2,7 +2,7 @@ import type { PluginPerformance, PluginPerformanceStatus } from "./types.js";
 import type { CacheStats } from "../../../../core/types.js";
 
 export const PLUGIN_STAGE_TARGETS = {
-  prepare: 5000,
+  prepare: 15000,
   retrieve: 3000,
   evaluate: 5000
 } as const;

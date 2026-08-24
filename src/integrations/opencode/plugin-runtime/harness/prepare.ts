@@ -7,7 +7,7 @@ import { taskRunManifestPath, writePluginHarnessSession } from "./session.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { contextFingerprint, updateWorkflowState } from "./workflow.js";
-import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
+import { cacheStatusForStats, contextModeForStats, pluginPerformance, PLUGIN_STAGE_TARGETS, runPluginStage } from "./performance.js";
 import { createPluginHarnessError } from "./protocol.js";
 import type { PluginPrepareArgs, PluginPrepareResult } from "./types.js";
 
@@ -17,7 +17,7 @@ export async function preparePluginHarnessTask(root: string, args: PluginPrepare
     return createPluginHarnessError(
       root,
       "prepare",
-      `prepare exceeded the ${5000}ms Desktop target; retry after context generation settles.`,
+      `prepare exceeded the ${PLUGIN_STAGE_TARGETS.prepare}ms Desktop target; retry after context generation settles.`,
       null,
       args.sessionId ?? null,
       "none",
