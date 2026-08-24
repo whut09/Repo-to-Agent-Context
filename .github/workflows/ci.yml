@@ -24,13 +24,24 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run docs:cli:check
+      - run: npm run docs:bilingual:check
       - run: npm run test:core
       - run: npm run build
       - name: Verify release packages
+        if: runner.os == 'Linux'
         run: npm run release:verify
       - name: Windows command and installer regression tests
         if: runner.os == 'Windows'
         run: npm run test:windows
+      - name: Build Windows Desktop installer
+        if: runner.os == 'Windows'
+        run: npm run build:installer:windows
+      - name: Verify Windows Desktop release
+        if: runner.os == 'Windows'
+        run: npm run release:verify
       - name: Benchmarks
         if: runner.os == 'Linux'
         run: npm run benchmark && npm run benchmark:agent
+      - name: Deterministic Desktop plugin benchmark
+        if: runner.os == 'Windows'
+        run: npm run benchmark:desktop

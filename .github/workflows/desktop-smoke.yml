@@ -1,0 +1,50 @@
+name: Desktop smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      require_real_desktop:
+        description: "Launch a preinstalled OpenCode Desktop executable on this Windows runner"
+        required: true
+        default: false
+        type: boolean
+      desktop_exe:
+        description: "Optional absolute path to OpenCode.exe on a self-hosted Windows runner"
+        required: false
+        type: string
+
+jobs:
+  desktop:
+    name: Windows Desktop plugin smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run build:installer:windows
+      - run: npm run release:verify
+      - run: npm run benchmark:desktop
+
+  real-desktop:
+    name: Real OpenCode Desktop launch
+    if: inputs.require_real_desktop
+    needs: desktop
+    runs-on: [self-hosted, Windows, X64, opencode-desktop]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run build:installer:windows
+      - name: Launch real OpenCode Desktop when requested
+        env:
+          OPENCODE_DESKTOP_EXE: ${{ inputs.desktop_exe }}
+        run: node scripts/smoke-windows-installer.mjs --require-real-desktop-launch
