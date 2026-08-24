@@ -11,7 +11,6 @@ const staging = path.join(root, ".installer-build");
 const release = path.join(root, "release");
 const pluginPath = path.join(staging, "opencode-plusplus-plugin.cjs");
 const pluginGzipPath = path.join(staging, "opencode-plusplus-plugin.cjs.gz");
-const nativeCommandPatchPath = path.join(staging, "native-command-patch.js");
 const installerTemplate = path.join(root, "src/installer/windows-installer.cs");
 const installerSource = path.join(staging, "windows-installer.generated.cs");
 const executable = path.join(release, "opencode-plusplus-setup-win-x64.exe");
@@ -47,7 +46,6 @@ if (pluginExports.length !== 1 || typeof pluginExports[0] !== "function") {
 
 const pluginGzip = gzipSync(readFileSync(pluginPath), { level: 9 });
 writeFileSync(pluginGzipPath, pluginGzip);
-writeFileSync(nativeCommandPatchPath, readFileSync(path.join(root, "src/installer/native-command-patch.js")));
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
 writeFileSync(installerSource, readFileSync(installerTemplate, "utf8").replaceAll("__PACKAGE_VERSION__", packageVersion), "utf8");
 
@@ -60,7 +58,6 @@ run(csc, [
   "/utf8output",
   `/out:${executable}`,
   `/resource:${pluginGzipPath},OpenCodePlusPlus.Plugin.gz`,
-  `/resource:${nativeCommandPatchPath},OpenCodePlusPlus.NativeCommandPatch.js`,
   "/reference:System.Web.Extensions.dll",
   "/reference:System.Windows.Forms.dll",
   installerSource
@@ -92,8 +89,10 @@ writeFileSync(
         compressedBytes: pluginGzip.length,
         exportCount: pluginExports.length
       },
-      nativeCommands: ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off"],
-      patchMarker: "OPENCODE_PLUSPLUS_NATIVE_COMMANDS"
+      mode: "opencode-plusplus",
+      agent: "agents/opencode-plusplus.md",
+      legacyCommandsRemoved: ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off", "plusplus-task", "plusplus-verify"],
+      hostPatch: "removed-on-install"
     },
     null,
     2

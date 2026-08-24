@@ -94,9 +94,9 @@ async function verifyDesktopRelease() {
     throw new Error("Desktop installer checksum file does not match the executable.");
   }
 
-  const expectedCommands = ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off"];
-  if (JSON.stringify(manifest.nativeCommands) !== JSON.stringify(expectedCommands)) throw new Error("Desktop release manifest has unexpected native commands.");
-  if (manifest.patchMarker !== "OPENCODE_PLUSPLUS_NATIVE_COMMANDS") throw new Error("Desktop release manifest has an unexpected app.asar patch marker.");
+  if (manifest.mode !== "opencode-plusplus") throw new Error("Desktop release manifest must install the opencode-plusplus mode.");
+  if (manifest.agent !== "agents/opencode-plusplus.md") throw new Error("Desktop release manifest has an unexpected agent path.");
+  if (manifest.hostPatch !== "removed-on-install") throw new Error("Desktop release manifest must declare legacy host patch removal.");
 
   const pluginBundle = path.join(root, ".installer-build", "opencode-plusplus-plugin.cjs");
   if (!existsSync(pluginBundle)) throw new Error(`Desktop plugin bundle is missing: ${pluginBundle}`);
@@ -106,9 +106,6 @@ async function verifyDesktopRelease() {
     throw new Error("Desktop plugin bundle must load with exactly one plugin function export.");
   if (statSync(pluginBundle).size !== manifest.plugin.bundleBytes) throw new Error("Desktop plugin bundle size does not match the release manifest.");
 
-  const patchSource = readFileSync(path.join(root, ".installer-build", "native-command-patch.js"), "utf8");
-  if (!patchSource.includes(manifest.patchMarker)) throw new Error("Desktop patch resource is missing its marker.");
-  for (const command of expectedCommands) if (!patchSource.includes(`"${command}"`)) throw new Error(`Desktop patch resource is missing command ${command}.`);
   const smoke = spawnSync(process.execPath, [path.join(root, "scripts", "smoke-windows-installer.mjs"), "--release-gate"], {
     cwd: root,
     encoding: "utf8",

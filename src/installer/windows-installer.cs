@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -17,16 +16,10 @@ internal static class OpenCodePlusPlusInstaller
 {
     private const string PackageVersion = "__PACKAGE_VERSION__";
     private const string PluginResource = "OpenCodePlusPlus.Plugin.gz";
-    private const string NativeCommandPatchResource = "OpenCodePlusPlus.NativeCommandPatch.js";
     private const string PluginFileName = "opencode-plusplus.js";
-    private const string NativeCommandPatchMarker = "OPENCODE_PLUSPLUS_NATIVE_COMMANDS";
-    private const string PlusPlusTaskCommandFile = "plusplus-task.md";
-    private const string PlusPlusVerifyCommandFile = "plusplus-verify.md";
-    private const string PlusPlusSkillFile = "skills/opencode-plusplus/SKILL.md";
-    // Mirror of src/installer/opencode-plusplus-prompts.ts; kept in sync by test/installer-prompt-sync.test.ts.
-    private const string PlusPlusTaskCommand = "---\ndescription: Run a coding task through the OpenCode++ harness workflow\n---\n\nTask: $ARGUMENTS\n\nRun this task through the OpenCode++ harness workflow. Follow the steps in order and do not skip any of them.\n\n1. Call the opencode_plusplus_prepare tool with task set to the task above and type set to bugfix, feature, or refactor.\n2. Read every file listed in mustInspect before making edits.\n3. Change only files inside allowedEditGlobs and never touch files in avoidEditGlobs.\n4. Run every command in requiredCommands with the OpenCode built-in shell tool and keep its output.\n5. Call the opencode_plusplus_evaluate tool with the taskId returned by prepare.\n6. Call the opencode_plusplus_next tool with the same taskId.\n7. If nextAction is not finalize, fix the reported findings, run the required commands, and repeat from step 4. Do not claim the task is complete until nextAction is finalize.\n\nNever invent file paths, package scripts, or command output that did not appear in tool results or files you actually read. All verification happens through the OpenCode++ tools; do not suggest any command-line harness usage.\n";
-    private const string PlusPlusVerifyCommand = "---\ndescription: Verify the current OpenCode++ task state\n---\n\nVerify the OpenCode++ harness state for the current task.\n\n1. If this session has no taskId from opencode_plusplus_prepare, call opencode_plusplus_prepare for the current task first.\n2. Call the opencode_plusplus_evaluate tool with that taskId.\n3. Call the opencode_plusplus_next tool with the same taskId.\n4. Report whether the state is blocking, list every missing evidence item, and list every required command that still must run.\n5. Do not claim completion unless nextAction is finalize.\n\nAll verification happens through the OpenCode++ tools; do not suggest any command-line harness usage.\n";
-    private const string PlusPlusSkill = "---\nname: opencode-plusplus\ndescription: Load for concrete coding tasks, cross-module changes, and final verification in a repository instrumented with OpenCode++. Do not load for pure Q&A, discussion, or non-coding chat.\n---\n\nOpenCode++ reliability harness workflow for coding tasks in the current repository.\n\nWhen to use each tool:\n- opencode_plusplus_prepare: call once at the start of a concrete coding task. It returns taskId, mustInspect, allowedEditGlobs, avoidEditGlobs, and requiredCommands.\n- opencode_plusplus_retrieve: call to locate task-relevant files before searching blindly.\n- opencode_plusplus_evaluate: call after edits, or before claiming the task is done. It returns blocking, findings, decision, and missingEvidence.\n- opencode_plusplus_next: call after evaluate to get the next action for the task.\n\nHard rules:\n- Read every mustInspect file before editing, and edit only inside allowedEditGlobs.\n- Run every requiredCommands entry with the built-in shell tool before calling opencode_plusplus_evaluate.\n- When opencode_plusplus_evaluate reports blocking as true, the task is not complete: fix the findings, run the required commands, and evaluate again.\n- Present the task as complete only when opencode_plusplus_next returns nextAction as finalize.\n- Never fabricate files, commands, or outputs that are not present in tool results.\n";
+    private const string AgentFileName = "agents/opencode-plusplus.md";
+    private const string LegacyPatchMarker = "OPENCODE_PLUSPLUS_NATIVE_COMMANDS";
+    private const string AgentContent = "---\ndescription: OpenCode++ guarded coding with repository context and verification gates\nmode: primary\n---\n\nYou are the OpenCode++ primary agent. Use the OpenCode++ plugin tools as the control plane for every concrete coding task.\n\nWorkflow:\n1. Call opencode_plusplus_retrieve when you need to locate task-relevant files.\n2. Call opencode_plusplus_prepare at the start of a concrete coding task, with task and type set to bugfix, feature, or refactor.\n3. Read every file listed in mustInspect before editing.\n4. Edit only files inside allowedEditGlobs and never touch avoidEditGlobs.\n5. Run every requiredCommands entry with the built-in shell tool and preserve the tool result as evidence.\n6. Call opencode_plusplus_evaluate after edits and verification commands.\n7. Call opencode_plusplus_next with the taskId returned by prepare.\n8. If nextAction is not finalize, follow the reported action, then evaluate and call next again. Never claim completion while the decision is blocking or nextAction is not finalize.\n\nEvidence rules:\n- Do not invent files, commands, test results, or output.\n- Treat stale, manual-only, or superseded evidence according to the policy reported by the plugin.\n- A successful command is not proof of semantic correctness; inspect findings and required evidence before finalizing.\n- Keep changes focused on the requested task and explain any human-review decision.\n\nOpenCode++ is an extensible harness. If this workflow does not fit a repository, customize the plugin agent and runtime in your own fork or project integration rather than bypassing verification silently.\n";
     private static readonly JavaScriptSerializer Json = CreateJsonSerializer();
 
     private static JavaScriptSerializer CreateJsonSerializer()
@@ -42,11 +35,9 @@ internal static class OpenCodePlusPlusInstaller
         bool machineOutput = HasArgument(args, "--json") || HasArgument(args, "--silent");
         try
         {
-            bool skipHostPatch = HasArgument(args, "--skip-host-patch");
-            string hostAsarOverride = ArgumentValue(args, "--host-asar");
-            InstallPaths paths = ResolvePaths(ArgumentValue(args, "--config-dir"), skipHostPatch, hostAsarOverride);
+            InstallPaths paths = ResolvePaths(ArgumentValue(args, "--config-dir"));
             InstallReport report;
-            if (HasArgument(args, "--uninstall")) report = Uninstall(paths, skipHostPatch);
+            if (HasArgument(args, "--uninstall")) report = Uninstall(paths, HasArgument(args, "--skip-host-patch"));
             else if (HasArgument(args, "--status")) report = MakeReport("status", paths, "OpenCode++ installation status.");
             else if (HasArgument(args, "--enable")) report = SetEnabled(paths, true);
             else if (HasArgument(args, "--disable")) report = SetEnabled(paths, false);
@@ -58,16 +49,9 @@ internal static class OpenCodePlusPlusInstaller
                 Console.WriteLine(report.message);
                 Console.WriteLine("Config: " + report.paths.configDir);
                 Console.WriteLine("Plugin: " + (report.pluginExists ? "installed" : "not installed"));
+                Console.WriteLine("Mode: " + (report.modeInstalled ? "opencode-plusplus" : "not installed"));
                 Console.WriteLine("Enabled: " + (report.enabled ? "yes" : "no"));
-                Console.WriteLine("Native command patch: " + report.nativeCommandPatchStatus);
-                if (report.action == "installed")
-                {
-                    MessageBox.Show(
-                        report.message + Environment.NewLine + Environment.NewLine + "Restart OpenCode Desktop to load the plugin.",
-                        "OpenCode++",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                }
+                if (report.action == "installed") MessageBox.Show(report.message + Environment.NewLine + Environment.NewLine + "Restart OpenCode Desktop to load the OpenCode++ mode.", "OpenCode++", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             return report.ok ? 0 : 1;
         }
@@ -83,23 +67,15 @@ internal static class OpenCodePlusPlusInstaller
         }
     }
 
-    private static InstallReport Install(InstallPaths paths, bool skipHostPatch)
+    private static InstallReport Install(InstallPaths paths, bool skipLegacyPatchCleanup)
     {
-        if (!skipHostPatch) PatchOpenCodeHost(paths);
-        FailAt("plugin");
-        byte[] plugin = ReadPlugin();
-        AtomicWrite(paths.pluginFile, plugin);
-        FailAt("commands");
-        string[] commands = NativeCommandFiles();
-        for (int index = 0; index < paths.commandFiles.Length; index++) AtomicWrite(paths.commandFiles[index], Encoding.UTF8.GetBytes(commands[index]));
-        string[] agentCommands = { PlusPlusTaskCommand, PlusPlusVerifyCommand };
-        for (int index = 0; index < paths.agentCommandFiles.Length; index++) AtomicWrite(paths.agentCommandFiles[index], Encoding.UTF8.GetBytes(agentCommands[index]));
-        AtomicWrite(paths.skillFile, Encoding.UTF8.GetBytes(PlusPlusSkill));
-        FailAt("state");
-
+        if (!skipLegacyPatchCleanup) RestoreLegacyHostPatchIfPresent();
+        AtomicWrite(paths.pluginFile, ReadPlugin());
+        int removed = RemoveLegacyFiles(paths);
+        AtomicWrite(paths.agentFile, Encoding.UTF8.GetBytes(AgentContent));
         PluginState current = ReadState(paths.stateFile, true);
         DateTime now = DateTime.UtcNow;
-        PluginState next = new PluginState
+        AtomicWriteJson(paths.stateFile, new PluginState
         {
             schemaVersion = 1,
             revision = current.revision + 1,
@@ -107,52 +83,33 @@ internal static class OpenCodePlusPlusInstaller
             version = PackageVersion,
             installedAt = String.IsNullOrEmpty(current.installedAt) ? Iso(now) : current.installedAt,
             updatedAt = Iso(now)
-        };
-        AtomicWriteJson(paths.stateFile, next);
+        });
         AtomicWriteJson(paths.manifestFile, new InstallationManifest
         {
-            schemaVersion = 1,
+            schemaVersion = 2,
             revision = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             version = PackageVersion,
             installedAt = Iso(now),
             plugin = PluginFileName,
-            commands = new[]
-            {
-                Path.GetFileName(paths.commandFiles[0]),
-                Path.GetFileName(paths.commandFiles[1]),
-                Path.GetFileName(paths.commandFiles[2])
-            },
-            agentCommands = new[]
-            {
-                Path.GetFileName(paths.agentCommandFiles[0]),
-                Path.GetFileName(paths.agentCommandFiles[1])
-            },
-            skill = PlusPlusSkillFile,
-            hostPatch = skipHostPatch || !HostPatchPresent(paths)
-                ? null
-                : new HostPatchRecord
-                {
-                    schemaVersion = 1,
-                    marker = NativeCommandPatchMarker,
-                    asarPath = paths.hostAsar,
-                    patchedAt = Iso(now)
-                }
+            mode = "opencode-plusplus",
+            agent = AgentFileName,
+            commands = new string[0],
+            legacyFilesRemoved = removed
         });
-        return MakeReport("installed", paths, "OpenCode++ was installed with native Desktop commands for the current Windows user.");
+        return MakeReport("installed", paths, "OpenCode++ mode was installed for the current Windows user.");
     }
 
-    private static InstallReport Uninstall(InstallPaths paths, bool skipHostPatch)
+    private static InstallReport Uninstall(InstallPaths paths, bool skipLegacyPatchCleanup)
     {
-        if (!skipHostPatch) RestoreOpenCodeHost(paths);
+        if (!skipLegacyPatchCleanup) RestoreLegacyHostPatchIfPresent();
         DeleteOwnedFile(paths.pluginFile);
         DeleteOwnedFile(paths.manifestFile);
         DeleteOwnedFile(paths.stateFile);
-        foreach (string commandFile in paths.commandFiles) DeleteOwnedFile(commandFile);
-        foreach (string commandFile in paths.agentCommandFiles) DeleteOwnedFile(commandFile);
-        DeleteOwnedFile(paths.skillFile);
+        DeleteOwnedFile(paths.agentFile);
+        RemoveLegacyFiles(paths);
         RemoveEmptyDirectory(Path.GetDirectoryName(paths.manifestFile));
-        RemoveEmptyDirectory(Path.GetDirectoryName(paths.skillFile));
-        RemoveEmptyDirectory(Path.GetDirectoryName(Path.GetDirectoryName(paths.skillFile)));
+        RemoveEmptyDirectory(Path.GetDirectoryName(paths.agentFile));
+        RemoveEmptyDirectory(Path.GetDirectoryName(Path.GetDirectoryName(paths.agentFile)));
         return MakeReport("uninstalled", paths, "OpenCode++ was removed from the current Windows user.");
     }
 
@@ -175,115 +132,57 @@ internal static class OpenCodePlusPlusInstaller
     private static InstallReport MakeReport(string action, InstallPaths paths, string message)
     {
         PluginState state = ReadState(paths.stateFile, false);
-        int commandsInstalled = 0;
-        foreach (string commandFile in paths.commandFiles) if (File.Exists(commandFile)) commandsInstalled++;
-        int agentFilesInstalled = 0;
-        foreach (string agentFile in paths.agentCommandFiles) if (File.Exists(agentFile)) agentFilesInstalled++;
-        if (File.Exists(paths.skillFile)) agentFilesInstalled++;
-        bool pluginExists = File.Exists(paths.pluginFile);
-        string patchStatus = HostPatchStatus(paths);
+        bool modeInstalled = File.Exists(paths.agentFile);
         return new InstallReport
         {
             action = action,
-            ok = action == "uninstalled" || pluginExists,
+            ok = action == "uninstalled" || (File.Exists(paths.pluginFile) && modeInstalled),
             version = PackageVersion,
             paths = paths,
-            pluginExists = pluginExists,
+            pluginExists = File.Exists(paths.pluginFile),
             enabled = state.enabled,
-            commandsInstalled = commandsInstalled,
-            agentFilesInstalled = agentFilesInstalled,
-            nativeCommandPatch = patchStatus == "active",
-            nativeCommandPatchStatus = patchStatus,
+            modeInstalled = modeInstalled,
+            commandsInstalled = 0,
+            agentFilesInstalled = modeInstalled ? 1 : 0,
+            legacyFilesRemoved = 0,
             message = message
         };
     }
 
-    private static InstallPaths ResolvePaths(string configuredDirectory, bool skipHostPatch, string hostAsarOverride)
+    private static InstallPaths ResolvePaths(string configuredDirectory)
     {
         string root = configuredDirectory;
         if (String.IsNullOrWhiteSpace(root)) root = Environment.GetEnvironmentVariable("OPENCODE_CONFIG_DIR");
         if (String.IsNullOrWhiteSpace(root))
         {
             string xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-            root = String.IsNullOrWhiteSpace(xdg)
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "opencode")
-                : Path.Combine(xdg, "opencode");
+            root = String.IsNullOrWhiteSpace(xdg) ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "opencode") : Path.Combine(xdg, "opencode");
         }
         root = Path.GetFullPath(root);
-        string hostAsar = skipHostPatch ? null : FindOpenCodeAsar(hostAsarOverride);
-        string hostBackup = hostAsar == null ? null : hostAsar + ".opencode-plusplus.original";
+        List<string> legacy = new List<string>();
+        foreach (string name in new[] { "opencode-plusplus-on.md", "opencode-plusplus-off.md", "opencode-plusplus-status.md", "plusplus-task.md", "plusplus-verify.md" }) legacy.Add(Path.Combine(root, "commands", name));
+        legacy.Add(Path.Combine(root, "skills", "opencode-plusplus", "SKILL.md"));
         return new InstallPaths
         {
             configDir = root,
-            hostAsar = hostAsar,
-            hostBackup = hostBackup,
-            hostBackupManifest = hostAsar == null ? null : hostAsar + ".opencode-plusplus.json",
             pluginFile = Path.Combine(root, "plugins", PluginFileName),
             stateFile = Path.Combine(root, "opencode-plusplus", "state.json"),
             manifestFile = Path.Combine(root, "opencode-plusplus", "installation.json"),
-            commandFiles = new[]
-            {
-                Path.Combine(root, "commands", "opencode-plusplus-on.md"),
-                Path.Combine(root, "commands", "opencode-plusplus-off.md"),
-                Path.Combine(root, "commands", "opencode-plusplus-status.md")
-            },
-            agentCommandFiles = new[]
-            {
-                Path.Combine(root, "commands", PlusPlusTaskCommandFile),
-                Path.Combine(root, "commands", PlusPlusVerifyCommandFile)
-            },
-            skillFile = Path.Combine(root, "skills", "opencode-plusplus", "SKILL.md")
+            agentFile = Path.Combine(root, AgentFileName.Replace('/', Path.DirectorySeparatorChar)),
+            legacyFiles = legacy.ToArray()
         };
     }
 
-    private static string[] NativeCommandFiles()
+    private static int RemoveLegacyFiles(InstallPaths paths)
     {
-        return new[]
+        int removed = 0;
+        foreach (string file in paths.legacyFiles)
         {
-            "---\ndescription: OpenCode++ enable (local, no model)\n---\n\nEnable OpenCode++ locally.\n",
-            "---\ndescription: OpenCode++ disable (local, no model)\n---\n\nDisable OpenCode++ locally.\n",
-            "---\ndescription: OpenCode++ status (local, no model)\n---\n\nShow OpenCode++ local status.\n"
-        };
-    }
-
-    private static string FindOpenCodeAsar(string overridePath)
-    {
-        if (!String.IsNullOrWhiteSpace(overridePath))
-        {
-            string resolved = Path.GetFullPath(overridePath);
-            if (File.Exists(resolved)) return resolved;
-            throw new InvalidOperationException("The --host-asar override does not exist: " + resolved);
+            if (!File.Exists(file)) continue;
+            DeleteOwnedFile(file);
+            removed++;
         }
-        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string[] candidates =
-        {
-            Path.Combine(local, "Programs", "@opencode-aidesktop", "resources", "app.asar"),
-            Path.Combine(local, "Programs", "OpenCode", "resources", "app.asar")
-        };
-        foreach (string candidate in candidates) if (File.Exists(candidate)) return candidate;
-        try
-        {
-            foreach (Process process in Process.GetProcessesByName("OpenCode"))
-            {
-                try
-                {
-                    string executable = process.MainModule.FileName;
-                    string candidate = Path.Combine(Path.GetDirectoryName(executable), "resources", "app.asar");
-                    if (File.Exists(candidate)) return candidate;
-                }
-                catch
-                {
-                }
-                finally
-                {
-                    process.Dispose();
-                }
-            }
-        }
-        catch
-        {
-        }
-        throw new InvalidOperationException("OpenCode Desktop app.asar was not found. Install OpenCode Desktop first, or use --skip-host-patch for an isolated test install.");
+        return removed;
     }
 
     private static byte[] ReadPlugin()
@@ -301,479 +200,131 @@ internal static class OpenCodePlusPlusInstaller
         }
     }
 
-    private static string ReadNativeCommandPatch()
+    private static PluginState ReadState(string file, bool failOnCorrupt)
     {
-        Stream resource = Assembly.GetExecutingAssembly().GetManifestResourceStream(NativeCommandPatchResource);
-        if (resource == null) throw new InvalidOperationException("Embedded native command patch is missing.");
-        using (resource)
-        using (StreamReader reader = new StreamReader(resource, Encoding.UTF8))
-        {
-            string patch = reader.ReadToEnd();
-            if (!patch.Contains(NativeCommandPatchMarker)) throw new InvalidOperationException("Embedded native command patch is invalid.");
-            return patch;
-        }
-    }
-
-    private static void PatchOpenCodeHost(InstallPaths paths)
-    {
-        if (String.IsNullOrEmpty(paths.hostAsar)) throw new InvalidOperationException("OpenCode Desktop app.asar was not found.");
-        if (!File.Exists(paths.hostAsar)) throw new InvalidOperationException("OpenCode Desktop app.asar was not found at " + paths.hostAsar + ".");
-        if (OpenCodeRunning()) throw new InvalidOperationException("Close OpenCode Desktop completely before installing the OpenCode++ native command patch.");
-
-        AsarArchive archive = ReadAsar(paths.hostAsar);
-        AsarTarget target = FindNativeCommandTarget(archive);
-        if (target == null) throw new InvalidOperationException("This OpenCode Desktop version is unsupported: the SessionPrompt.command bundle marker was not found in app.asar.");
-        if (target.text.Contains(NativeCommandPatchMarker)) return;
-
-        string commandMarker = "const command = exports_Effect.fn(\"SessionPrompt.command\")(function* (input) {";
-        int marker = target.text.IndexOf(commandMarker, StringComparison.Ordinal);
-        if (marker < 0) throw new InvalidOperationException("This OpenCode Desktop version is unsupported: the SessionPrompt.command insertion point was not found.");
-        string patch = ReadNativeCommandPatch();
-        string desktopVersion = ReadDesktopVersion(archive);
-        string nativeBranch = "\n    if (OPENCODE_PLUSPLUS_NATIVE_COMMANDS.has(input.command)) {\n" +
-            "      const nativeOutput = opencodePlusPlusNativeControl(input.command);\n" +
-            "      const nativeModel = yield* currentModel(input.sessionID);\n" +
-            "      const nativeUser = yield* createUserMessage({ sessionID: input.sessionID, messageID: input.messageID, agent: input.agent, model: nativeModel, variant: input.variant, parts: [{ type: \"text\", text: `/${input.command} ${input.arguments}`.trim() }] });\n" +
-            "      const nativeContext = yield* exports_instance_state.context;\n" +
-            "      const nativeNow = Date.now();\n" +
-            "      const nativeAssistant = yield* sessions.updateMessage({ id: MessageID2.ascending(), role: \"assistant\", parentID: nativeUser.info.id, sessionID: input.sessionID, mode: nativeUser.info.agent, agent: nativeUser.info.agent, variant: nativeUser.info.model.variant, path: { cwd: nativeContext.directory, root: nativeContext.worktree }, cost: 0, tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }, modelID: nativeModel.modelID, providerID: nativeModel.providerID, time: { created: nativeNow, completed: nativeNow }, finish: \"stop\" });\n" +
-            "      yield* sessions.updatePart({ id: PartID2.ascending(), messageID: nativeAssistant.id, sessionID: input.sessionID, type: \"text\", text: nativeOutput, synthetic: true });\n" +
-            "      yield* sessions.touch(input.sessionID);\n" +
-            "      yield* status3.set(input.sessionID, { type: \"idle\" });\n" +
-            "      return nativeUser;\n" +
-            "    }";
-        target.patched = target.text.Insert(marker + commandMarker.Length, nativeBranch);
-        target.patched = target.patched.Insert(marker, patch + "\n");
-        byte[] patchedTarget = Encoding.UTF8.GetBytes(target.patched);
-        long sizeDelta = patchedTarget.LongLength - target.originalSize;
-        ShiftOffsets(archive.files, target.originalOffset, sizeDelta, target.entry);
-        target.entry["size"] = patchedTarget.LongLength;
-        target.entry.Remove("integrity");
-
-        string temporaryPath = paths.hostAsar + ".tmp-opencode-plusplus-" + Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N");
+        if (!File.Exists(file)) return new PluginState { schemaVersion = 1, revision = 0, enabled = true };
         try
         {
-            WritePatchedAsar(archive, temporaryPath, target, patchedTarget);
-            FailAt("asar-write");
-            File.Copy(paths.hostAsar, paths.hostBackup, true);
-            WriteBackupManifest(paths.hostBackupManifest, desktopVersion, paths.hostAsar);
-            FailAt("backup");
-            FailAt("replace");
-            ReplaceFile(temporaryPath, paths.hostAsar);
-        }
-        finally
-        {
-            DeleteOwnedFile(temporaryPath);
-        }
-    }
-
-    private static void RestoreOpenCodeHost(InstallPaths paths)
-    {
-        if (String.IsNullOrEmpty(paths.hostAsar) || String.IsNullOrEmpty(paths.hostBackup)) return;
-        if (!File.Exists(paths.hostBackup))
-        {
-            DeleteOwnedFile(paths.hostBackupManifest);
-            return;
-        }
-        if (!HostPatchPresent(paths))
-        {
-            // The current bundle is not patched (already restored or replaced by an
-            // OpenCode update), so there is nothing to roll back.
-            DeleteOwnedFile(paths.hostBackup);
-            DeleteOwnedFile(paths.hostBackupManifest);
-            return;
-        }
-        if (OpenCodeRunning()) throw new InvalidOperationException("Close OpenCode Desktop completely before uninstalling the OpenCode++ native command patch.");
-        if (!IsCleanOriginalAsar(paths.hostBackup))
-            throw new InvalidOperationException("Refusing to restore: the OpenCode++ backup does not contain a clean, unpatched app.asar. Review " + paths.hostBackup + " manually.");
-        string temporaryPath = paths.hostAsar + ".tmp-opencode-plusplus-restore-" + Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N");
-        try
-        {
-            File.Copy(paths.hostBackup, temporaryPath, true);
-            ReplaceFile(temporaryPath, paths.hostAsar);
-            DeleteOwnedFile(paths.hostBackup);
-            DeleteOwnedFile(paths.hostBackupManifest);
-        }
-        finally
-        {
-            DeleteOwnedFile(temporaryPath);
-        }
-    }
-
-    private static bool IsCleanOriginalAsar(string backupPath)
-    {
-        try
-        {
-            AsarArchive archive = ReadAsar(backupPath);
-            return FindNativeCommandTarget(archive, NativeCommandPatchMarker) == null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool HostPatchPresent(InstallPaths paths)
-    {
-        if (String.IsNullOrEmpty(paths.hostAsar) || !File.Exists(paths.hostAsar)) return false;
-        try
-        {
-            AsarArchive archive = ReadAsar(paths.hostAsar);
-            return FindNativeCommandTarget(archive, NativeCommandPatchMarker) != null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static string HostPatchStatus(InstallPaths paths)
-    {
-        if (String.IsNullOrEmpty(paths.hostAsar)) return "skipped";
-        bool patched = HostPatchPresent(paths);
-        if (patched) return "active";
-        return ReadManifestHostPatch(paths.manifestFile) != null ? "stale" : "absent";
-    }
-
-    private static Dictionary<string, object> ReadManifestHostPatch(string manifestFile)
-    {
-        if (!File.Exists(manifestFile)) return null;
-        try
-        {
-            Dictionary<string, object> manifest = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(manifestFile, Encoding.UTF8));
-            object raw;
-            if (manifest != null && manifest.TryGetValue("hostPatch", out raw) && raw is Dictionary<string, object>)
-                return (Dictionary<string, object>)raw;
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string ReadDesktopVersion(AsarArchive archive)
-    {
-        object packageEntry;
-        if (!archive.files.TryGetValue("package.json", out packageEntry) || !(packageEntry is Dictionary<string, object>)) return "unknown";
-        try
-        {
-            Dictionary<string, object> entry = (Dictionary<string, object>)packageEntry;
-            if (!entry.ContainsKey("offset")) return "unknown";
-            long offset = Convert.ToInt64(entry["offset"]);
-            int size = Convert.ToInt32(entry["size"]);
-            string text = Encoding.UTF8.GetString(ReadSegment(archive.path, archive.dataStart + offset, size));
-            Dictionary<string, object> package = Json.Deserialize<Dictionary<string, object>>(text);
-            object version;
-            return package != null && package.TryGetValue("version", out version) && version != null ? Convert.ToString(version) : "unknown";
-        }
-        catch
-        {
-            return "unknown";
-        }
-    }
-
-    private static void WriteBackupManifest(string manifestPath, string desktopVersion, string asarPath)
-    {
-        AtomicWriteJson(manifestPath, new BackupManifest
-        {
-            schemaVersion = 1,
-            marker = NativeCommandPatchMarker,
-            desktopVersion = desktopVersion,
-            sourceAsar = asarPath,
-            installedAt = Iso(DateTime.UtcNow)
-        });
-    }
-
-    private static void FailAt(string step)
-    {
-        string requested = Environment.GetEnvironmentVariable("OPENCODE_PLUSPLUS_TEST_FAIL_AT");
-        if (String.Equals(requested, step, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Test failure injected at step: " + step);
-    }
-
-    private static bool OpenCodeRunning()
-    {
-        if (String.Equals(Environment.GetEnvironmentVariable("OPENCODE_PLUSPLUS_TEST_FORCE_RUNNING"), "1", StringComparison.Ordinal)) return true;
-        if (String.Equals(Environment.GetEnvironmentVariable("OPENCODE_PLUSPLUS_TEST_IGNORE_RUNNING"), "1", StringComparison.Ordinal)) return false;
-        try
-        {
-            return Process.GetProcessesByName("OpenCode").Length > 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static AsarTarget FindNativeCommandTarget(AsarArchive archive)
-    {
-        string commandMarker = "const command = exports_Effect.fn(\"SessionPrompt.command\")(function* (input) {";
-        return FindNativeCommandTarget(archive, commandMarker);
-    }
-
-    private static AsarTarget FindNativeCommandTarget(AsarArchive archive, string marker)
-    {
-        return FindNativeCommandTarget(archive.files, "", archive, marker);
-    }
-
-    private static AsarTarget FindNativeCommandTarget(Dictionary<string, object> files, string prefix, AsarArchive archive, string marker)
-    {
-        foreach (KeyValuePair<string, object> item in files)
-        {
-            Dictionary<string, object> entry = item.Value as Dictionary<string, object>;
-            if (entry == null) continue;
-            string path = prefix + "/" + item.Key;
-            object nested;
-            if (entry.TryGetValue("files", out nested))
-            {
-                AsarTarget result = FindNativeCommandTarget((Dictionary<string, object>)nested, path, archive, marker);
-                if (result != null) return result;
-                continue;
-            }
-            if (!path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) || !entry.ContainsKey("offset")) continue;
-            long offset = Convert.ToInt64(entry["offset"]);
-            int size = Convert.ToInt32(entry["size"]);
-            byte[] content = ReadSegment(archive.path, archive.dataStart + offset, size);
-            string text = Encoding.UTF8.GetString(content);
-            if (text.Contains(marker))
-                return new AsarTarget { entry = entry, text = text, originalOffset = offset, originalSize = size };
-        }
-        return null;
-    }
-
-    private static void ShiftOffsets(Dictionary<string, object> files, long replacedOffset, long sizeDelta, Dictionary<string, object> replacedEntry)
-    {
-        if (sizeDelta == 0) return;
-        foreach (KeyValuePair<string, object> item in files)
-        {
-            Dictionary<string, object> entry = item.Value as Dictionary<string, object>;
-            if (entry == null) continue;
-            object nested;
-            if (entry.TryGetValue("files", out nested))
-            {
-                ShiftOffsets((Dictionary<string, object>)nested, replacedOffset, sizeDelta, replacedEntry);
-                continue;
-            }
-            if (Object.ReferenceEquals(entry, replacedEntry) || !entry.ContainsKey("offset")) continue;
-            long offset = Convert.ToInt64(entry["offset"]);
-            if (offset > replacedOffset)
-                entry["offset"] = (offset + sizeDelta).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        }
-    }
-
-    private static AsarArchive ReadAsar(string path)
-    {
-        using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-        using (BinaryReader reader = new BinaryReader(stream))
-        {
-            uint outerPayload = reader.ReadUInt32();
-            if (outerPayload != 4) throw new InvalidOperationException("Unsupported app.asar header.");
-            int headerSize = checked((int)reader.ReadUInt32());
-            byte[] headerBuffer = reader.ReadBytes(headerSize);
-            if (headerBuffer.Length != headerSize) throw new InvalidOperationException("app.asar header is truncated.");
-            int jsonSize = BitConverter.ToInt32(headerBuffer, 4);
-            string json = Encoding.UTF8.GetString(headerBuffer, 8, jsonSize);
-            Dictionary<string, object> root = Json.DeserializeObject(json) as Dictionary<string, object>;
-            if (root == null || !(root["files"] is Dictionary<string, object>)) throw new InvalidOperationException("app.asar header is invalid.");
-            return new AsarArchive
-            {
-                path = path,
-                files = (Dictionary<string, object>)root["files"],
-                root = root,
-                headerSize = headerSize,
-                dataStart = 8L + headerSize,
-                dataLength = stream.Length - (8L + headerSize)
-            };
-        }
-    }
-
-    private static byte[] ReadSegment(string path, long offset, int size)
-    {
-        byte[] content = new byte[size];
-        using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            stream.Seek(offset, SeekOrigin.Begin);
-            int read = 0;
-            while (read < size)
-            {
-                int next = stream.Read(content, read, size - read);
-                if (next <= 0) throw new InvalidOperationException("app.asar file data is truncated.");
-                read += next;
-            }
-        }
-        return content;
-    }
-
-    private static void WritePatchedAsar(AsarArchive archive, string destination, AsarTarget target, byte[] patchedTarget)
-    {
-        string json = Json.Serialize(archive.root);
-        byte[] jsonBytes = Encoding.UTF8.GetBytes(json);
-        int jsonPayload = Align4(4 + jsonBytes.Length);
-        int headerSize = 4 + jsonPayload;
-        byte[] header = new byte[headerSize];
-        Buffer.BlockCopy(BitConverter.GetBytes(jsonPayload), 0, header, 0, 4);
-        Buffer.BlockCopy(BitConverter.GetBytes(jsonBytes.Length), 0, header, 4, 4);
-        Buffer.BlockCopy(jsonBytes, 0, header, 8, jsonBytes.Length);
-        using (FileStream source = new FileStream(archive.path, FileMode.Open, FileAccess.Read, FileShare.Read))
-        using (FileStream output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-        using (BinaryWriter writer = new BinaryWriter(output))
-        {
-            writer.Write(4);
-            writer.Write(header.Length);
-            writer.Write(header);
-            source.Seek(archive.dataStart, SeekOrigin.Begin);
-            CopyBytes(source, output, target.originalOffset);
-            output.Write(patchedTarget, 0, patchedTarget.Length);
-            source.Seek(target.originalSize, SeekOrigin.Current);
-            CopyBytes(source, output, archive.dataLength - target.originalOffset - target.originalSize);
-            output.Flush(true);
-        }
-    }
-
-    private static void CopyBytes(Stream source, Stream destination, long length)
-    {
-        byte[] buffer = new byte[1024 * 1024];
-        while (length > 0)
-        {
-            int requested = (int)Math.Min(buffer.Length, length);
-            int read = source.Read(buffer, 0, requested);
-            if (read <= 0) throw new InvalidOperationException("app.asar data is truncated.");
-            destination.Write(buffer, 0, read);
-            length -= read;
-        }
-    }
-
-    private static void ReplaceFile(string temporaryPath, string destinationPath)
-    {
-        try
-        {
-            File.Replace(temporaryPath, destinationPath, null, true);
-        }
-        catch (PlatformNotSupportedException)
-        {
-            File.Delete(destinationPath);
-            File.Move(temporaryPath, destinationPath);
-        }
-    }
-
-    private static int Align4(int value)
-    {
-        return (value + 3) / 4 * 4;
-    }
-
-    private static PluginState ReadState(string filePath, bool failOnCorrupt)
-    {
-        if (!File.Exists(filePath)) return new PluginState { enabled = true };
-        try
-        {
-            Dictionary<string, object> value = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(filePath, Encoding.UTF8));
+            Dictionary<string, object> data = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(file, Encoding.UTF8));
             return new PluginState
             {
-                schemaVersion = IntValue(value, "schemaVersion"),
-                revision = IntValue(value, "revision"),
-                enabled = !value.ContainsKey("enabled") || BooleanValue(value["enabled"]),
-                version = StringValue(value, "version"),
-                installedAt = StringValue(value, "installedAt"),
-                updatedAt = StringValue(value, "updatedAt")
+                schemaVersion = Number(data, "schemaVersion", 1),
+                revision = Number(data, "revision", 0),
+                enabled = !data.ContainsKey("enabled") || Convert.ToBoolean(data["enabled"]),
+                version = Text(data, "version"),
+                installedAt = Text(data, "installedAt"),
+                updatedAt = Text(data, "updatedAt")
             };
         }
         catch (Exception error)
         {
-            if (failOnCorrupt) throw new InvalidOperationException("Cannot update corrupt state file " + filePath + ": " + error.Message, error);
-            return new PluginState { enabled = true };
+            if (failOnCorrupt) throw new InvalidOperationException("OpenCode++ state is corrupt: " + error.Message);
+            return new PluginState { schemaVersion = 1, revision = 0, enabled = true };
         }
     }
 
-    private static void AtomicWriteJson(string filePath, object value)
+    private static void RestoreLegacyHostPatchIfPresent()
     {
-        AtomicWrite(filePath, new UTF8Encoding(false).GetBytes(Json.Serialize(value) + Environment.NewLine));
+        string asar = FindHostAsar();
+        if (asar == null || !ContainsMarker(asar)) return;
+        if (OpenCodeRunning()) throw new InvalidOperationException("Close OpenCode Desktop completely before removing the legacy OpenCode++ host patch.");
+        string backup = asar + ".opencode-plusplus.original";
+        if (!File.Exists(backup)) throw new InvalidOperationException("The legacy OpenCode++ host patch is active, but its original app.asar backup is missing.");
+        AtomicReplace(backup, asar);
+        DeleteOwnedFile(backup);
+        DeleteOwnedFile(asar + ".opencode-plusplus.json");
     }
 
-    private static void AtomicWrite(string filePath, byte[] content)
+    private static string FindHostAsar()
     {
-        string directory = Path.GetDirectoryName(filePath);
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        foreach (string candidate in new[] { Path.Combine(local, "Programs", "@opencode-aidesktop", "resources", "app.asar"), Path.Combine(local, "Programs", "OpenCode", "resources", "app.asar") }) if (File.Exists(candidate)) return candidate;
+        return null;
+    }
+
+    private static bool ContainsMarker(string file)
+    {
+        byte[] source = File.ReadAllBytes(file);
+        byte[] marker = Encoding.UTF8.GetBytes(LegacyPatchMarker);
+        for (int start = 0; start <= source.Length - marker.Length; start++)
+        {
+            bool match = true;
+            for (int index = 0; index < marker.Length; index++) if (source[start + index] != marker[index]) { match = false; break; }
+            if (match) return true;
+        }
+        return false;
+    }
+
+    private static bool OpenCodeRunning()
+    {
+        try { return System.Diagnostics.Process.GetProcessesByName("OpenCode").Length > 0; }
+        catch { return false; }
+    }
+
+    private static void AtomicWrite(string file, byte[] content)
+    {
+        string directory = Path.GetDirectoryName(file);
         Directory.CreateDirectory(directory);
-        string temporaryPath = filePath + ".tmp-" + Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N");
-        string backupPath = filePath + ".bak-" + Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N");
-        try
+        string temporary = file + ".tmp-" + Guid.NewGuid().ToString("N");
+        using (FileStream stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         {
-            using (FileStream stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.WriteThrough))
-            {
-                stream.Write(content, 0, content.Length);
-                stream.Flush(true);
-            }
-            if (File.Exists(filePath))
-            {
-                File.Replace(temporaryPath, filePath, backupPath, true);
-                DeleteOwnedFile(backupPath);
-            }
-            else File.Move(temporaryPath, filePath);
+            stream.Write(content, 0, content.Length);
+            stream.Flush(true);
         }
-        finally
-        {
-            DeleteOwnedFile(temporaryPath);
-        }
+        AtomicReplace(temporary, file);
     }
 
-    private static void DeleteOwnedFile(string filePath)
+    private static void AtomicWriteJson(string file, object value) { AtomicWrite(file, Encoding.UTF8.GetBytes(Json.Serialize(value) + Environment.NewLine)); }
+
+    private static void AtomicReplace(string source, string target)
     {
-        if (File.Exists(filePath)) File.Delete(filePath);
+        if (File.Exists(target)) File.Replace(source, target, null);
+        else File.Move(source, target);
     }
+
+    private static void DeleteOwnedFile(string file) { try { if (File.Exists(file)) File.Delete(file); } catch { } }
 
     private static void RemoveEmptyDirectory(string directory)
     {
-        if (!String.IsNullOrEmpty(directory) && Directory.Exists(directory) && Directory.GetFileSystemEntries(directory).Length == 0)
-            Directory.Delete(directory, false);
+        try { if (!String.IsNullOrEmpty(directory) && Directory.Exists(directory) && Directory.GetFiles(directory).Length == 0 && Directory.GetDirectories(directory).Length == 0) Directory.Delete(directory); } catch { }
     }
 
-    private static bool HasArgument(string[] args, string name)
+    private static int Number(Dictionary<string, object> data, string key, int fallback)
     {
-        foreach (string value in args) if (String.Equals(value, name, StringComparison.OrdinalIgnoreCase)) return true;
-        return false;
+        object value;
+        return data.TryGetValue(key, out value) && value != null ? Convert.ToInt32(value) : fallback;
+    }
+
+    private static string Text(Dictionary<string, object> data, string key)
+    {
+        object value;
+        return data.TryGetValue(key, out value) && value != null ? Convert.ToString(value) : null;
     }
 
     private static string ArgumentValue(string[] args, string name)
     {
-        for (int index = 0; index < args.Length - 1; index++)
-            if (String.Equals(args[index], name, StringComparison.OrdinalIgnoreCase)) return args[index + 1];
-        return null;
+        int index = Array.IndexOf(args, name);
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
 
-    private static int IntValue(Dictionary<string, object> value, string key)
-    {
-        object raw;
-        if (!value.TryGetValue(key, out raw) || raw == null) return 0;
-        return Convert.ToInt32(raw);
-    }
+    private static bool HasArgument(string[] args, string name) { return Array.IndexOf(args, name) >= 0; }
+    private static string Iso(DateTime value) { return value.ToUniversalTime().ToString("o"); }
 
-    private static bool BooleanValue(object value)
+    private sealed class InstallPaths
     {
-        return value is bool ? (bool)value : Convert.ToBoolean(value);
-    }
-
-    private static string StringValue(Dictionary<string, object> value, string key)
-    {
-        object raw;
-        return value.TryGetValue(key, out raw) && raw != null ? Convert.ToString(raw) : null;
-    }
-
-    private static string Iso(DateTime value)
-    {
-        return value.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
-    }
-
-    private sealed class ErrorReport
-    {
-        public bool ok;
-        public string error;
+        public string configDir;
+        public string pluginFile;
+        public string stateFile;
+        public string manifestFile;
+        public string agentFile;
+        public string[] legacyFiles;
     }
 
     private sealed class PluginState
     {
         public int schemaVersion;
         public int revision;
-        public bool enabled = true;
+        public bool enabled;
         public string version;
         public string installedAt;
         public string updatedAt;
@@ -786,41 +337,10 @@ internal static class OpenCodePlusPlusInstaller
         public string version;
         public string installedAt;
         public string plugin;
+        public string mode;
+        public string agent;
         public string[] commands;
-        public string[] agentCommands;
-        public string skill;
-        public HostPatchRecord hostPatch;
-    }
-
-    private sealed class HostPatchRecord
-    {
-        public int schemaVersion;
-        public string marker;
-        public string asarPath;
-        public string patchedAt;
-    }
-
-    private sealed class BackupManifest
-    {
-        public int schemaVersion;
-        public string marker;
-        public string desktopVersion;
-        public string sourceAsar;
-        public string installedAt;
-    }
-
-    private sealed class InstallPaths
-    {
-        public string configDir;
-        public string hostAsar;
-        public string hostBackup;
-        public string hostBackupManifest;
-        public string pluginFile;
-        public string stateFile;
-        public string manifestFile;
-        public string[] commandFiles;
-        public string[] agentCommandFiles;
-        public string skillFile;
+        public int legacyFilesRemoved;
     }
 
     private sealed class InstallReport
@@ -831,29 +351,16 @@ internal static class OpenCodePlusPlusInstaller
         public InstallPaths paths;
         public bool pluginExists;
         public bool enabled;
+        public bool modeInstalled;
         public int commandsInstalled;
         public int agentFilesInstalled;
-        public bool nativeCommandPatch;
-        public string nativeCommandPatchStatus;
+        public int legacyFilesRemoved;
         public string message;
     }
 
-    private sealed class AsarArchive
+    private sealed class ErrorReport
     {
-        public string path;
-        public Dictionary<string, object> root;
-        public Dictionary<string, object> files;
-        public int headerSize;
-        public long dataStart;
-        public long dataLength;
-    }
-
-    private sealed class AsarTarget
-    {
-        public Dictionary<string, object> entry;
-        public string text;
-        public string patched;
-        public long originalOffset;
-        public long originalSize;
+        public bool ok;
+        public string error;
     }
 }

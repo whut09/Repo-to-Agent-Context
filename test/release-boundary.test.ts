@@ -6,24 +6,20 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("release boundary: installer only embeds Desktop plugin and native patch", () => {
+test("release boundary: installer only embeds the Desktop plugin", () => {
   const installerCs = readFileSync(path.join(root, "src/installer/windows-installer.cs"), "utf8");
   assert.match(installerCs, /OpenCodePlusPlus\.Plugin\.gz/, "installer must embed the plugin resource");
-  assert.match(installerCs, /OpenCodePlusPlus\.NativeCommandPatch\.js/, "installer must embed the native command patch");
   const resourceNames = [...installerCs.matchAll(/private const string (\w+)Resource = "([^"]+)";/g)].map((m) => m[2]);
-  assert.deepEqual(resourceNames.sort(), ["OpenCodePlusPlus.NativeCommandPatch.js", "OpenCodePlusPlus.Plugin.gz"]);
+  assert.deepEqual(resourceNames.sort(), ["OpenCodePlusPlus.Plugin.gz"]);
   assert.doesNotMatch(installerCs, /OpenCodePlusPlus\.cli|OpenCodePlusPlus\.mcp|dist[\\/]cli|dist[\\/]mcp/, "installer must not embed CLI or MCP files");
+  assert.doesNotMatch(installerCs, /NativeCommandPatchResource|PatchOpenCodeHost|SessionPrompt\.command/);
 });
 
 test("release boundary: build-windows-installer.mjs only bundles global-plugin.ts", () => {
   const buildScript = readFileSync(path.join(root, "scripts/build-windows-installer.mjs"), "utf8");
   assert.match(buildScript, /OpenCodePlusPlusGlobalPlugin/, "build script must import global-plugin.ts");
   const embeddedResources = [...buildScript.matchAll(/\/resource:[^",]+,(OpenCodePlusPlus\.\w+\.gz|OpenCodePlusPlus\.\w+\.js)/g)].map((m) => m[1]);
-  assert.deepEqual(
-    embeddedResources.sort(),
-    ["OpenCodePlusPlus.NativeCommandPatch.js", "OpenCodePlusPlus.Plugin.gz"],
-    "build must embed exactly plugin + native patch"
-  );
+  assert.deepEqual(embeddedResources.sort(), ["OpenCodePlusPlus.Plugin.gz"], "build must embed exactly the plugin");
   assert.doesNotMatch(buildScript, /src[\\/]cli[\\/]|src[\\/]mcp[\\/]/, "build script must not reference CLI or MCP");
 });
 
@@ -62,10 +58,8 @@ test("release boundary: Desktop verification covers executable integrity and plu
   assert.match(verifier, /manifest\.installer\.maximumBytes/);
   assert.match(verifier, /pathToFileURL\(pluginBundle\)/);
   assert.match(verifier, /pluginExports\.length !== 1/);
-  assert.match(verifier, /OPENCODE_PLUSPLUS_NATIVE_COMMANDS/);
-  for (const command of ["opencode-plusplus-status", "opencode-plusplus-on", "opencode-plusplus-off"]) {
-    assert.match(verifier, new RegExp(command));
-  }
+  assert.match(verifier, /manifest\.mode/);
+  assert.match(verifier, /agents[\\/]opencode-plusplus\.md/);
 });
 
 test("release boundary: PR CI uses Windows Desktop gates without paid executors", () => {
@@ -85,6 +79,8 @@ test("release boundary: PR CI uses Windows Desktop gates without paid executors"
   assert.match(desktopRelease, /npm run test:desktop:real/);
   assert.match(desktopRelease, /Release tag \$env:RELEASE_TAG must match package\.json version v\$version/);
   assert.match(desktopRelease, /docs\/releases\/\$\{env:RELEASE_TAG\}\.zh-CN\.md/);
+  assert.match(desktopRelease, /docs\/releases\/\$\{env:RELEASE_TAG\}\.md/);
+  assert.match(desktopRelease, /UTF8Encoding\(\$false\)/);
   assert.match(desktopRelease, /--notes-file \$notes/);
   assert.doesNotMatch(desktopRelease, /--generate-notes/);
   assert.doesNotMatch(desktopRelease, /benchmark:agent:real|OPENCODE_EXECUTOR_COMMAND|CLAUDE|CODEX|MIMO/i);

@@ -5,10 +5,10 @@ import { spawnSync } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { readJsonDiagnostic, writeJsonAtomic, writeTextAtomic } from "../core/atomic-store.js";
 import { getOpenCodePlusplusPackageVersion } from "../core/package-info.js";
-import { agentCommandFiles, PLUSPLUS_SKILL, PLUSPLUS_SKILL_FILE } from "./opencode-plusplus-prompts.js";
+import { PLUSPLUS_AGENT, PLUSPLUS_AGENT_FILE } from "./opencode-plusplus-prompts.js";
 import { readOpenCodePlusPlusPluginStatus, setOpenCodePlusPlusPluginEnabled } from "../integrations/opencode/plugin-runtime/state.js";
 
-export const WINDOWS_INSTALLER_SCHEMA_VERSION = 1;
+export const WINDOWS_INSTALLER_SCHEMA_VERSION = 2;
 export const WINDOWS_PLUGIN_FILE = "opencode-plusplus.js";
 
 export interface WindowsInstallerPayload {
@@ -20,9 +20,8 @@ export interface WindowsInstallPaths {
   pluginFile: string;
   stateFile: string;
   manifestFile: string;
-  commandFiles: string[];
-  agentCommandFiles: string[];
-  skillFile: string;
+  agentFile: string;
+  legacyFiles: string[];
 }
 
 export interface WindowsInstallReport {
@@ -32,8 +31,10 @@ export interface WindowsInstallReport {
   paths: WindowsInstallPaths;
   pluginExists: boolean;
   enabled: boolean;
+  modeInstalled: boolean;
   commandsInstalled: number;
   agentFilesInstalled: number;
+  legacyFilesRemoved: number;
   message: string;
 }
 
@@ -44,9 +45,10 @@ export function resolveWindowsInstallPaths(configDir = defaultOpenCodeConfigDir(
     pluginFile: path.join(root, "plugins", WINDOWS_PLUGIN_FILE),
     stateFile: path.join(root, "opencode-plusplus", "state.json"),
     manifestFile: path.join(root, "opencode-plusplus", "installation.json"),
-    commandFiles: ["on", "off", "status"].map((name) => path.join(root, "commands", `opencode-plusplus-${name}.md`)),
-    agentCommandFiles: agentCommandFiles().map((entry) => path.join(root, "commands", entry.file)),
-    skillFile: path.join(root, ...PLUSPLUS_SKILL_FILE.split("/"))
+    agentFile: path.join(root, ...PLUSPLUS_AGENT_FILE.split("/")),
+    legacyFiles: ["opencode-plusplus-on.md", "opencode-plusplus-off.md", "opencode-plusplus-status.md", "plusplus-task.md", "plusplus-verify.md"]
+      .map((file) => path.join(root, "commands", file))
+      .concat(path.join(root, "skills", "opencode-plusplus", "SKILL.md"))
   };
 }
 
@@ -57,38 +59,37 @@ export function installWindowsOpenCodePlugin(payload: WindowsInstallerPayload, c
 
   mkdirSync(path.dirname(paths.pluginFile), { recursive: true });
   writeTextAtomic(paths.pluginFile, plugin);
-  for (const [index, commandFile] of paths.commandFiles.entries()) writeTextAtomic(commandFile, nativeCommandFiles()[index] ?? nativeCommandFiles()[2]);
-  for (const [index, agentCommandFile] of paths.agentCommandFiles.entries()) {
-    const entry = agentCommandFiles()[index] ?? agentCommandFiles()[0];
-    writeTextAtomic(agentCommandFile, entry?.content ?? "");
-  }
+  mkdirSync(path.dirname(paths.agentFile), { recursive: true });
+  writeTextAtomic(paths.agentFile, PLUSPLUS_AGENT);
+  const legacyFilesRemoved = removeLegacyFiles(paths);
 
   const existingState = readJsonDiagnostic<Record<string, unknown>>(paths.stateFile);
   if (existingState.status === "corrupt") throw new Error(`Cannot install over corrupt state file: ${existingState.error}`);
   const enabled = existingState.status === "ok" ? existingState.value.enabled !== false : true;
   setOpenCodePlusPlusPluginEnabled(enabled, paths.stateFile);
-  writeTextAtomic(paths.skillFile, PLUSPLUS_SKILL);
   writeJsonAtomic(paths.manifestFile, {
     schemaVersion: WINDOWS_INSTALLER_SCHEMA_VERSION,
     revision: Date.now(),
     version: getOpenCodePlusplusPackageVersion(),
     installedAt: new Date().toISOString(),
     plugin: WINDOWS_PLUGIN_FILE,
-    commands: paths.commandFiles.map((file) => path.basename(file)),
-    agentCommands: paths.agentCommandFiles.map((file) => path.basename(file)),
-    skill: PLUSPLUS_SKILL_FILE
+    mode: "opencode-plusplus",
+    agent: PLUSPLUS_AGENT_FILE,
+    commands: [],
+    legacyFilesRemoved
   });
-  return makeReport("installed", paths, "OpenCode++ was installed for the current Windows user.");
+  return makeReport("installed", paths, "OpenCode++ mode was installed for the current Windows user.", legacyFilesRemoved);
 }
 
 export function uninstallWindowsOpenCodePlugin(configDir?: string): WindowsInstallReport {
   const paths = resolveWindowsInstallPaths(configDir);
-  for (const file of [paths.pluginFile, paths.manifestFile, paths.stateFile, ...paths.commandFiles, ...paths.agentCommandFiles, paths.skillFile]) {
+  for (const file of [paths.pluginFile, paths.manifestFile, paths.stateFile, paths.agentFile, ...paths.legacyFiles]) {
     if (existsSync(file)) rmSync(file, { force: true });
   }
   removeEmptyDirectory(path.dirname(paths.manifestFile));
-  removeEmptyDirectory(path.dirname(paths.skillFile));
-  removeEmptyDirectory(path.dirname(path.dirname(paths.skillFile)));
+  removeEmptyDirectory(path.dirname(paths.agentFile));
+  removeEmptyDirectory(path.dirname(paths.legacyFiles[paths.legacyFiles.length - 1] ?? paths.agentFile));
+  removeEmptyDirectory(path.dirname(path.dirname(paths.legacyFiles[paths.legacyFiles.length - 1] ?? paths.agentFile)));
   return makeReport("uninstalled", paths, "OpenCode++ was removed from the current Windows user.");
 }
 
@@ -129,7 +130,7 @@ export async function runWindowsInstaller(argv: string[], payload: WindowsInstal
   }
 }
 
-function makeReport(action: WindowsInstallReport["action"], paths: WindowsInstallPaths, message: string): WindowsInstallReport {
+function makeReport(action: WindowsInstallReport["action"], paths: WindowsInstallPaths, message: string, legacyFilesRemoved = 0): WindowsInstallReport {
   const status = readOpenCodePlusPlusPluginStatus(paths.stateFile);
   return {
     action,
@@ -138,8 +139,10 @@ function makeReport(action: WindowsInstallReport["action"], paths: WindowsInstal
     paths,
     pluginExists: existsSync(paths.pluginFile),
     enabled: status.enabled,
-    commandsInstalled: paths.commandFiles.filter(existsSync).length,
-    agentFilesInstalled: [...paths.agentCommandFiles, paths.skillFile].filter(existsSync).length,
+    modeInstalled: existsSync(paths.agentFile),
+    commandsInstalled: 0,
+    agentFilesInstalled: existsSync(paths.agentFile) ? 1 : 0,
+    legacyFilesRemoved,
     message
   };
 }
@@ -154,12 +157,14 @@ function argumentValue(argv: string[], name: string): string | undefined {
   return index >= 0 ? argv[index + 1] : undefined;
 }
 
-function nativeCommandFiles(): string[] {
-  return [
-    "---\ndescription: OpenCode++ enable (local, no model)\n---\n\nEnable OpenCode++ locally.\n",
-    "---\ndescription: OpenCode++ disable (local, no model)\n---\n\nDisable OpenCode++ locally.\n",
-    "---\ndescription: OpenCode++ status (local, no model)\n---\n\nShow OpenCode++ local status.\n"
-  ];
+function removeLegacyFiles(paths: WindowsInstallPaths): number {
+  let removed = 0;
+  for (const file of paths.legacyFiles) {
+    if (!existsSync(file)) continue;
+    rmSync(file, { force: true });
+    removed++;
+  }
+  return removed;
 }
 
 function removeEmptyDirectory(directory: string): void {
