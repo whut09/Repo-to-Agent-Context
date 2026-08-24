@@ -21,7 +21,12 @@ export class StaticContextRetriever implements ContextRetriever {
         const textScore = scoreTerms(terms, haystack);
         const changedBoost = changed.has(doc.path) ? 50 : 0;
         const importance = typeof doc.metadata.importanceScore === "number" ? doc.metadata.importanceScore / 20 : 0;
-        const score = pathScore + textScore + changedBoost + importance;
+        const taskTypeBoost = taskTypeWeight(options.taskType, doc.kind, doc.path);
+        const symbolBoost = symbolWeight(doc.text, terms);
+        const chainBoost = chainWeight(this.context, doc.path, changed);
+        const regressionBoost = regressionWeight(doc.path, doc.text);
+        const negativePenalty = negativeExamplePenalty(doc.path, doc.text, task);
+        const score = pathScore + textScore + changedBoost + importance + taskTypeBoost + symbolBoost + chainBoost + regressionBoost - negativePenalty;
         if (score <= 0 && terms.length > 0 && !changedBoost) return null;
         return {
           id: doc.id,
@@ -34,7 +39,19 @@ export class StaticContextRetriever implements ContextRetriever {
           snippet: snippetFor(doc.text, terms),
           metadata: {
             ...doc.metadata,
-            tokens: doc.tokens
+            tokens: doc.tokens,
+            scoreBreakdown: {
+              lexical: textScore,
+              path: pathScore,
+              changed: changedBoost,
+              importance,
+              taskType: taskTypeBoost,
+              symbol: symbolBoost,
+              dependencyChain: chainBoost,
+              regressionMemory: regressionBoost,
+              negativeExample: negativePenalty,
+              total: score
+            }
           }
         };
       })
@@ -76,6 +93,36 @@ export function matchesFilters(file: IndexedFile | undefined, moduleName: string
   if (options.modules?.length && !options.modules.includes(moduleName)) return false;
   if (file?.isTest && !options.includeTests) return false;
   return true;
+}
+
+function taskTypeWeight(taskType: ContextRetrieverOptions["taskType"], kind: string, filePath: string): number {
+  if (taskType === "bugfix" && /test|spec/i.test(kind) && /test|spec/i.test(filePath)) return 8;
+  if (taskType === "feature" && /source|entry/i.test(kind)) return 6;
+  if (taskType === "refactor" && /source|module/i.test(kind)) return 5;
+  return 0;
+}
+
+function symbolWeight(text: string, terms: string[]): number {
+  return terms.some((term) => new RegExp(`\\b(export|function|class|interface|type)\\s+${escapeRegExp(term)}\\b`, "i").test(text)) ? 12 : 0;
+}
+
+function chainWeight(context: ContextPackage, filePath: string, changed: Set<string>): number {
+  const direct = context.graph.fileEdges.filter(
+    (edge) => (edge.from === filePath && changed.has(edge.to)) || (edge.to === filePath && changed.has(edge.from))
+  ).length;
+  return Math.min(15, direct * 5);
+}
+
+function regressionWeight(filePath: string, text: string): number {
+  return /regression|known-issues|historical|fragile/i.test(`${filePath} ${text}`) ? 10 : 0;
+}
+
+function negativeExamplePenalty(filePath: string, text: string, task: string): number {
+  return /negative|unrelated|fixture|example/i.test(`${filePath} ${text}`) && !task.toLowerCase().includes(filePath.toLowerCase()) ? 8 : 0;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function sortHits<T extends { score: number; path: string }>(hits: T[]): T[] {

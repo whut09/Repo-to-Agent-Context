@@ -3,23 +3,27 @@ import { createContextRetriever } from "../retrievers/index.js";
 import type { RetrieverProvider } from "../retrievers/types.js";
 import { buildTestSelection } from "../outputs/test-selector.js";
 import { unique } from "../core/collections.js";
+import type { ContextPackage } from "../core/types.js";
 
 export interface RetrieveApplicationInput {
   repo: string;
   task: string;
   provider?: RetrieverProvider;
   topK?: number;
+  taskType?: "bugfix" | "feature" | "refactor" | "auto";
   modules?: string[];
   changedFiles?: string[];
   includeTests?: boolean;
+  context?: ContextPackage;
 }
 
 export async function retrieveApplicationContext(input: RetrieveApplicationInput) {
-  const context = await buildApplicationContext(input.repo);
+  const context = input.context ?? (await buildApplicationContext(input.repo));
   const provider = input.provider ?? "hybrid";
   const retriever = createContextRetriever(context, provider);
   const hits = await retriever.search(input.task, {
     topK: input.topK ?? 8,
+    taskType: input.taskType ?? "auto",
     modules: input.modules,
     changedFiles: input.changedFiles,
     includeTests: input.includeTests ?? false
@@ -43,7 +47,8 @@ export async function retrieveApplicationContext(input: RetrieveApplicationInput
       score: Number(hit.score.toFixed(1)),
       moduleName: hit.moduleName,
       kind: hit.kind,
-      source: hit.source
+      source: hit.source,
+      metadata: hit.metadata
     })),
     suggestedCommands: unique([...selection.minimalCommands, ...selection.recommendedCommands]).slice(0, 6)
   };
