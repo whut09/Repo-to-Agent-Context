@@ -74,6 +74,31 @@ test("concurrent trace appends retain every step", async () => {
   assert.equal(new Set(finalTrace?.steps.map((step) => step.id)).size, 21);
 });
 
+test("concurrent Desktop event appends retain every event and sequence", async () => {
+  const root = createRoot();
+  const eventLog = path.join(root, "目录 with spaces", "events.jsonl");
+  const workerPath = path.join(root, "append-event-worker.mjs");
+  const storeModule = pathToFileURL(path.resolve("src/core/atomic-store.ts")).href;
+  writeFileSync(
+    workerPath,
+    `import { appendJsonLineLocked } from ${JSON.stringify(storeModule)};\nconst [eventLog, prefix] = process.argv.slice(2);\nfor (let index = 0; index < 10; index += 1) appendJsonLineLocked(eventLog, { eventId: prefix + index, sequence: 0, payload: prefix });\n`,
+    "utf8"
+  );
+
+  await Promise.all([runJsonLineWorker(workerPath, eventLog, "a-"), runJsonLineWorker(workerPath, eventLog, "b-")]);
+
+  const events = readFileSync(eventLog, "utf8")
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line) as { eventId: string; sequence: number });
+  assert.equal(events.length, 20);
+  assert.equal(new Set(events.map((event) => event.eventId)).size, 20);
+  assert.deepEqual(
+    events.map((event) => event.sequence).sort((left, right) => left - right),
+    Array.from({ length: 20 }, (_, index) => index + 1)
+  );
+});
+
 test("Windows-style nested paths and temporary files are handled safely", () => {
   const root = path.join(createRoot(), "目录 with spaces");
   const filePath = path.join(root, "nested", "windows-style.json");
@@ -138,5 +163,18 @@ function runAppendWorker(workerPath: string, root: string, traceId: string, pref
     });
     child.on("error", reject);
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`Trace append worker exited ${code}: ${stderr}`))));
+  });
+}
+
+function runJsonLineWorker(workerPath: string, eventLog: string, prefix: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--import", "tsx", workerPath, eventLog, prefix], { stdio: "pipe" });
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`Event append worker exited ${code}: ${stderr}`))));
   });
 }
