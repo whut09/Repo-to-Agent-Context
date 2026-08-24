@@ -23,6 +23,17 @@ export interface ContextRetrieverOptions {
   includeTests?: boolean;
 }
 
+export function adaptiveTopK(taskType: RetrievalTaskType = "auto", requested?: number): number {
+  if (requested !== undefined && Number.isInteger(requested) && requested > 0) return requested;
+  const defaults: Record<RetrievalTaskType, number> = {
+    bugfix: 6,
+    feature: 8,
+    refactor: 10,
+    auto: 8
+  };
+  return defaults[taskType];
+}
+
 export interface ContextHit {
   id: string;
   path: string;

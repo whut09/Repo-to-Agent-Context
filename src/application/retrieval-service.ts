@@ -1,6 +1,6 @@
 import { buildApplicationContext } from "./context-service.js";
 import { createContextRetriever } from "../retrievers/index.js";
-import type { RetrieverProvider } from "../retrievers/types.js";
+import { adaptiveTopK, type RetrieverProvider } from "../retrievers/types.js";
 import { buildTestSelection } from "../outputs/test-selector.js";
 import { unique } from "../core/collections.js";
 import type { ContextPackage } from "../core/types.js";
@@ -22,7 +22,7 @@ export async function retrieveApplicationContext(input: RetrieveApplicationInput
   const provider = input.provider ?? "hybrid";
   const retriever = createContextRetriever(context, provider);
   const hits = await retriever.search(input.task, {
-    topK: input.topK ?? 8,
+    topK: adaptiveTopK(input.taskType ?? "auto", input.topK),
     taskType: input.taskType ?? "auto",
     modules: input.modules,
     changedFiles: input.changedFiles,
