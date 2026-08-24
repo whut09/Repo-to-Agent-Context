@@ -119,7 +119,7 @@ export async function createOpenCodePlusPlusSidecar(
       ),
       opencode_plusplus_retrieve: harnessTool(
         "Call to find task-relevant files without blind search. Returns ranked paths, scores, and a short reason.",
-        { task: { type: "string" }, topK: { type: "number" }, sessionId: { type: "string" } },
+        { task: { type: "string" }, topK: { type: "number" }, taskType: { type: "string" }, sessionId: { type: "string" } },
         (args) => executeRetrieveTool(context.directory, args)
       ),
       opencode_plusplus_evaluate: harnessTool(

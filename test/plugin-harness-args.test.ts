@@ -7,6 +7,8 @@ test("plugin harness arg parsers reject empty tasks and accept optional fields",
   assert.deepEqual(parsePrepareArgs({ task: "fix login timeout", type: "bugfix" }), { task: "fix login timeout", type: "bugfix" });
   assert.match(String(parsePrepareArgs({ task: "x", type: "docs" })), /bugfix/);
   assert.deepEqual(parseRetrieveArgs({ task: "auth", topK: "5" }), { task: "auth", topK: 5 });
+  assert.deepEqual(parseRetrieveArgs({ task: "auth", taskType: "refactor" }), { task: "auth", taskType: "refactor" });
+  assert.match(String(parseRetrieveArgs({ task: "auth", taskType: "docs" })), /taskType/);
   assert.equal(parseRetrieveArgs({ task: "auth", topK: 0 }), "retrieve topK must be a positive integer.");
   assert.deepEqual(parseEvaluateArgs({}), {});
   assert.equal(parseEvaluateArgs({ taskId: "   " }), "evaluate taskId must be a non-empty string when provided.");

@@ -15,10 +15,12 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
   const task = readNonEmptyString(record.task);
   if (!task) return "retrieve requires a non-empty task.";
   const sessionId = readOptionalSessionId(record.sessionId);
-  if (record.topK === undefined) return { task, ...(sessionId ? { sessionId } : {}) };
+  const taskType = readTaskType(record.taskType);
+  if (taskType === false) return 'retrieve taskType must be "bugfix", "feature", or "refactor".';
+  if (record.topK === undefined) return { task, ...(taskType ? { taskType } : {}), ...(sessionId ? { sessionId } : {}) };
   const topK = readPositiveInteger(record.topK);
   if (topK === undefined) return "retrieve topK must be a positive integer.";
-  return { task, topK, ...(sessionId ? { sessionId } : {}) };
+  return { task, topK, ...(taskType ? { taskType } : {}), ...(sessionId ? { sessionId } : {}) };
 }
 
 export function parseEvaluateArgs(args: unknown): PluginEvaluateArgs | string {
