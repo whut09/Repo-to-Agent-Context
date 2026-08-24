@@ -88,7 +88,9 @@ export function readRunState(root: string, taskId: string): RunStateSnapshot | n
 
 export function writeRunState(root: string, snapshot: RunStateSnapshot): string {
   const filePath = runStatePath(root, snapshot.taskId);
-  writeJsonAtomicWithRevision(filePath, { ...snapshot, schemaVersion: 1 }, snapshot.revision ?? 0);
+  const persisted = writeJsonAtomicWithRevision(filePath, { ...snapshot, schemaVersion: 1 }, snapshot.revision ?? 0);
+  snapshot.schemaVersion = 1;
+  snapshot.revision = persisted.revision;
   return filePath;
 }
 
