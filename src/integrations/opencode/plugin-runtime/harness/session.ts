@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { readJsonDiagnostic, writeJsonAtomic } from "../../../../core/atomic-store.js";
+import { readJsonDiagnostic, updateJsonAtomic, type JsonReadResult } from "../../../../core/atomic-store.js";
 import { taskSlug } from "../../../../core/task-id.js";
 import type { PluginEvaluateState, PluginHarnessSession, PluginTaskIdSource } from "./types.js";
 
@@ -10,8 +10,12 @@ export function pluginHarnessSessionPath(root: string, sessionId?: string | null
 }
 
 export function writePluginHarnessSession(root: string, session: PluginHarnessSession): void {
-  writeJsonAtomic(pluginHarnessSessionPath(root, session.sessionId), session);
-  writeJsonAtomic(pluginHarnessSessionPath(root), session);
+  writeRevisioned(pluginHarnessSessionPath(root, session.sessionId), session);
+  writeRevisioned(pluginHarnessSessionPath(root), session);
+}
+
+export function readPluginHarnessSessionDiagnostic(root: string, sessionId?: string | null): JsonReadResult<PluginHarnessSession> {
+  return readJsonDiagnostic<PluginHarnessSession>(pluginHarnessSessionPath(root, sessionId));
 }
 
 export function readPluginHarnessSession(root: string, sessionId?: string | null): PluginHarnessSession | undefined {
@@ -30,6 +34,7 @@ export function readPluginHarnessSession(root: string, sessionId?: string | null
 
 function readSessionFile(filePath: string): PluginHarnessSession | undefined {
   const result = readJsonDiagnostic<PluginHarnessSession>(filePath);
+  if (result.status === "corrupt") throw new Error(`Plugin session JSON is corrupt: ${filePath}: ${result.error}`);
   if (result.status !== "ok" || !result.value.taskId || !result.value.task) return undefined;
   return result.value;
 }
@@ -41,8 +46,8 @@ export function pluginEvaluateStatePath(root: string, sessionId?: string | null)
 
 export function writePluginEvaluateState(root: string, state: PluginEvaluateState): void {
   try {
-    writeJsonAtomic(pluginEvaluateStatePath(root, state.sessionId), state);
-    if (!state.sessionId) writeJsonAtomic(pluginEvaluateStatePath(root), state);
+    writeRevisioned(pluginEvaluateStatePath(root, state.sessionId), state);
+    if (!state.sessionId) writeRevisioned(pluginEvaluateStatePath(root), state);
   } catch {
     // Best-effort persistence; the evaluate result is still returned to the model.
   }
@@ -50,8 +55,13 @@ export function writePluginEvaluateState(root: string, state: PluginEvaluateStat
 
 export function readPluginEvaluateState(root: string, sessionId?: string | null): PluginEvaluateState | undefined {
   const result = readJsonDiagnostic<PluginEvaluateState>(pluginEvaluateStatePath(root, sessionId));
+  if (result.status === "corrupt") throw new Error(`Plugin evaluate JSON is corrupt: ${result.filePath}: ${result.error}`);
   if (result.status !== "ok" || !result.value.taskId) return undefined;
   return result.value;
+}
+
+function writeRevisioned<T extends object & { schemaVersion?: unknown; revision?: number }>(filePath: string, value: T): T {
+  return updateJsonAtomic<T>(filePath, (current) => ({ ...value, schemaVersion: value.schemaVersion ?? 1, revision: (current?.revision ?? 0) + 1 }));
 }
 
 export function resolvePluginTask(

@@ -1,4 +1,4 @@
-import { readJsonDiagnostic, writeJsonAtomic } from "../../../../core/atomic-store.js";
+import { readJsonDiagnostic, updateJsonAtomic } from "../../../../core/atomic-store.js";
 import { hashText } from "../evidence.js";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import type { PluginWorkflowState } from "./types.js";
@@ -10,6 +10,7 @@ export function workflowStatePath(root: string, sessionId: string): string {
 
 export function readWorkflowState(root: string, sessionId: string): PluginWorkflowState | undefined {
   const result = readJsonDiagnostic<PluginWorkflowState>(workflowStatePath(root, sessionId));
+  if (result.status === "corrupt") throw new Error(`Plugin workflow JSON is corrupt: ${result.filePath}: ${result.error}`);
   return result.status === "ok" ? result.value : undefined;
 }
 
@@ -18,6 +19,8 @@ export function initializeWorkflowState(root: string, sessionId: string): Plugin
   const existing = readWorkflowState(root, sessionId);
   if (existing) return existing;
   const state: PluginWorkflowState = {
+    schemaVersion: 1,
+    revision: 1,
     sessionId,
     phase: "created",
     taskId: null,
@@ -30,24 +33,26 @@ export function initializeWorkflowState(root: string, sessionId: string): Plugin
     sourceChanged: false,
     updatedAt: new Date().toISOString()
   };
-  writeJsonAtomic(workflowStatePath(root, sessionId), state);
-  return state;
+  return updateJsonAtomic<PluginWorkflowState>(workflowStatePath(root, sessionId), (current) => current ?? state);
 }
 
 export function updateWorkflowState(root: string, sessionId: string, update: Partial<PluginWorkflowState> & { eventKey?: string }): PluginWorkflowState {
-  const state = initializeWorkflowState(root, sessionId);
-  const current = currentSidecarWorkingTreeHash(root);
-  if (update.eventKey && update.eventKey === state.lastEventKey) return state;
-  const next: PluginWorkflowState = {
-    ...state,
-    ...update,
-    currentWorkingTreeHash: current,
-    sourceChanged: state.sourceChanged || current !== state.initialWorkingTreeHash,
-    lastEventKey: update.eventKey ?? state.lastEventKey,
-    updatedAt: new Date().toISOString()
-  };
-  writeJsonAtomic(workflowStatePath(root, sessionId), next);
-  return next;
+  initializeWorkflowState(root, sessionId);
+  return updateJsonAtomic<PluginWorkflowState>(workflowStatePath(root, sessionId), (state) => {
+    if (!state) throw new Error(`Plugin workflow state disappeared for session ${sessionId}.`);
+    if (update.eventKey && update.eventKey === state.lastEventKey) return state;
+    const current = currentSidecarWorkingTreeHash(root);
+    return {
+      ...state,
+      ...update,
+      schemaVersion: 1,
+      revision: (state.revision ?? 0) + 1,
+      currentWorkingTreeHash: current,
+      sourceChanged: state.sourceChanged || current !== state.initialWorkingTreeHash,
+      lastEventKey: update.eventKey ?? state.lastEventKey,
+      updatedAt: new Date().toISOString()
+    };
+  });
 }
 
 export function contextFingerprint(root: string, taskId: string): string {

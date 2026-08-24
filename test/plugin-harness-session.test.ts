@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
   pluginHarnessSessionPath,
   readPluginHarnessSession,
+  readPluginHarnessSessionDiagnostic,
   resolvePluginTask,
   resolvePluginTaskId,
   writePluginHarnessSession
@@ -28,6 +29,21 @@ test("plugin harness session persists the last prepared task", () => {
     assert.equal(resolvePluginTaskId(root, "Another Task"), "another-task");
     assert.equal(readPluginHarnessSession(root)?.sessionId, "session-a");
     assert.equal(resolvePluginTask(root).source, "session");
+    assert.equal(readPluginHarnessSessionDiagnostic(root).status, "ok");
+    assert.equal(readPluginHarnessSession(root)?.schemaVersion, 1);
+    assert.equal(readPluginHarnessSession(root)?.revision, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("plugin session corruption is diagnostic instead of missing state", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-session-corrupt-"));
+  try {
+    mkdirSync(path.dirname(pluginHarnessSessionPath(root)), { recursive: true });
+    writeFileSync(pluginHarnessSessionPath(root), "{broken", "utf8");
+    assert.equal(readPluginHarnessSessionDiagnostic(root).status, "corrupt");
+    assert.throws(() => readPluginHarnessSession(root), /session JSON is corrupt/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -36,6 +36,8 @@ export interface PluginNextArgs {
 }
 
 export interface PluginHarnessSession {
+  schemaVersion?: 1;
+  revision?: number;
   taskId: string;
   task: string;
   type: PluginHarnessTaskType | "auto";
@@ -44,6 +46,8 @@ export interface PluginHarnessSession {
 }
 
 export interface PluginWorkflowState {
+  schemaVersion?: 1;
+  revision?: number;
   sessionId: string;
   phase: "created" | "prepared" | "editing" | "evaluated" | "next" | "finalize" | "blocked";
   taskId: string | null;
@@ -106,6 +110,7 @@ export type PluginNextResult = PluginHarnessResult;
 
 export interface PluginEvaluateState {
   schemaVersion: string;
+  revision?: number;
   taskId: string;
   sessionId: string | null;
   taskIdSource: PluginTaskIdSource;
