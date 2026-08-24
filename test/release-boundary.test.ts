@@ -83,6 +83,7 @@ test("release boundary: PR CI uses Windows Desktop gates without paid executors"
   const desktopRelease = readFileSync(path.join(root, ".github", "workflows", "desktop-release.yml"), "utf8");
   assert.match(desktopRelease, /SST\.OpenCodeDesktop/);
   assert.match(desktopRelease, /npm run test:desktop:real/);
+  assert.match(desktopRelease, /Release tag \$env:RELEASE_TAG must match package\.json version v\$version/);
   assert.doesNotMatch(desktopRelease, /benchmark:agent:real|OPENCODE_EXECUTOR_COMMAND|CLAUDE|CODEX|MIMO/i);
 });
 
