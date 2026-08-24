@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -112,20 +112,22 @@ test("OpenCode plugin event hooks survive corrupt workflow persistence", async (
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-hook-failure-"));
   const stateFile = path.join(root, "state.json");
   const workflowFile = workflowStatePath(root, "session-1");
+  const diagnostics: string[] = [];
   try {
     mkdirSync(path.dirname(workflowFile), { recursive: true });
     writeFileSync(workflowFile, "{broken", "utf8");
-    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const plugin = await createOpenCodePlusPlusSidecar(
+      {
+        directory: root,
+        client: { app: { log: ({ message }) => diagnostics.push(message) } }
+      },
+      { stateFile }
+    );
     const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
 
     await eventHook({ event: { type: "file.edited", sessionID: "session-1", properties: { file: "src/index.ts" } } });
 
-    const eventLog = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
-    const events = readFileSync(eventLog, "utf8")
-      .trim()
-      .split(/\r?\n/)
-      .map((line) => JSON.parse(line) as Record<string, unknown>);
-    assert.ok(events.some((event) => event.type === "sidecar.log" && event.message === "workflow initialization failed safely"));
+    assert.ok(diagnostics.includes("workflow initialization failed safely"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
