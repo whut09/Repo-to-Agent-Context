@@ -29,7 +29,7 @@ export function recordSidecarTool(repo = ".", input: OpenCodeSidecarToolRecordIn
   const workingTreeHashAfter = input.workingTreeHashAfter ?? currentWorkingTreeHash(root);
   const filesTouched = [...new Set([...(input.paths ?? []).map(normalizeToolPath).filter(Boolean), ...safeChangedFiles(root)])].sort();
   const event = {
-    schemaVersion: 1,
+    schemaVersion: 1 as const,
     eventId: input.eventId ?? eventIdForTool({ sessionId, tool, command, startedAt, finishedAt, stdoutHash: stdout.hash, stderrHash: stderr.hash }),
     sequence: 0,
     timestamp: finishedAt,
