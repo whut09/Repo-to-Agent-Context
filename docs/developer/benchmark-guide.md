@@ -80,3 +80,9 @@ The raw command is not stored in benchmark reports; only its hash is retained. W
 ## Retrieval Improvement Track
 
 Precision@8 and regression recall should be improved without changing expected files merely to raise scores. Candidate improvements are symbol-level task relevance, call/dependency-chain weighting, regression-memory weighting, task-type adaptive Top-K, and explicit task-specific negative examples. Validate each change with the deterministic layer before measuring its effect with real executors.
+
+The deterministic JSON report now includes `summary.sampleCount`, `summary.elapsedMs`, and per-hit retrieval score breakdowns. Precision is the fraction of the requested Top-K slots that are expected relevant files; recall is the fraction of expected relevant files found in Top-K. A cached context may report reused, incremental, or rebuilt mode, but freshness and drift checks still run before a plugin uses the context.
+
+Desktop retrieval defaults are task-aware: bug fixes use six files, features eight, refactors ten, and `auto` eight. The plugin reports selected and rejected candidates so a low Precision@K result can be inspected rather than treated as an opaque score. Explicit negative examples receive a strong penalty unless the task names that path directly.
+
+For Desktop responsiveness, `prepare`, `retrieve`, and `evaluate` return a structured `performance` object with stage, target, elapsed time, cache status, context mode, selected files, and rejected files. A timeout returns `ok: false` and `error.code: HARNESS_ERROR`; it does not claim that the task failed its verification policy.
