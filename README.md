@@ -2,116 +2,76 @@
 
 [English](README.en.md) | 中文
 
-**面向官方 OpenCode Desktop 的 Windows 插件、证据层和 Harness。**
+**官方 OpenCode Desktop 的 Windows Harness 插件。**
 
-OpenCode++ 不替换官方 OpenCode Desktop，也不安装第二个桌面外壳。Windows EXE 把自包含的全局插件和状态文件安装到当前用户配置目录，并对内置命令分发器增加只匹配三个 OpenCode++ 命令名的窄范围补丁。安装之后，日常编码仍在 OpenCode Desktop 中完成。
+OpenCode++ 不提供第二个桌面软件，也不要求普通用户安装 npm 包或使用命令行。Release EXE 会把自包含插件安装到当前用户的 OpenCode 配置目录，并为三个本地状态命令安装窄范围 `app.asar` 补丁。日常操作全部在官方 OpenCode Desktop 中完成。
 
-## 五分钟安装
+## 安装
 
 1. 从 [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases) 下载 `opencode-plusplus-setup-win-x64.exe`。
 2. 完全退出 OpenCode Desktop。
 3. 双击 EXE，等待安装完成。
-4. 重新打开 OpenCode Desktop，打开目标仓库并新建会话。
-5. 在会话中输入 `/plusplus-task <任务>`，Harness 会接管任务准备、编辑边界、验证和收尾。
+4. 重新打开 OpenCode Desktop，并打开目标仓库。
+5. 新建会话，输入 `/plusplus-task <任务>`。
 
-安装器只写当前 Windows 用户目录，不需要管理员权限。默认位置为 `%USERPROFILE%\.config\opencode`；如果 OpenCode 使用 `OPENCODE_CONFIG_DIR` 或 `XDG_CONFIG_HOME`，插件会安装到对应目录。
+安装器作用于当前 Windows 用户，不需要管理员权限。默认使用 `%USERPROFILE%\.config\opencode`，也会遵循 OpenCode 已配置的 `OPENCODE_CONFIG_DIR` 或 `XDG_CONFIG_HOME`。
 
-## Harness 工作流
+## 在 Desktop 中使用 Harness
 
-安装器同时写入 `/plusplus-task`、`/plusplus-verify` 两个全局 Slash Command 和 `opencode-plusplus` skill，重启 Desktop 后即可直接使用，无需任何命令行：
+- `/plusplus-task <任务>`：调用 `opencode_plusplus_prepare`，阅读 `mustInspect`，遵守编辑边界，运行 `requiredCommands`，再调用 `opencode_plusplus_evaluate` 和 `opencode_plusplus_next`。
+- `/plusplus-verify`：重新评估当前任务，显示 blocker、缺失证据、必跑命令和下一步。
+- `opencode_plusplus_retrieve`：在盲目搜索前返回与任务相关的文件和 score breakdown。
+- 只有 `opencode_plusplus_next` 返回 `finalize` 且没有 blocker 时，任务才能视为完成。
 
-- `/plusplus-task <task>`：按 `opencode_plusplus_prepare` → 读 `mustInspect` → 只在 `allowedEditGlobs` 内修改 → 跑 `requiredCommands` → `opencode_plusplus_evaluate` → `opencode_plusplus_next` 的顺序执行；`nextAction` 不是 `finalize` 时不得声称完成。
-- `/plusplus-verify`：重跑 evaluate + next，列出阻塞项、缺失证据和必跑命令。
-- skill 在具体编码任务、跨模块修改和收尾验证时自动加载，纯问答不加载。
+这些 Harness 工具运行在 Desktop 插件进程内，不会启动 OpenCode++ CLI，也不会自行调用另一个付费 Agent。
 
 ## 状态与开关
 
-| 操作     | Desktop 工具（经过模型）    | 本地直接 EXE 参数 |
-| -------- | --------------------------- | ----------------- |
-| 查看状态 | `opencode_plusplus_status`  | `--status`        |
-| 启用     | `opencode_plusplus_enable`  | `--enable`        |
-| 禁用     | `opencode_plusplus_disable` | `--disable`       |
+在 OpenCode Desktop 中直接使用：
 
-OpenCode Slash Command 默认是发给模型的 Prompt Template。安装器会对三个精确的 OpenCode++ 命令名安装宿主分发器补丁，因此 `/opencode-plusplus-status`、`/opencode-plusplus-on` 和 `/opencode-plusplus-off` 在补丁有效时直接读写本地状态，不调用模型；其他 Slash Command 不受影响。EXE 参数仍可在 Desktop 外直接控制状态。
+| Slash Command               | 结果                              |
+| --------------------------- | --------------------------------- |
+| `/opencode-plusplus-status` | 显示安装、启用、版本和 patch 状态 |
+| `/opencode-plusplus-on`     | 启用 Guard、证据和 idle 验证      |
+| `/opencode-plusplus-off`    | 暂停 Guard、证据和 idle 验证      |
 
-启用时，插件在工具执行前检查危险命令、未知脚本和受保护路径；工具执行后记录退出码、脱敏输出、会话和 working-tree hash；会话空闲时运行增量验证。禁用只暂停保护、证据和空闲验证，控制工具仍然可用。
+这三个命令由安装器补丁在本地处理，不发送给模型，也不执行 shell。`/plusplus-task` 和 `/plusplus-verify` 是 Harness 工作流 Prompt，会由当前会话模型执行对应插件工具。
 
-## 原理和边界
+## 查看报告
 
-- EXE 只修改 OpenCode Desktop `app.asar` 中经过特征检查的命令分发器，并在旁边备份原文件；不修改安装器、renderer、更新器或账户登录。
-- 当前 OpenCode 插件 API 没有公开的第三方设置面板或无需模型的直接命令扩展点；Desktop 工具会经过模型，本地直接控制由 EXE 提供。
-- 插件只观察 OpenCode 暴露的工具和事件，不是操作系统级沙箱，不能阻止其他程序修改文件。
-- Guard 是命令和路径边界，不等同于完整安全审计；不透明的工具参数可能只能产生证据或告警。
-- Evidence 会脱敏并截断输出；它证明系统捕获了什么，不保证测试覆盖所有业务行为。
-- 仓库运行时报告写入目标仓库的 `.agent-context/`；卸载插件不会删除这些历史 artifact。
+插件在当前仓库的 `.agent-context/` 写入本地运行报告：
 
-更完整的运行结构见 [Windows 插件架构与边界](docs/concepts/windows-plugin-architecture.zh-CN.md)。
+- `.agent-context/sidecar/latest.md`：最近一次 idle 验证摘要；
+- `.agent-context/traces/`：带 `eventId`、`sequence`、session/task 身份的执行证据；
+- `.agent-context/runs/`：任务 context、编辑边界和验证状态；
+- `.agent-context/loops/`：下一步和 blocker 决策。
 
-## 安装文件和仓库文件
+这些目录是本地 runtime artifact，默认不进入 Git 或 npm 发布包。卸载插件不会删除仓库里的历史报告。
 
-用户级安装文件：
+## 原理与边界
 
-```text
-%USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
-%USERPROFILE%\.config\opencode\opencode-plusplus\state.json
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
-%USERPROFILE%\.config\opencode\commands\plusplus-task.md
-%USERPROFILE%\.config\opencode\commands\plusplus-verify.md
-%USERPROFILE%\.config\opencode\skills\opencode-plusplus\SKILL.md
-```
+- EXE 只补丁经过 marker 检查的 `SessionPrompt.command` 分发器，并保留可恢复的 original backup。
+- 插件观察 OpenCode 暴露的工具和事件；它不是操作系统沙箱，不能阻止其他程序修改文件。
+- Guard 检查危险命令、未知脚本和受保护路径；Evidence 记录脱敏、截断后的结果，不代表完整业务正确性证明。
+- state、session、trace 和 report 使用带锁原子写入；普通 artifact 写入故障不会让 OpenCode Desktop hook 崩溃。
+- Windows 发布验证覆盖 EXE 大小、SHA256、插件 bundle 加载、三条本地命令、patch marker、backup 和卸载恢复。
 
-目标仓库中的 Harness 文件位于 `.agent-context/`，包括 context、trace、evidence、policy、guard、loop 和 orchestrator artifact。它们不是 OpenCode Desktop 安装文件。
-
-## 升级、关闭和卸载
-
-- **升级**：退出 OpenCode，下载新 EXE 并再次双击。安装器覆盖插件、清理旧 Prompt Command，并保留有效的启用状态。
-- **临时关闭**：使用 EXE 的 `--disable`，之后用 `--enable` 恢复；也可让 Agent 调用对应工具。
-- **卸载**：使用 EXE 的 `--uninstall`。它只删除 OpenCode++ 写入的插件、命令、skill、状态和安装清单，不删除仓库 `.agent-context/`。
-- **验证状态**：使用 EXE 的 `--status --json`，或在 OpenCode 中调用状态工具。
-
-## 产品边界
-
-OpenCode++ 的唯一运行时产品是官方 OpenCode Desktop 的 Windows 插件：下载 EXE、双击安装、重启 OpenCode Desktop，没有其他安装或使用路径。`src/integrations/opencode/global-plugin.ts` 是插件的唯一生产运行时入口；EXE 安装流程与 `opencode_plusplus_*` 工具名保持不变。
-
-CLI（`opencode-plusplus`）和 MCP（`opencode-plusplus-mcp`）是仓库内部的 dev/test compatibility surface：它们供 CI、源码构建、诊断和 Harness-led 批处理使用，保留在 npm 包中仅作为开发依赖，**不是 Desktop 用户的安装或使用路径**。npm 包本身也是开发工具，Desktop 用户不需要 `npm install` 任何东西。
-
-### CLI 内部用途（非用户入口）
-
-```powershell
-opencode-plusplus build .
-opencode-plusplus verify --diff .
-opencode-plusplus policy . --base main --fail-on required
-opencode-plusplus orchestrate "修复登录超时并补回归测试" . --executor mock --max-loops 3
-```
-
-CLI、MCP 和 Desktop 插件共享 Guard、Evidence、Policy、Decision 和 Loop Engineering 实现，但控制边界不同：Desktop 插件观察当前 OpenCode 会话；Harness-led CLI 才负责多轮执行、收集和终止决策。CLI/MCP 的内部定位与降级明细见 [产品边界说明](docs/developer/product-boundary.zh-CN.md)。
-
-## 从源码构建 Windows EXE
-
-需要 Windows、Node.js 20+ 和 npm：
-
-```powershell
-npm ci
-npm run check
-npm run build
-npm run build:installer:windows
-```
-
-输出为 `release/opencode-plusplus-setup-win-x64.exe` 和对应的 `.sha256`。构建流程压缩插件并嵌入轻量 .NET Framework 安装器，不携带 Node 或 Electron runtime，也不依赖本机仓库绝对路径。
-
-## 文档
+详细说明：
 
 - [Windows 安装与使用](docs/integrations/opencode-desktop.zh-CN.md)
 - [Windows 插件架构与边界](docs/concepts/windows-plugin-architecture.zh-CN.md)
-- [产品边界说明（CLI/MCP 内部定位）](docs/developer/product-boundary.zh-CN.md)
-- [全局 Sidecar 运行机制](docs/integrations/opencode-sidecar.zh-CN.md)
-- [总体架构](docs/concepts/architecture.zh-CN.md)
-- [集成模式](docs/concepts/integration-modes.zh-CN.md)
-- [Loop Engineering](docs/concepts/loop-engineering.zh-CN.md)
-- [CLI 参考](docs/reference/cli-reference.zh-CN.md)
-- [配置参考](docs/reference/config.zh-CN.md)
+- [生成文件与提交策略](docs/reference/generated-files.zh-CN.md)
 - [发布检查](docs/release.zh-CN.md)
+
+## 开发者与兼容面
+
+CLI 和 MCP 只保留用于源码开发、CI、诊断和兼容集成，不是普通用户安装或使用方式。开发者构建与完整检查见 [产品边界说明](docs/developer/product-boundary.zh-CN.md) 和 [发布检查](docs/release.zh-CN.md)。
+
+确定性 Desktop benchmark 不调用付费模型：
+
+```powershell
+npm ci
+npm run benchmark:desktop
+```
 
 许可证：[MIT](LICENSE)。

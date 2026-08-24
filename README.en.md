@@ -2,116 +2,76 @@
 
 [中文](README.md) | English
 
-**A Windows plugin, evidence layer, and harness for the official OpenCode Desktop application.**
+**A Windows Harness plugin for the official OpenCode Desktop application.**
 
-OpenCode++ does not replace the official OpenCode Desktop application, and it does not install a second desktop shell. The Windows EXE installs a self-contained global plugin and state file in the current user's OpenCode configuration directory, then applies a narrow host patch for three exact OpenCode++ command names. Daily coding stays inside OpenCode Desktop.
+OpenCode++ does not provide a second desktop application, and ordinary users do not install an npm package or use a command line. The release EXE installs a self-contained plugin in the current user's OpenCode configuration and applies a narrow `app.asar` patch for three local status commands. Daily use stays entirely inside the official OpenCode Desktop application.
 
-## Five-Minute Install
+## Install
 
 1. Download `opencode-plusplus-setup-win-x64.exe` from [GitHub Releases](https://github.com/whut09/opencode-plusplus/releases).
 2. Fully exit OpenCode Desktop.
-3. Double-click the EXE and wait for the completion message.
-4. Reopen OpenCode Desktop, open the target repository, and start a session.
-5. Type `/plusplus-task <task>` in the session; the harness takes over task preparation, edit boundaries, verification, and finalization.
+3. Double-click the EXE and wait for installation to complete.
+4. Reopen OpenCode Desktop and open the target repository.
+5. Start a session and type `/plusplus-task <task>`.
 
-The installer writes only to the current Windows user directory and does not require administrator privileges. The default location is `%USERPROFILE%\.config\opencode`; `OPENCODE_CONFIG_DIR` or `XDG_CONFIG_HOME` is honored when OpenCode uses a custom configuration directory.
+The installer is per-user and does not require Administrator permission. It uses `%USERPROFILE%\.config\opencode` by default and honors the `OPENCODE_CONFIG_DIR` or `XDG_CONFIG_HOME` already used by OpenCode.
 
-## Harness Workflow
+## Use The Harness In Desktop
 
-The installer also writes the global `/plusplus-task` and `/plusplus-verify` Slash Commands plus the `opencode-plusplus` skill. After restarting Desktop they work immediately, with no command line involved:
+- `/plusplus-task <task>` calls `opencode_plusplus_prepare`, reads `mustInspect`, enforces edit boundaries, runs `requiredCommands`, then calls `opencode_plusplus_evaluate` and `opencode_plusplus_next`.
+- `/plusplus-verify` evaluates the current task again and shows blockers, missing evidence, required commands, and the next action.
+- `opencode_plusplus_retrieve` returns task-relevant files and score breakdowns before blind search.
+- A task is complete only when `opencode_plusplus_next` returns `finalize` with no blocker.
 
-- `/plusplus-task <task>` follows `opencode_plusplus_prepare` → read `mustInspect` files → edit only inside `allowedEditGlobs` → run `requiredCommands` with the built-in shell tool → `opencode_plusplus_evaluate` → `opencode_plusplus_next`. Completion must not be claimed while `nextAction` is not `finalize`.
-- `/plusplus-verify` re-runs evaluate and next, then reports blocking state, missing evidence, and the commands that still must run.
-- The skill loads automatically for concrete coding tasks, cross-module changes, and final verification; it stays out for pure Q&A.
+These Harness tools run in the Desktop plugin process. They do not start the OpenCode++ CLI or independently call another paid agent.
 
-## Status and Controls
+## Status And Controls
 
-| Action      | Desktop tool (model-mediated) | Direct local EXE option |
-| ----------- | ----------------------------- | ----------------------- |
-| Show status | `opencode_plusplus_status`    | `--status`              |
-| Enable      | `opencode_plusplus_enable`    | `--enable`              |
-| Disable     | `opencode_plusplus_disable`   | `--disable`             |
+Use these directly in OpenCode Desktop:
 
-OpenCode Slash Commands are normally model prompt templates. The installer patches the host dispatcher for three exact OpenCode++ command names, so `/opencode-plusplus-status`, `/opencode-plusplus-on`, and `/opencode-plusplus-off` read or update local state without a model turn when the patch is active. Other Slash Commands are unchanged. The EXE flags remain available for control outside Desktop.
+| Slash Command               | Result                                                  |
+| --------------------------- | ------------------------------------------------------- |
+| `/opencode-plusplus-status` | Shows installation, enabled, version, and patch state   |
+| `/opencode-plusplus-on`     | Enables guards, evidence capture, and idle verification |
+| `/opencode-plusplus-off`    | Pauses guards, evidence capture, and idle verification  |
 
-When enabled, the plugin checks dangerous commands, unknown scripts, and protected paths before tool execution; records exit codes, redacted output, sessions, and working-tree hashes after execution; and runs incremental verification when a session becomes idle. Disabling pauses protection, evidence, and idle verification while keeping the controls available.
+The installer patch handles these three commands locally. They do not call the model or execute a shell. `/plusplus-task` and `/plusplus-verify` are Harness workflow prompts that ask the current session model to invoke the plugin tools.
 
-## Principles and Boundaries
+## Inspect Reports
 
-- The EXE only modifies the marker-checked command dispatcher in `app.asar`, keeps a restorable backup, and does not modify the renderer, updater, or account login.
-- The current OpenCode plugin API has no public third-party settings panel or model-free direct-command extension point. The host patch supplies only three explicit local commands; Desktop tools remain model-mediated.
-- The plugin observes only OpenCode-exposed tools and events. It is not an operating-system sandbox and cannot stop another program from editing files.
-- Guards enforce command and path boundaries, not a complete security audit. Opaque tool arguments may produce evidence or warnings instead of a block.
-- Evidence is redacted and truncated. It proves what the system captured; it does not prove complete business coverage.
-- Repository runtime reports are written to `.agent-context/`. Uninstalling the plugin does not delete historical artifacts.
+The plugin writes local runtime reports under `.agent-context/` in the current repository:
 
-Read [Windows plugin architecture and boundaries](docs/concepts/windows-plugin-architecture.md) for the complete model.
+- `.agent-context/sidecar/latest.md`: latest idle verification summary;
+- `.agent-context/traces/`: execution evidence with `eventId`, `sequence`, and session/task identity;
+- `.agent-context/runs/`: task context, edit boundaries, and verification state;
+- `.agent-context/loops/`: next-action and blocker decisions.
 
-## Installation and Repository Files
+These directories are local runtime artifacts and are excluded from Git and npm releases by default. Uninstalling the plugin does not delete historical repository reports.
 
-User-level installation files:
+## Principles And Boundaries
 
-```text
-%USERPROFILE%\.config\opencode\plugins\opencode-plusplus.js
-%USERPROFILE%\.config\opencode\opencode-plusplus\state.json
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-on.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-off.md
-%USERPROFILE%\.config\opencode\commands\opencode-plusplus-status.md
-%USERPROFILE%\.config\opencode\commands\plusplus-task.md
-%USERPROFILE%\.config\opencode\commands\plusplus-verify.md
-%USERPROFILE%\.config\opencode\skills\opencode-plusplus\SKILL.md
-```
+- The EXE patches only the marker-checked `SessionPrompt.command` dispatcher and retains a restorable original backup.
+- The plugin observes tools and events exposed by OpenCode. It is not an operating-system sandbox and cannot stop another application from editing files.
+- Guards check dangerous commands, unknown scripts, and protected paths. Evidence stores redacted, truncated results; it is not proof of complete business correctness.
+- State, session, trace, and report files use locked atomic writes. Ordinary artifact failures do not crash OpenCode Desktop hooks.
+- Windows release verification covers EXE size, SHA256, plugin bundle loading, three local commands, patch marker, backup, and uninstall restoration.
 
-Harness files in the target repository live under `.agent-context/` and include context, trace, evidence, policy, guard, loop, and orchestrator artifacts. They are not OpenCode Desktop installation files.
-
-## Upgrade, Disable, and Uninstall
-
-- **Upgrade**: exit OpenCode, download the newer EXE, and double-click it. The installer replaces the plugin, removes legacy prompt commands, and preserves a valid enabled state.
-- **Temporarily disable**: use the EXE `--disable` option and restore with `--enable`, or ask the agent to call the matching tool.
-- **Uninstall**: run the EXE with `--uninstall`. It removes only the OpenCode++ plugin, command, skill, state, and manifest files, not `.agent-context/`.
-- **Check status**: run the EXE with `--status --json`, or call the status tool in OpenCode.
-
-## Product Boundary
-
-The only runtime product is the Windows plugin for the official OpenCode Desktop: download the EXE, double-click to install, restart OpenCode Desktop. There is no other installation or usage path. `src/integrations/opencode/global-plugin.ts` is the single production runtime entry; the EXE install flow and the `opencode_plusplus_*` tool names are unchanged.
-
-The CLI (`opencode-plusplus`) and MCP server (`opencode-plusplus-mcp`) are internal dev/test compatibility surfaces: they exist for CI, source builds, diagnostics, and harness-led batch runs. They stay in the npm package only as development dependencies and are **not a Desktop user installation or usage path**. The npm package itself is a developer tool; Desktop users never run `npm install`.
-
-### CLI internal uses (not a user entry)
-
-```powershell
-opencode-plusplus build .
-opencode-plusplus verify --diff .
-opencode-plusplus policy . --base main --fail-on required
-opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor mock --max-loops 3
-```
-
-CLI, MCP, and the Desktop plugin share Guard, Evidence, Policy, Decision, and Loop Engineering implementations, but their control boundaries differ: the Desktop plugin observes the current OpenCode session, while the harness-led CLI owns bounded execution, collection, and termination decisions. The internal role of CLI/MCP and the deletion details are in [Product Boundary](docs/developer/product-boundary.md).
-
-## Build the Windows EXE
-
-Requires Windows, Node.js 20+, and npm:
-
-```powershell
-npm ci
-npm run check
-npm run build
-npm run build:installer:windows
-```
-
-The outputs are `release/opencode-plusplus-setup-win-x64.exe` and its `.sha256` file. The build compresses the plugin into a compact .NET Framework installer without bundling Node or Electron, and it does not depend on an absolute path to this repository.
-
-## Documentation
+Detailed documentation:
 
 - [Windows installation and usage](docs/integrations/opencode-desktop.md)
 - [Windows plugin architecture and boundaries](docs/concepts/windows-plugin-architecture.md)
-- [Product boundary (CLI/MCP internal roles)](docs/developer/product-boundary.md)
-- [Global sidecar runtime](docs/integrations/opencode-sidecar.md)
-- [Architecture](docs/concepts/architecture.md)
-- [Integration modes](docs/concepts/integration-modes.md)
-- [Loop Engineering](docs/concepts/loop-engineering.md)
-- [CLI reference](docs/reference/cli-reference.md)
-- [Configuration reference](docs/reference/config.md)
-- [Release checklist](docs/release.md)
+- [Generated files and commit policy](docs/reference/generated-files.md)
+- [Release checks](docs/release.md)
+
+## Developer And Compatibility Surfaces
+
+CLI and MCP remain only for source development, CI, diagnostics, and compatibility integrations. They are not ordinary user installation or usage paths. See [Product Boundary](docs/developer/product-boundary.md) and [Release checks](docs/release.md) for source builds and the complete gate.
+
+The deterministic Desktop benchmark makes no paid model calls:
+
+```powershell
+npm ci
+npm run benchmark:desktop
+```
 
 License: [MIT](LICENSE).
