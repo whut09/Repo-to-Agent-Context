@@ -1,5 +1,5 @@
 import type { ContextRetriever, ContextRetrieverOptions, ContextHit } from "./types.js";
-import { sortHits } from "./static.js";
+import { mergeScoreBreakdowns, sortHits } from "./static.js";
 
 export class HybridContextRetriever implements ContextRetriever {
   readonly name = "hybrid" as const;
@@ -17,6 +17,7 @@ export class HybridContextRetriever implements ContextRetriever {
           continue;
         }
         current.score += hit.score;
+        current.metadata.scoreBreakdown = mergeScoreBreakdowns(current.metadata.scoreBreakdown, hit.metadata.scoreBreakdown);
         current.metadata.sources = [...new Set([...(current.metadata.sources as string[]), hit.source])];
         if (hit.snippet.length > current.snippet.length) current.snippet = hit.snippet;
       }

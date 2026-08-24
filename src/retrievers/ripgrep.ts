@@ -21,6 +21,7 @@ export class RipgrepContextRetriever implements ContextRetriever {
         if (!file || !matchesFilters(file, file.moduleName, options)) continue;
         const current = hitMap.get(match.path) ?? hitFor(file, this.name);
         current.score += 20 + term.length;
+        addLexicalBreakdown(current, 20 + term.length);
         current.snippet = current.snippet || snippetFor(match.text, [term]);
         const lines = current.metadata.lines as number[] | undefined;
         current.metadata.lines = [...new Set([...(lines ?? []), match.line])].slice(0, 12);
@@ -33,6 +34,7 @@ export class RipgrepContextRetriever implements ContextRetriever {
       if (!file || !matchesFilters(file, file.moduleName, options)) continue;
       const current = hitMap.get(changedFile) ?? hitFor(file, this.name);
       current.score += 35;
+      addChangedBreakdown(current, 35);
       hitMap.set(changedFile, current);
     }
 
@@ -79,7 +81,33 @@ function hitFor(file: IndexedFile, source: "ripgrep"): ContextHit {
     snippet: file.summary,
     metadata: {
       analyzer: file.analyzer,
-      confidence: file.confidence
+      confidence: file.confidence,
+      scoreBreakdown: {
+        lexical: 0,
+        path: 0,
+        changed: 0,
+        importance: 0,
+        taskType: 0,
+        symbol: 0,
+        dependencyChain: 0,
+        regressionMemory: 0,
+        negativeExample: 0,
+        total: 0
+      }
     }
   };
+}
+
+function addLexicalBreakdown(hit: ContextHit, score: number): void {
+  const breakdown = hit.metadata.scoreBreakdown;
+  if (!breakdown) return;
+  breakdown.lexical += score;
+  breakdown.total += score;
+}
+
+function addChangedBreakdown(hit: ContextHit, score: number): void {
+  const breakdown = hit.metadata.scoreBreakdown;
+  if (!breakdown) return;
+  breakdown.changed += score;
+  breakdown.total += score;
 }

@@ -1,7 +1,7 @@
 import type { ContextPackage, IndexedFile } from "../core/types.js";
 import { buildRegressionReport } from "../harness/verification-plane/guards/regression.js";
 import { buildRagDocuments } from "../outputs/rag.js";
-import type { ContextHit, ContextRetriever, ContextRetrieverOptions } from "./types.js";
+import type { ContextHit, ContextRetriever, ContextRetrieverOptions, RetrievalScoreBreakdown } from "./types.js";
 
 export class StaticContextRetriever implements ContextRetriever {
   readonly name = "static" as const;
@@ -161,4 +161,26 @@ export function negativeExamplePenalty(filePath: string, text: string, task: str
 
 export function sortHits<T extends { score: number; path: string }>(hits: T[]): T[] {
   return [...hits].sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
+}
+
+export function mergeScoreBreakdowns(left: RetrievalScoreBreakdown | undefined, right: RetrievalScoreBreakdown | undefined): RetrievalScoreBreakdown {
+  const merged: Record<string, number> = {};
+  for (const breakdown of [left, right]) {
+    for (const [key, value] of Object.entries(breakdown ?? {})) {
+      if (key === "total") continue;
+      if (typeof value === "number" && Number.isFinite(value)) merged[key] = (merged[key] ?? 0) + value;
+    }
+  }
+  return {
+    lexical: merged.lexical ?? 0,
+    path: merged.path ?? 0,
+    changed: merged.changed ?? 0,
+    importance: merged.importance ?? 0,
+    taskType: merged.taskType ?? 0,
+    symbol: merged.symbol ?? 0,
+    dependencyChain: merged.dependencyChain ?? 0,
+    regressionMemory: merged.regressionMemory ?? 0,
+    negativeExample: merged.negativeExample ?? 0,
+    total: Object.entries(merged).reduce((sum, [key, value]) => sum + (key === "negativeExample" ? -value : value), 0)
+  };
 }
