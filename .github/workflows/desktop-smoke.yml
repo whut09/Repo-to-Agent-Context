@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       require_real_desktop:
-        description: "Launch a preinstalled OpenCode Desktop executable on this Windows runner"
+        description: "Install and launch the official OpenCode Desktop on a Windows runner"
         required: true
         default: false
         type: boolean
       desktop_exe:
-        description: "Optional absolute path to OpenCode.exe on a self-hosted Windows runner"
+        description: "Optional absolute path to an existing OpenCode.exe; otherwise winget installs SST.OpenCodeDesktop"
         required: false
         type: string
 

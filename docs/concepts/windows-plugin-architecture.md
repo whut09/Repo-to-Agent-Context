@@ -109,4 +109,4 @@ The entry point determines authority:
 
 ## Release Verification Boundary
 
-Windows CI builds the EXE and verifies the release manifest, SHA256, size budget, standalone plugin export, three local command names, patch marker, original backup, interrupted replacement recovery, and uninstall restoration. It also runs a deterministic in-process Desktop Harness benchmark with no model or external executor. A real OpenCode Desktop launch is restricted to the manual `Desktop smoke` workflow on a self-hosted Windows runner with OpenCode preinstalled; PR CI never starts a GUI or calls a paid model.
+Windows CI builds the EXE and verifies the release manifest, SHA256, size budget, standalone plugin export, three local command names, patch marker, original backup, interrupted replacement recovery, and uninstall restoration. It also runs a deterministic in-process Desktop Harness benchmark with no model or external executor. A real OpenCode Desktop launch is restricted to manual Windows workflows, which install the official `SST.OpenCodeDesktop` winget package before the launch check; PR CI never starts a GUI or calls a paid model.

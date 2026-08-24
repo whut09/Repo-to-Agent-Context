@@ -31,7 +31,7 @@ Windows 安装器构建必须在 Windows + Node.js 20+ 和 .NET Framework 4.x �
 
 `npm run release:verify` 还会核对 EXE 存在、大小、SHA256、manifest、独立 plugin bundle 加载、三条本地 command、patch marker、backup 与卸载恢复。`npm run benchmark:desktop` 是确定性的进程内插件 benchmark，付费模型调用数固定为 0。
 
-PR CI 同时运行 Ubuntu 和 Windows，绝不调用付费 executor。Linux 验证 npm 开发包和确定性 proxy benchmark；Windows 构建 EXE、执行安装/恢复 gate，并运行 Desktop plugin benchmark。真实 Desktop 启动只通过手动 `Desktop smoke` workflow，在带 `opencode-desktop` 标签且已安装 OpenCode Desktop 的自托管 Windows runner 上运行 `npm run test:desktop:real`。
+PR CI 同时运行 Ubuntu 和 Windows，绝不调用付费 executor。Linux 验证 npm 开发包和确定性 proxy benchmark；Windows 构建 EXE、执行安装/恢复 gate，并运行 Desktop plugin benchmark。真实 Desktop 启动只通过手动 `Desktop smoke` workflow：先用 winget 安装官方 `SST.OpenCodeDesktop`，再运行 `npm run test:desktop:real`。手动 Desktop release workflow 在上传或发布资产前也强制通过同一启动 gate。
 
 ## 版本和包边界
 

@@ -53,9 +53,9 @@ Smoke test with an isolated --config-dir:
 7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget;
 8. run `npm run release:verify` to verify the EXE, SHA256, release manifest, standalone plugin load, three command names, patch marker, original backup, rollback, and uninstall restoration;
 9. run `npm run benchmark:desktop`; it is a deterministic in-process plugin benchmark with zero paid model calls;
-10. use the manual `Desktop smoke` workflow on a self-hosted Windows runner labeled `opencode-desktop` to run `npm run test:desktop:real` against an installed OpenCode Desktop executable.
+10. use the manual `Desktop smoke` workflow to install the official `SST.OpenCodeDesktop` winget package and run `npm run test:desktop:real` against it.
 
-PR CI runs on Ubuntu and Windows. It never runs a paid executor. Linux verifies the npm developer package and deterministic proxy benchmarks; Windows builds the EXE, runs the installer/recovery gate, and runs the deterministic Desktop plugin benchmark. Real Desktop launch is manual only because hosted runners do not contain the official GUI application.
+PR CI runs on Ubuntu and Windows. It never runs a paid executor. Linux verifies the npm developer package and deterministic proxy benchmarks; Windows builds the EXE, runs the installer/recovery gate, and runs the deterministic Desktop plugin benchmark. Real Desktop launch is manual only; the workflow installs the official Desktop package before launching it. The manual release workflow requires the same launch gate before assets are uploaded or published.
 
 ## Publish Verification
 

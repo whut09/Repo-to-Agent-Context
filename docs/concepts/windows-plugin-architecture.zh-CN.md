@@ -109,4 +109,4 @@ CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是
 
 ## 发布验证边界
 
-Windows CI 构建 EXE，并验证 release manifest、SHA256、体积阈值、独立 plugin export、三条本地命令、patch marker、original backup、中断替换恢复和 uninstall restore；同时运行不调用模型或外部 executor 的确定性 Desktop Harness benchmark。真实 OpenCode Desktop 启动只允许在手动 `Desktop smoke` workflow 中执行，要求带有预装 OpenCode 的自托管 Windows runner；PR CI 不启动 GUI，也不调用付费模型。
+Windows CI 构建 EXE，并验证 release manifest、SHA256、体积阈值、独立 plugin export、三条本地命令、patch marker、original backup、中断替换恢复和 uninstall restore；同时运行不调用模型或外部 executor 的确定性 Desktop Harness benchmark。真实 OpenCode Desktop 启动只在手动 Windows workflow 中执行，workflow 会先安装官方 `SST.OpenCodeDesktop` winget 包再检查启动；PR CI 不启动 GUI，也不调用付费模型。
