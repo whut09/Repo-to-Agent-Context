@@ -16,6 +16,12 @@ export type ExecutionEvidenceSourceName = "desktop-hook" | "cli" | "ci" | "manua
 export interface ExecutionTraceStep {
   id: string;
   at: string;
+  eventId?: string;
+  sequence?: number;
+  sessionId?: string;
+  taskId?: string;
+  timestamp?: string;
+  schemaVersion?: 1;
   agent?: string;
   action: string;
   files: string[];
@@ -60,6 +66,9 @@ export interface TraceStartOptions {
 }
 
 export interface TraceStepInput {
+  eventId?: string;
+  sessionId?: string;
+  taskId?: string;
   at?: string;
   agent?: string;
   action: string;
@@ -107,10 +116,11 @@ export interface TraceCommandRunResult {
 
 export function startExecutionTrace(root: string, task: string, options: TraceStartOptions = {}): ExecutionTrace {
   const now = new Date().toISOString();
+  const traceId = options.id ?? traceIdForTask(task);
   const trace: ExecutionTrace = {
     schemaVersion: 1,
     revision: 0,
-    id: options.id ?? traceIdForTask(task),
+    id: traceId,
     task,
     agent: options.agent,
     createdAt: now,
@@ -120,6 +130,12 @@ export function startExecutionTrace(root: string, task: string, options: TraceSt
       {
         id: "step-001",
         at: now,
+        eventId: `${traceId}:step-001`,
+        sequence: 1,
+        sessionId: traceId,
+        taskId: traceId,
+        timestamp: now,
+        schemaVersion: 1,
         agent: options.agent ?? "opencode-plusplus",
         action: "context-run-created",
         files: [],
@@ -136,12 +152,19 @@ export function appendExecutionTraceStep(root: string, traceId: string, input: T
   return updateJsonAtomic<ExecutionTrace>(filePath, (current) => {
     const trace = current ? { ...current, revision: current.revision ?? 0 } : null;
     if (!trace) throw new Error(`Execution trace not found: ${traceId}`);
-    const duplicate = trace.steps.find((step) => traceStepFingerprint(step) === traceStepFingerprint(input));
+    const eventId = input.eventId ?? traceEventId(traceId, input);
+    const duplicate = trace.steps.find((step) => step.eventId === eventId || traceStepFingerprint(step) === traceStepFingerprint(input));
     if (duplicate) return trace;
     const now = input.at ?? new Date().toISOString();
     trace.steps.push({
       id: `step-${String(trace.steps.length + 1).padStart(3, "0")}`,
       at: now,
+      eventId,
+      sequence: trace.steps.reduce((max, step) => Math.max(max, step.sequence ?? 0), 0) + 1,
+      sessionId: input.sessionId ?? trace.id,
+      taskId: input.taskId ?? trace.id,
+      timestamp: now,
+      schemaVersion: 1,
       agent: input.agent ?? trace.agent,
       action: input.action,
       files: input.files ?? [],
@@ -173,6 +196,10 @@ export function appendExecutionTraceStep(root: string, traceId: string, input: T
     else if (trace.finalState === "planned") trace.finalState = "in_progress";
     return trace;
   });
+}
+
+function traceEventId(traceId: string, input: TraceStepInput): string {
+  return `${traceId}:${createHash("sha256").update(traceStepFingerprint(input)).digest("hex").slice(0, 24)}`;
 }
 
 function traceStepFingerprint(

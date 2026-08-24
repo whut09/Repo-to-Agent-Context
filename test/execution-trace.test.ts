@@ -39,6 +39,13 @@ test("execution trace records agent steps and final state", () => {
     assert.equal(final.finalState, "partial_success");
     assert.equal(final.steps[1]?.evidenceSource, "manual");
     assert.equal(final.steps[2]?.evidenceSource, "manual");
+    assert.equal(final.steps[1]?.schemaVersion, 1);
+    assert.equal(final.steps[1]?.sequence, 2);
+    assert.equal(final.steps[2]?.sequence, 3);
+    assert.equal(typeof final.steps[1]?.eventId, "string");
+    assert.equal(final.steps[1]?.sessionId, trace.id);
+    assert.equal(final.steps[1]?.taskId, trace.id);
+    assert.equal(typeof final.steps[1]?.timestamp, "string");
     assert.equal(readExecutionTrace(root, trace.id)?.steps.length, 3);
     assert.ok(existsSync(executionTracePath(root, trace.id)));
     assert.match(rendered, /# Execution Trace/);
@@ -94,6 +101,20 @@ test("execution trace duplicate writes do not append duplicate steps", () => {
     const second = appendExecutionTraceStep(root, trace.id, input);
     assert.equal(first.steps.length, second.steps.length);
     assert.equal(readExecutionTrace(root, trace.id)?.steps.length, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("execution trace event IDs make retries idempotent", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-trace-event-id-"));
+  try {
+    const trace = startExecutionTrace(root, "event id retry");
+    const first = appendExecutionTraceStep(root, trace.id, { eventId: "event-1", action: "edit" });
+    const second = appendExecutionTraceStep(root, trace.id, { eventId: "event-1", action: "different-retry" });
+    assert.equal(first.steps.length, 2);
+    assert.equal(second.steps.length, 2);
+    assert.equal(second.steps[1]?.action, "edit");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
