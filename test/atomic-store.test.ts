@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { cleanupStaleLock } from "../src/core/file-lock.js";
 import { readJsonDiagnostic, RevisionConflictError, writeJsonAtomic, writeJsonAtomicWithRevision } from "../src/core/atomic-store.js";
 import { readExecutionTrace, startExecutionTrace } from "../src/harness/observability/execution-trace.js";
 
@@ -79,6 +80,22 @@ test("Windows-style nested paths and temporary files are handled safely", () => 
   writeJsonAtomic(filePath, { ok: true });
   assert.deepEqual(JSON.parse(readFileSync(filePath, "utf8")), { ok: true });
   assert.deepEqual(readJsonDiagnostic(filePath).status, "ok");
+});
+
+test("stale lock cleanup removes dead-owner locks but preserves live-owner locks", () => {
+  const root = createRoot();
+  const deadLock = path.join(root, "dead.json.lock");
+  writeFileSync(deadLock, JSON.stringify({ schemaVersion: 1, pid: 999999999, ownerToken: "dead", createdAt: "2020-01-01T00:00:00.000Z" }), "utf8");
+  const old = new Date(Date.now() - 300_000);
+  utimesSync(deadLock, old, old);
+  assert.equal(cleanupStaleLock(deadLock, 1000), true);
+  assert.equal(existsSync(deadLock), false);
+
+  const liveLock = path.join(root, "live.json.lock");
+  writeFileSync(liveLock, JSON.stringify({ schemaVersion: 1, pid: process.pid, ownerToken: "live", createdAt: new Date().toISOString() }), "utf8");
+  utimesSync(liveLock, old, old);
+  assert.equal(cleanupStaleLock(liveLock, 1000), false);
+  assert.equal(existsSync(liveLock), true);
 });
 
 function createRoot(): string {

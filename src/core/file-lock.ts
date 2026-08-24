@@ -7,6 +7,13 @@ export interface FileLockOptions {
   staleMs?: number;
 }
 
+export interface FileLockMetadata {
+  schemaVersion: 1;
+  pid: number;
+  ownerToken: string;
+  createdAt: string;
+}
+
 export class FileLockTimeoutError extends Error {
   constructor(
     readonly lockPath: string,
@@ -28,12 +35,13 @@ export function withFileLock<T>(targetPath: string, operation: () => T, options:
   while (descriptor === undefined) {
     try {
       descriptor = openSync(lockPath, "wx");
-      const metadata = JSON.stringify({ schemaVersion: 1, pid: process.pid, ownerToken, createdAt: new Date().toISOString() });
-      writeSync(descriptor, metadata, 0, "utf8");
+      const metadata: FileLockMetadata = { schemaVersion: 1, pid: process.pid, ownerToken, createdAt: new Date().toISOString() };
+      writeSync(descriptor, JSON.stringify(metadata), 0, "utf8");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       try {
-        if (Date.now() - statSync(lockPath).mtimeMs > staleMs) unlinkSync(lockPath);
+        const lockStat = statSync(lockPath);
+        if (Date.now() - lockStat.mtimeMs > staleMs && canRecoverStaleLock(lockPath)) unlinkSync(lockPath);
       } catch {
         // Another process may have released or replaced the lock.
       }
@@ -55,6 +63,30 @@ export function withFileLock<T>(targetPath: string, operation: () => T, options:
         // The stale-lock cleaner or an owner recovery path may have removed it.
       }
     }
+  }
+}
+
+export function cleanupStaleLock(lockPath: string, staleMs = 120_000): boolean {
+  if (!existsSync(lockPath)) return false;
+  try {
+    if (Date.now() - statSync(lockPath).mtimeMs <= staleMs || !canRecoverStaleLock(lockPath)) return false;
+    unlinkSync(lockPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function canRecoverStaleLock(lockPath: string): boolean {
+  try {
+    const metadata = JSON.parse(readFileSync(lockPath, "utf8")) as Partial<FileLockMetadata>;
+    if (typeof metadata.pid !== "number") return true;
+    if (metadata.pid === process.pid) return false;
+    process.kill(metadata.pid, 0);
+    return false;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "ESRCH" || code === "ENOENT" || code === "EPERM";
   }
 }
 
