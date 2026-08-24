@@ -77,8 +77,13 @@ test("release boundary: PR CI uses Windows Desktop gates without paid executors"
 
   const desktopSmoke = readFileSync(path.join(root, ".github", "workflows", "desktop-smoke.yml"), "utf8");
   assert.match(desktopSmoke, /workflow_dispatch/);
-  assert.match(desktopSmoke, /self-hosted, Windows, X64, opencode-desktop/);
+  assert.match(desktopSmoke, /SST\.OpenCodeDesktop/);
   assert.match(desktopSmoke, /--require-real-desktop-launch/);
+
+  const desktopRelease = readFileSync(path.join(root, ".github", "workflows", "desktop-release.yml"), "utf8");
+  assert.match(desktopRelease, /SST\.OpenCodeDesktop/);
+  assert.match(desktopRelease, /npm run test:desktop:real/);
+  assert.doesNotMatch(desktopRelease, /benchmark:agent:real|OPENCODE_EXECUTOR_COMMAND|CLAUDE|CODEX|MIMO/i);
 });
 
 test("release boundary: Desktop version comes only from package.json", () => {
