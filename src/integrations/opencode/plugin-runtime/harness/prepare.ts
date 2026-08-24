@@ -7,10 +7,39 @@ import { taskRunManifestPath, writePluginHarnessSession } from "./session.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { contextFingerprint, updateWorkflowState } from "./workflow.js";
+import { pluginPerformance, runPluginStage } from "./performance.js";
+import { createPluginHarnessError } from "./protocol.js";
 import type { PluginPrepareArgs, PluginPrepareResult } from "./types.js";
 
 export async function preparePluginHarnessTask(root: string, args: PluginPrepareArgs): Promise<PluginPrepareResult> {
-  await loadPluginHarnessContext(root);
+  const staged = await runPluginStage("prepare", () => preparePluginHarnessTaskInternal(root, args));
+  if (staged.status === "timeout") {
+    return createPluginHarnessError(
+      root,
+      "prepare",
+      `prepare exceeded the ${5000}ms Desktop target; retry after context generation settles.`,
+      null,
+      args.sessionId ?? null,
+      "none",
+      pluginPerformance("prepare", staged, "miss", "rebuilt", [], [])
+    );
+  }
+  const result = staged.value!;
+  return {
+    ...result,
+    performance: pluginPerformance(
+      "prepare",
+      staged,
+      result.performance?.cache ?? "miss",
+      result.performance?.contextMode ?? "rebuilt",
+      result.performance?.selectedFiles ?? [],
+      result.performance?.rejectedFiles ?? []
+    )
+  };
+}
+
+async function preparePluginHarnessTaskInternal(root: string, args: PluginPrepareArgs): Promise<PluginPrepareResult> {
+  const context = await loadPluginHarnessContext(root);
   const taskId = taskSlug(args.task);
   const existing = readJsonDiagnostic<TaskRunManifest>(taskRunManifestPath(root, taskId));
   const manifest =
@@ -53,6 +82,16 @@ export async function preparePluginHarnessTask(root: string, args: PluginPrepare
     allowedEditGlobs: manifest.allowedEditGlobs,
     avoidEditGlobs: manifest.avoidEditGlobs,
     requiredCommands: manifest.requiredCommands,
-    artifacts
+    artifacts,
+    performance: {
+      ...pluginPerformance(
+        "prepare",
+        { status: "completed", durationMs: 0 },
+        context.cacheStats.indexHits > 0 || context.cacheStats.graphHits > 0 ? "hit" : "miss",
+        context.cacheStats.indexHits > 0 ? "reused" : context.cacheStats.indexMisses > 0 ? "incremental" : "rebuilt",
+        manifest.mustInspect,
+        manifest.files.filter((file) => !manifest.mustInspect.includes(file))
+      )
+    }
   });
 }
