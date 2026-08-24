@@ -27,7 +27,7 @@ flowchart TD
 
 EXE 是当前用户级安装器。它把内置插件、状态文件、安装清单、三个原生命令菜单文件、`/plusplus-task` 和 `/plusplus-verify` Harness 工作流命令以及 `opencode-plusplus` skill 写入当前 OpenCode 配置目录，并对内置 `SessionPrompt.command` 分发器应用经过特征检查的窄范围补丁，使这三个原生命令可以不经过模型直接执行。原始 `app.asar` 会备份，卸载时恢复。安装器不替换更新器、不修改凭据，也不安装操作系统服务。
 
-esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不再携带 Node.js、Electron、OpenCode 或源代码仓库。v0.2.2 安装器约 3.5 MiB，安装时把插件展开到 OpenCode 配置目录。
+esbuild 先生成压缩后的 CommonJS 插件，再把 gzip payload 嵌入小型 .NET Framework 安装器。安装器使用受支持 Windows 10/11 自带的 .NET Framework 4.x，不携带 Node.js、第二套 UI runtime、OpenCode 或源代码仓库。构建强制 12 MiB 上限，并在 Desktop release manifest 中记录准确 EXE 大小和 SHA256。
 
 ## 插件边界
 
@@ -87,7 +87,7 @@ CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是
 
 ## 非目标
 
-- 不再提供第二个 Electron 或 TUI 应用。
+- 不提供第二个桌面应用或独立 UI runtime。
 - 不修改无关的 Desktop 代码；安装器只修改经过特征检查的 `SessionPrompt.command` 分发器，并可恢复原始 `app.asar`。
 - 不替代操作系统沙箱或杀毒软件。
 - 不声称命令通过就等于语义正确。
@@ -95,14 +95,18 @@ CLI/MCP Harness 是独立控制面，也是内部开发者/自动化面，不是
 
 ## Windows 故障处理
 
-| 故障                      | 预期行为                                                          |
-| ------------------------- | ----------------------------------------------------------------- |
-| 安装时 OpenCode 仍在运行  | 关闭并重启，让插件模块重新加载。                                  |
-| 使用自定义配置目录        | 设置 OPENCODE_CONFIG_DIR 或传 EXE --config-dir。                  |
-| 状态 JSON 损坏            | 安装器返回诊断，不静默覆盖。                                      |
-| Desktop hook 并发写入     | 持锁追加/更新保留事件，或返回 revision conflict 诊断。            |
-| 杀毒软件短暂占用 artifact | 原子替换对 Windows 共享/访问错误做有界重试。                      |
-| 插件 artifact 写入失败    | 普通 hook 正常返回并记录宿主日志；明确 Guard blocker 仍保持阻塞。 |
-| SmartScreen 警告          | 先核对发布的 SHA256；发布二进制未做商业代码签名。                 |
-| 存在旧项目插件            | 删除 .opencode/plugins/opencode-plusplus.ts，避免 hook 重复。     |
-| 其他程序编辑文件          | Sidecar 无法观察所有外部编辑，应运行 CLI verify 或 Harness 评估。 |
+| 故障                      | 预期行为                                                             |
+| ------------------------- | -------------------------------------------------------------------- |
+| 安装时 OpenCode 仍在运行  | 关闭并重启，让插件模块重新加载。                                     |
+| 使用自定义配置目录        | 安装器遵循 OpenCode 当前使用的用户配置。                             |
+| 状态 JSON 损坏            | 安装器返回诊断，不静默覆盖。                                         |
+| Desktop hook 并发写入     | 持锁追加/更新保留事件，或返回 revision conflict 诊断。               |
+| 杀毒软件短暂占用 artifact | 原子替换对 Windows 共享/访问错误做有界重试。                         |
+| 插件 artifact 写入失败    | 普通 hook 正常返回并记录宿主日志；明确 Guard blocker 仍保持阻塞。    |
+| SmartScreen 警告          | 先核对发布的 SHA256；发布二进制未做商业代码签名。                    |
+| 存在旧项目插件            | 删除 .opencode/plugins/opencode-plusplus.ts，避免 hook 重复。        |
+| 其他程序编辑文件          | Sidecar 无法观察所有外部编辑，应在 Desktop 运行 `/plusplus-verify`。 |
+
+## 发布验证边界
+
+Windows CI 构建 EXE，并验证 release manifest、SHA256、体积阈值、独立 plugin export、三条本地命令、patch marker、original backup、中断替换恢复和 uninstall restore；同时运行不调用模型或外部 executor 的确定性 Desktop Harness benchmark。真实 OpenCode Desktop 启动只允许在手动 `Desktop smoke` workflow 中执行，要求带有预装 OpenCode 的自托管 Windows runner；PR CI 不启动 GUI，也不调用付费模型。

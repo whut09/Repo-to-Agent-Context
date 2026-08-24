@@ -27,7 +27,7 @@ flowchart TD
 
 The EXE is a per-user installer. It writes the bundled plugin, state, installation manifest, three native command menu files, the `/plusplus-task` and `/plusplus-verify` harness workflow commands, and the `opencode-plusplus` skill below the active OpenCode config directory. It also applies a narrow, marker-checked patch to the bundled `SessionPrompt.command` dispatcher so the three native commands run locally without a model turn. The original `app.asar` is backed up and restored on uninstall. The installer does not replace the updater, modify credentials, or install an operating-system service.
 
-esbuild produces a minified CommonJS plugin, then the build compresses it into a small .NET Framework installer. The installer uses the .NET Framework 4.x runtime included with supported Windows 10/11 systems; it does not bundle Node.js, Electron, OpenCode, or the source checkout. The v0.2.2 installer is about 3.5 MiB and expands the plugin into the OpenCode configuration directory during installation.
+esbuild produces a minified CommonJS plugin, then the build compresses it into a small .NET Framework installer. The installer uses the .NET Framework 4.x runtime included with supported Windows 10/11 systems; it does not bundle Node.js, a separate UI runtime, OpenCode, or the source checkout. The build enforces a 12 MiB ceiling and records the exact EXE size and SHA256 in the Desktop release manifest.
 
 ## Plugin Boundary
 
@@ -87,7 +87,7 @@ The entry point determines authority:
 
 ## Non-Goals
 
-- No second Electron or TUI application.
+- No second desktop application or separate UI runtime.
 - No modification of unrelated Desktop code; the installer only changes the marker-checked `SessionPrompt.command` dispatcher and can restore the original `app.asar`.
 - No operating-system sandbox or antivirus replacement.
 - No claim that a passing command proves semantic correctness.
@@ -98,11 +98,15 @@ The entry point determines authority:
 | Failure                                  | Expected behavior                                                                  |
 | ---------------------------------------- | ---------------------------------------------------------------------------------- |
 | OpenCode is still running during install | Close and restart it so the plugin module is reloaded.                             |
-| Custom config directory                  | Set OPENCODE_CONFIG_DIR or use EXE --config-dir.                                   |
+| Custom config directory                  | The installer follows the active OpenCode user configuration.                      |
 | Corrupt state JSON                       | Installer reports a diagnostic and does not overwrite it silently.                 |
 | Concurrent Desktop hooks                 | Locked append/update preserves events or returns a revision-conflict diagnostic.   |
 | Antivirus briefly holds an artifact      | Atomic replacement retries bounded Windows sharing/access failures.                |
 | Plugin artifact write fails              | The normal hook returns safely and logs to the host; explicit Guard blocks remain. |
 | SmartScreen warning                      | Verify the published SHA256; the release binary is not commercially code-signed.   |
 | Legacy project plugin exists             | Remove .opencode/plugins/opencode-plusplus.ts to avoid duplicate hooks.            |
-| Another program edits files              | Sidecar cannot observe every external edit; run CLI verify or Harness evaluation.  |
+| Another program edits files              | Sidecar cannot observe every external edit; run `/plusplus-verify` in Desktop.     |
+
+## Release Verification Boundary
+
+Windows CI builds the EXE and verifies the release manifest, SHA256, size budget, standalone plugin export, three local command names, patch marker, original backup, interrupted replacement recovery, and uninstall restoration. It also runs a deterministic in-process Desktop Harness benchmark with no model or external executor. A real OpenCode Desktop launch is restricted to the manual `Desktop smoke` workflow on a self-hosted Windows runner with OpenCode preinstalled; PR CI never starts a GUI or calls a paid model.
