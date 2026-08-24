@@ -90,14 +90,15 @@ function canRecoverStaleLock(lockPath: string): boolean {
   }
 }
 
-export function cleanupAtomicTempFiles(targetPath: string): void {
+export function cleanupAtomicTempFiles(targetPath: string, staleMs = 120_000): void {
   const directory = path.dirname(targetPath);
   const prefix = `${path.basename(targetPath)}.tmp-`;
   if (!existsSync(directory)) return;
   for (const entry of readdirSync(directory)) {
     if (entry.startsWith(prefix)) {
       try {
-        unlinkSync(path.join(directory, entry));
+        const temporaryPath = path.join(directory, entry);
+        if (Date.now() - statSync(temporaryPath).mtimeMs > staleMs) unlinkSync(temporaryPath);
       } catch {
         // Best-effort cleanup; an active writer owns its temp file.
       }

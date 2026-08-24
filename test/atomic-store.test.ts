@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { cleanupStaleLock } from "../src/core/file-lock.js";
+import { cleanupAtomicTempFiles, cleanupStaleLock } from "../src/core/file-lock.js";
 import { appendJsonLineLocked, readJsonDiagnostic, RevisionConflictError, writeJsonAtomic, writeJsonAtomicWithRevision } from "../src/core/atomic-store.js";
 import { readExecutionTrace, startExecutionTrace } from "../src/harness/observability/execution-trace.js";
 
@@ -106,6 +106,20 @@ test("locked JSONL append assigns sequence and deduplicates event IDs", () => {
   assert.deepEqual(appendJsonLineLocked(filePath, { eventId: "event-a", payload: "duplicate" }), { appended: false, sequence: 1 });
   assert.deepEqual(appendJsonLineLocked(filePath, { eventId: "event-b", payload: "second" }), { appended: true, sequence: 2 });
   assert.equal(readFileSync(filePath, "utf8").trim().split(/\r?\n/).length, 2);
+});
+
+test("temporary cleanup preserves active files and removes stale files", () => {
+  const root = createRoot();
+  const target = path.join(root, "state.json");
+  const active = `${target}.tmp-active`;
+  const stale = `${target}.tmp-stale`;
+  writeFileSync(active, "active", "utf8");
+  writeFileSync(stale, "stale", "utf8");
+  const old = new Date(Date.now() - 300_000);
+  utimesSync(stale, old, old);
+  cleanupAtomicTempFiles(target, 1000);
+  assert.equal(existsSync(active), true);
+  assert.equal(existsSync(stale), false);
 });
 
 function createRoot(): string {

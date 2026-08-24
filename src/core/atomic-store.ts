@@ -166,6 +166,7 @@ function writeTextAtomicUnlocked(filePath: string, content: string, options: Ato
     descriptor = undefined;
     options.beforeRename?.(temporaryPath, filePath);
     replaceFile(temporaryPath, filePath, options);
+    syncDirectory(path.dirname(filePath));
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
     try {
@@ -173,6 +174,19 @@ function writeTextAtomicUnlocked(filePath: string, content: string, options: Ato
     } catch {
       /* already renamed or absent */
     }
+  }
+}
+
+function syncDirectory(directory: string): void {
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(directory, "r");
+    fsyncSync(descriptor);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (process.platform !== "win32" && code !== "EINVAL" && code !== "EPERM" && code !== "EACCES") throw error;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }
 
