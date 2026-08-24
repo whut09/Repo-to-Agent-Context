@@ -137,11 +137,11 @@ export async function createOpenCodePlusPlusSidecar(
       if (!enabled()) return;
       const normalized = normalizeToolExecuteBefore(input, output);
       const sessionId = normalized.sessionId ?? "default";
-      const workflow = initializeWorkflowState(context.directory, sessionId);
+      const workflow = safeInitializeWorkflow(sessionId);
       if (normalized.tool !== "shell" && workflow.sourceChanged && !workflow.taskId) {
         throw new Error("OpenCode++ requires opencode_plusplus_prepare before source edits.");
       }
-      updateWorkflowState(context.directory, sessionId, {
+      safeUpdateWorkflow(sessionId, {
         phase: workflow.taskId ? "editing" : workflow.phase,
         eventKey: `tool:${normalized.callId ?? toolKey(normalized.tool, normalized.args)}`
       });
@@ -156,49 +156,83 @@ export async function createOpenCodePlusPlusSidecar(
       lifecycle.onSessionCompacting(input, output);
     },
     event: async ({ event }: { event?: Record<string, unknown> }) => {
-      const eventRecord = event ?? {};
-      const type = eventRecord.type;
-      if (type === "session.created") {
-        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
-        initializeWorkflowState(context.directory, sessionId);
-        lifecycle.onSessionCreated();
-        return;
-      }
+      try {
+        const eventRecord = event ?? {};
+        const type = eventRecord.type;
+        if (type === "session.created") {
+          const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+          safeInitializeWorkflow(sessionId);
+          lifecycle.onSessionCreated();
+          return;
+        }
 
-      if (!enabled()) return;
+        if (!enabled()) return;
 
-      if (type === "file.edited") {
-        const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
-        const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
-        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
-        const workflow = initializeWorkflowState(context.directory, sessionId);
-        updateWorkflowState(context.directory, sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.edited:${file}` });
-        idle.markDirty("file.edited", { file });
-      }
+        if (type === "file.edited") {
+          const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
+          const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
+          const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+          const workflow = safeInitializeWorkflow(sessionId);
+          safeUpdateWorkflow(sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.edited:${file}` });
+          idle.markDirty("file.edited", { file });
+        }
 
-      if (type === "file.watcher.updated") {
-        const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
-        const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
-        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
-        const workflow = initializeWorkflowState(context.directory, sessionId);
-        if (!workflow.taskId) throw new Error("OpenCode++ requires opencode_plusplus_prepare before source edits.");
-        updateWorkflowState(context.directory, sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.watcher.updated:${file}` });
-        idle.markDirty("file.watcher.updated", { file });
-      }
+        if (type === "file.watcher.updated") {
+          const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
+          const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
+          const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+          const workflow = safeInitializeWorkflow(sessionId);
+          if (!workflow.taskId) throw new Error("OpenCode++ requires opencode_plusplus_prepare before source edits.");
+          safeUpdateWorkflow(sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.watcher.updated:${file}` });
+          idle.markDirty("file.watcher.updated", { file });
+        }
 
-      if (type === "session.idle") {
-        const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
-        updateWorkflowState(context.directory, sessionId, { eventKey: `session.idle:${sessionId}` });
-        recorder.record("session.idle");
-        const verify = await idle.maybeVerifyOnIdle();
-        lifecycle.onSessionIdle(verify);
-      }
+        if (type === "session.idle") {
+          const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
+          safeUpdateWorkflow(sessionId, { eventKey: `session.idle:${sessionId}` });
+          recorder.record("session.idle");
+          const verify = await idle.maybeVerifyOnIdle();
+          lifecycle.onSessionIdle(verify);
+        }
 
-      if (type === "session.error") {
-        lifecycle.onSessionError(eventRecord);
+        if (type === "session.error") {
+          lifecycle.onSessionError(eventRecord);
+        }
+      } catch (error) {
+        recorder.log("debug", "plugin event hook failed safely", { message: error instanceof Error ? error.message : String(error) });
       }
     }
   };
+
+  function safeInitializeWorkflow(sessionId: string) {
+    try {
+      return initializeWorkflowState(context.directory, sessionId);
+    } catch (error) {
+      recorder.log("debug", "workflow initialization failed safely", { sessionId, message: error instanceof Error ? error.message : String(error) });
+      const current = currentSidecarWorkingTreeHash(context.directory);
+      return {
+        sessionId,
+        phase: "created" as const,
+        taskId: null,
+        contextFingerprint: null,
+        initialWorkingTreeHash: current,
+        currentWorkingTreeHash: current,
+        editBoundary: { allowedEditGlobs: [], avoidEditGlobs: [] },
+        requiredTests: [],
+        lastEventKey: null,
+        sourceChanged: false,
+        updatedAt: new Date().toISOString()
+      };
+    }
+  }
+
+  function safeUpdateWorkflow(sessionId: string, update: Parameters<typeof updateWorkflowState>[2]): void {
+    try {
+      updateWorkflowState(context.directory, sessionId, update);
+    } catch (error) {
+      recorder.log("debug", "workflow update failed safely", { sessionId, message: error instanceof Error ? error.message : String(error) });
+    }
+  }
 }
 
 function controlTool(description: string, action: () => ReturnType<typeof readOpenCodePlusPlusPluginStatus>): Record<string, unknown> {
