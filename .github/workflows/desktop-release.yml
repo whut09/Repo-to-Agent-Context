@@ -1,0 +1,58 @@
+name: Desktop release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v0.2.3"
+        required: true
+        type: string
+      publish:
+        description: "Create or update the GitHub Release after all gates pass"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build verified Windows Desktop release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run docs:bilingual:check
+      - run: npm test
+      - run: npm run build
+      - run: npm run benchmark:desktop
+      - run: npm run build:installer:windows
+      - run: npm run release:verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-plusplus-${{ inputs.tag }}-windows-x64
+          if-no-files-found: error
+          path: |
+            release/opencode-plusplus-setup-win-x64.exe
+            release/opencode-plusplus-setup-win-x64.exe.sha256
+            release/opencode-plusplus-release.json
+      - name: Publish GitHub Release assets
+        if: inputs.publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG --target $env:GITHUB_SHA --title "OpenCode++ $env:RELEASE_TAG" --generate-notes
+          }
+          gh release upload $env:RELEASE_TAG release/opencode-plusplus-setup-win-x64.exe release/opencode-plusplus-setup-win-x64.exe.sha256 release/opencode-plusplus-release.json --clobber
