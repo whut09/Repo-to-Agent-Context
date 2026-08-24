@@ -19,5 +19,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .agent-context/worktrees/
+.agent-context/sidecar/
+.agent-context/traces/
+.agent-context/loops/
+.agent-context/orchestrator/
+.agent-context/runs/
 .opencode-plusplus/clipboard/
 benchmarks/results/
