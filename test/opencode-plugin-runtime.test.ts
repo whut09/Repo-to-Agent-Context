@@ -8,6 +8,7 @@ import { runOpenCodePlusPlusCli } from "../src/integrations/opencode/plugin-runt
 import { exitCodeFromOutput } from "../src/integrations/opencode/plugin-runtime/evidence.js";
 import { workflowStatePath } from "../src/integrations/opencode/plugin-runtime/harness/workflow.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "../src/integrations/opencode/plugin-runtime/hook-input.js";
+import { setOpenCodePlusPlusPluginEnabled } from "../src/integrations/opencode/plugin-runtime/state.js";
 
 test("OpenCode plugin normalizes current before hook arguments", () => {
   const result = normalizeToolExecuteBefore(
@@ -128,6 +129,23 @@ test("OpenCode plugin event hooks survive corrupt workflow persistence", async (
     await eventHook({ event: { type: "file.edited", sessionID: "session-1", properties: { file: "src/index.ts" } } });
 
     assert.ok(diagnostics.includes("workflow initialization failed safely"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode plugin state reports revision conflicts without overwriting", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-state-conflict-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const disabled = setOpenCodePlusPlusPluginEnabled(false, stateFile, 0);
+    assert.equal(disabled.enabled, false);
+    assert.equal(disabled.revision, 1);
+
+    const stale = setOpenCodePlusPlusPluginEnabled(true, stateFile, 0);
+    assert.equal(stale.enabled, false);
+    assert.equal(stale.revision, 1);
+    assert.match(stale.diagnostic ?? "", /Revision conflict/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
