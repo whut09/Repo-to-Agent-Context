@@ -36,3 +36,51 @@ test("annotations support add, list, read, and clear with availability-only list
     rmSync(repository, { recursive: true, force: true });
   }
 });
+
+test("annotations are isolated by repository, entry, package version, and content revision", () => {
+  const firstRepository = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-annotation-a-"));
+  const secondRepository = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-annotation-b-"));
+  try {
+    addContextAnnotation({ repository: firstRepository, entryId: "entry-a", packageVersion: "1.0.0", contentRevision: 1, kind: "convention", note: "A" });
+    addContextAnnotation({ repository: firstRepository, entryId: "entry-a", packageVersion: "2.0.0", contentRevision: 1, kind: "convention", note: "A2" });
+    addContextAnnotation({ repository: firstRepository, entryId: "entry-b", packageVersion: "1.0.0", contentRevision: 1, kind: "convention", note: "B" });
+    addContextAnnotation({ repository: secondRepository, entryId: "entry-a", packageVersion: "1.0.0", contentRevision: 1, kind: "convention", note: "Other" });
+    assert.equal(
+      listContextAnnotations({ repository: firstRepository, entryId: "entry-a", packageVersion: "1.0.0", contentRevision: 1 }).annotations.length,
+      1
+    );
+    assert.equal(
+      listContextAnnotations({ repository: firstRepository, entryId: "entry-b", packageVersion: "1.0.0", contentRevision: 1 }).annotations.length,
+      1
+    );
+    assert.equal(
+      listContextAnnotations({ repository: secondRepository, entryId: "entry-a", packageVersion: "1.0.0", contentRevision: 1 }).annotations.length,
+      1
+    );
+  } finally {
+    rmSync(firstRepository, { recursive: true, force: true });
+    rmSync(secondRepository, { recursive: true, force: true });
+  }
+});
+
+test("older annotations are stale by default and require explicit opt-in to read", () => {
+  const repository = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-annotation-stale-"));
+  try {
+    const annotation = addContextAnnotation({
+      repository,
+      entryId: "entry",
+      packageVersion: "1.0.0",
+      contentRevision: 1,
+      kind: "failure-cause",
+      note: "Old workaround"
+    });
+    const listed = listContextAnnotations({ repository, entryId: "entry", packageVersion: "1.0.0", contentRevision: 2 });
+    assert.equal(listed.annotationAvailable, true);
+    assert.equal(listed.staleCount, 1);
+    assert.throws(() => readContextAnnotation({ repository, entryId: "entry", packageVersion: "1.0.0", contentRevision: 2, id: annotation.id }), /stale/i);
+    const explicit = readContextAnnotation({ repository, entryId: "entry", packageVersion: "1.0.0", contentRevision: 2, id: annotation.id, allowStale: true });
+    assert.equal(explicit.stale, true);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
+});
