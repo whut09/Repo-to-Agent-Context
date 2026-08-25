@@ -87,6 +87,9 @@ export interface ContextEntry {
   files: ContextFile[];
   contentHash: string;
   provenance: ContextProvenance;
+  symbols?: string[];
+  dependencyChain?: string[];
+  qualityScore?: number;
 }
 
 export interface ContextPack {
