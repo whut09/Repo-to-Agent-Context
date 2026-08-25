@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,6 +10,7 @@ import {
   createInterventionEvent,
   findInterventions,
   interventionIdFor,
+  interventionLedgerJsonlPath,
   interventionLedgerPath,
   readInterventionLedger,
   summarizeInterventions,
@@ -54,6 +55,9 @@ test("ledger appends atomically and duplicate event IDs are idempotent", () => {
     assert.equal(ledger?.events.length, 1);
     assert.equal(ledger?.revision, 1);
     assert.ok(interventionLedgerPath(root, "task-1").includes("interventions"));
+    const jsonl = readFileSync(interventionLedgerJsonlPath(root, "task-1"), "utf8").trim().split(/\r?\n/);
+    assert.equal(jsonl.length, 1);
+    assert.equal(JSON.parse(jsonl[0]).eventId, first.eventId);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

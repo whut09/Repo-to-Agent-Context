@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { readJsonDiagnostic, updateJsonAtomic } from "../../core/atomic-store.js";
+import { appendJsonLineLocked, readJsonDiagnostic, updateJsonAtomic } from "../../core/atomic-store.js";
 import { clampConfidence, type InterventionEvent, type InterventionStatus, type InterventionSummary, type ResolutionEvidence } from "../types.js";
 
 export const INTERVENTION_SCHEMA_VERSION = "opencode-plusplus.intervention.v1";
@@ -19,6 +19,10 @@ export interface NewInterventionEvent extends Omit<InterventionEvent, "schemaVer
 
 export function interventionLedgerPath(root: string, taskId: string): string {
   return path.join(root, ".agent-context", "interventions", `${safeLedgerId(taskId)}.json`);
+}
+
+export function interventionLedgerJsonlPath(root: string, taskId: string): string {
+  return path.join(root, ".agent-context", "interventions", `${safeLedgerId(taskId)}.jsonl`);
 }
 
 export function interventionIdFor(input: Pick<NewInterventionEvent, "taskId" | "findingId" | "category" | "problem">): string {
@@ -107,6 +111,7 @@ export function appendInterventionEvent(root: string, input: NewInterventionEven
     ledger.revision += 1;
     return ledger;
   });
+  appendJsonLineLocked(interventionLedgerJsonlPath(root, event.taskId), persisted);
   return persisted;
 }
 
