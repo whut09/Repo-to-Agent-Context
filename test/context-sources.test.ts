@@ -10,7 +10,9 @@ import {
   loadContextSourceRegistry,
   mergeContextPacks,
   readSourceCache,
+  readContextRegistrySnapshot,
   sourceCachePath,
+  writeContextRegistrySnapshot,
   writeSourceCache,
   type ContextEntry,
   type ContextPack,
@@ -225,6 +227,24 @@ test("corrupt source cache is diagnostic and cannot be replaced silently", () =>
     const result = readSourceCache(root, source);
     assert.equal(result.status, "corrupt");
     assert.throws(() => writeSourceCache(root, source, pack("中文 source")), /Unable to update corrupt source cache/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("merged registry snapshots use atomic revision storage and diagnose corruption", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-registry-snapshot-"));
+  const source = remoteSource("public", pack("public"));
+  try {
+    const loaded = await loadContextSourceRegistry({ root, sources: [source], offline: false, fetch: async () => jsonResponse(pack("public")) });
+    const snapshot = loaded.snapshot!;
+    const first = writeContextRegistrySnapshot(root, snapshot);
+    assert.equal(first.revision, 1);
+    assert.equal(readContextRegistrySnapshot(root).status, "ok");
+    assert.throws(() => writeContextRegistrySnapshot(root, snapshot, 0), /Revision conflict/);
+    const snapshotPath = path.join(root, ".agent-context", "cache", "context-registry", "snapshot.json");
+    writeFileSync(snapshotPath, "{broken", "utf8");
+    assert.equal(readContextRegistrySnapshot(root).status, "corrupt");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

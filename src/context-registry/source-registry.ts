@@ -1,8 +1,11 @@
+import path from "node:path";
+import { readJsonDiagnostic, writeJsonAtomicWithRevision } from "../core/atomic-store.js";
 import { buildLocalContextPack } from "./registry-builder.js";
 import { hashContextValue } from "./hash.js";
 import { readSourceCache, writeSourceCache, type SourceCacheReadResult } from "./source-cache.js";
 import { fetchRemoteContextPack, ContextSourceFetchError } from "./remote-source.js";
 import { validResult, type ContextSchemaIssue, type ContextValidationResult } from "./schema.js";
+import { validateContextEntry, validateContextSource } from "./validators.js";
 import type {
   ContextEntry,
   ContextPack,
@@ -42,6 +45,11 @@ export interface ContextSourceRegistryResult {
   issues: ContextSchemaIssue[];
 }
 
+export type ContextRegistrySnapshotReadResult =
+  | { status: "ok"; value: ContextRegistrySnapshot }
+  | { status: "missing"; filePath: string }
+  | { status: "corrupt"; filePath: string; error: string };
+
 const TRUST_RANK: Record<ContextTrustLevel, number> = {
   official: 5,
   maintainer: 4,
@@ -49,6 +57,28 @@ const TRUST_RANK: Record<ContextTrustLevel, number> = {
   community: 2,
   untrusted: 1
 };
+
+export function contextRegistrySnapshotPath(root: string): string {
+  return path.join(path.resolve(root), ".agent-context", "cache", "context-registry", "snapshot.json");
+}
+
+export function readContextRegistrySnapshot(root: string): ContextRegistrySnapshotReadResult {
+  const filePath = contextRegistrySnapshotPath(root);
+  const result = readJsonDiagnostic<ContextRegistrySnapshot>(filePath);
+  if (result.status !== "ok") return result;
+  const issues = validateSnapshot(result.value);
+  if (issues.length) return { status: "corrupt", filePath, error: issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ") };
+  return { status: "ok", value: result.value };
+}
+
+export function writeContextRegistrySnapshot(root: string, snapshot: ContextRegistrySnapshot, expectedRevision?: number): ContextRegistrySnapshot {
+  const issues = validateSnapshot(snapshot);
+  if (issues.length) throw new Error(issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+  const filePath = contextRegistrySnapshotPath(root);
+  const current = readContextRegistrySnapshot(root);
+  const revision = expectedRevision ?? (current.status === "ok" ? current.value.revision : 0);
+  return writeJsonAtomicWithRevision(filePath, snapshot, revision) as ContextRegistrySnapshot;
+}
 
 export async function loadContextSourceRegistry(options: ContextSourceRegistryOptions): Promise<ContextSourceRegistryResult> {
   const duplicateNames = findDuplicateSourceNames(options.sources);
@@ -250,4 +280,35 @@ function findDuplicateSourceNames(sources: ContextSourceConfig[]): string[] {
     .filter(([, count]) => count > 1)
     .map(([name]) => name)
     .sort();
+}
+
+function validateSnapshot(snapshot: unknown): ContextSchemaIssue[] {
+  const issues: ContextSchemaIssue[] = [];
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return [{ path: "$", code: "type", message: "expected a registry snapshot object" }];
+  }
+  const value = snapshot as Record<string, unknown>;
+  if (value.schemaVersion !== 1) issues.push({ path: "$.schemaVersion", code: "version", message: "expected schemaVersion 1" });
+  if (!Number.isInteger(value.revision) || Number(value.revision) < 0)
+    issues.push({ path: "$.revision", code: "revision", message: "expected a non-negative integer" });
+  if (typeof value.generatedAt !== "string" || Number.isNaN(Date.parse(value.generatedAt)))
+    issues.push({ path: "$.generatedAt", code: "format", message: "expected an ISO-8601 timestamp" });
+  if (!Array.isArray(value.entries)) issues.push({ path: "$.entries", code: "type", message: "expected an array" });
+  if (!Array.isArray(value.sources)) issues.push({ path: "$.sources", code: "type", message: "expected an array" });
+  if (!Array.isArray(value.conflicts)) issues.push({ path: "$.conflicts", code: "type", message: "expected an array" });
+  if (!Array.isArray(value.cache)) issues.push({ path: "$.cache", code: "type", message: "expected an array" });
+  if (typeof value.registryHash !== "string" || !/^[a-f0-9]{64}$/i.test(value.registryHash))
+    issues.push({ path: "$.registryHash", code: "format", message: "expected a SHA-256 hex digest" });
+  for (const [index, entry] of (Array.isArray(value.entries) ? value.entries : []).entries()) {
+    const result = validateContextEntry(entry, `$.entries[${index}]`);
+    if (!result.valid) issues.push(...result.issues);
+  }
+  for (const [index, source] of (Array.isArray(value.sources) ? value.sources : []).entries()) {
+    const result = validateContextSource(source, `$.sources[${index}]`);
+    if (!result.valid) issues.push(...result.issues);
+  }
+  if (Array.isArray(value.entries) && typeof value.registryHash === "string" && hashContextValue(value.entries) !== value.registryHash) {
+    issues.push({ path: "$.registryHash", code: "value", message: "does not match snapshot entries" });
+  }
+  return issues;
 }
