@@ -2,7 +2,7 @@ export type RetrieverProvider = "static" | "ripgrep" | "hybrid" | "lightrag" | "
 export type RetrievalTaskType = "bugfix" | "feature" | "refactor" | "auto";
 
 export interface RetrievalScoreBreakdown {
-  [signal: string]: number | undefined;
+  [signal: string]: number;
   lexical: number;
   path: number;
   changed: number;
@@ -12,12 +12,12 @@ export interface RetrievalScoreBreakdown {
   dependencyChain: number;
   regressionMemory: number;
   negativeExample: number;
-  negativePenalty?: number;
-  dependency?: number;
-  source?: number;
-  quality?: number;
-  regression?: number;
-  exactId?: number;
+  negativePenalty: number;
+  dependency: number;
+  source: number;
+  quality: number;
+  regression: number;
+  exactId: number;
   total: number;
 }
 

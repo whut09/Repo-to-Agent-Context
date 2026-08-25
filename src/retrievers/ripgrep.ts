@@ -92,6 +92,12 @@ function hitFor(file: IndexedFile, source: "ripgrep"): ContextHit {
         dependencyChain: 0,
         regressionMemory: 0,
         negativeExample: 0,
+        negativePenalty: 0,
+        dependency: 0,
+        source: 0,
+        quality: 0,
+        regression: 0,
+        exactId: 0,
         total: 0
       }
     }

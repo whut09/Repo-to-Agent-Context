@@ -52,6 +52,12 @@ export class StaticContextRetriever implements ContextRetriever {
               dependencyChain: chainBoost,
               regressionMemory: regressionBoost,
               negativeExample: negativePenalty,
+              negativePenalty,
+              dependency: chainBoost,
+              source: 0,
+              quality: 0,
+              regression: regressionBoost,
+              exactId: 0,
               total: score
             }
           }
@@ -164,23 +170,49 @@ export function sortHits<T extends { score: number; path: string }>(hits: T[]): 
 }
 
 export function mergeScoreBreakdowns(left: RetrievalScoreBreakdown | undefined, right: RetrievalScoreBreakdown | undefined): RetrievalScoreBreakdown {
-  const merged: Record<string, number> = {};
-  for (const breakdown of [left, right]) {
-    for (const [key, value] of Object.entries(breakdown ?? {})) {
-      if (key === "total") continue;
-      if (typeof value === "number" && Number.isFinite(value)) merged[key] = (merged[key] ?? 0) + value;
-    }
-  }
+  const breakdowns = [left, right];
+  const value = (key: keyof RetrievalScoreBreakdown, fallback = 0): number =>
+    breakdowns.reduce((sum, breakdown) => sum + (typeof breakdown?.[key] === "number" ? (breakdown[key] as number) : fallback), 0);
+  const negativePenalty = breakdowns.reduce(
+    (sum, breakdown) => sum + (typeof breakdown?.negativePenalty === "number" ? breakdown.negativePenalty : (breakdown?.negativeExample ?? 0)),
+    0
+  );
+  const dependency = breakdowns.reduce(
+    (sum, breakdown) => sum + (typeof breakdown?.dependency === "number" ? breakdown.dependency : (breakdown?.dependencyChain ?? 0)),
+    0
+  );
+  const regression = breakdowns.reduce(
+    (sum, breakdown) => sum + (typeof breakdown?.regression === "number" ? breakdown.regression : (breakdown?.regressionMemory ?? 0)),
+    0
+  );
   return {
-    lexical: merged.lexical ?? 0,
-    path: merged.path ?? 0,
-    changed: merged.changed ?? 0,
-    importance: merged.importance ?? 0,
-    taskType: merged.taskType ?? 0,
-    symbol: merged.symbol ?? 0,
-    dependencyChain: merged.dependencyChain ?? 0,
-    regressionMemory: merged.regressionMemory ?? 0,
-    negativeExample: merged.negativeExample ?? 0,
-    total: Object.entries(merged).reduce((sum, [key, value]) => sum + (key === "negativeExample" ? -value : value), 0)
+    lexical: value("lexical"),
+    path: value("path"),
+    changed: value("changed"),
+    importance: value("importance"),
+    taskType: value("taskType"),
+    symbol: value("symbol"),
+    dependencyChain: dependency,
+    regressionMemory: regression,
+    negativeExample: negativePenalty,
+    negativePenalty,
+    dependency,
+    source: value("source"),
+    quality: value("quality"),
+    regression,
+    exactId: value("exactId"),
+    total:
+      value("lexical") +
+      value("path") +
+      value("changed") +
+      value("importance") +
+      value("taskType") +
+      value("symbol") +
+      dependency +
+      regression +
+      value("source") +
+      value("quality") +
+      value("exactId") -
+      negativePenalty
   };
 }
