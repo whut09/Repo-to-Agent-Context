@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { readJsonDiagnostic, writeJsonAtomicWithRevision } from "../core/atomic-store.js";
 import { hashContextValue } from "./hash.js";
 import { validateContextPack } from "./validators.js";
@@ -19,7 +20,8 @@ export type SourceCacheReadResult =
 
 export function sourceCachePath(root: string, source: Pick<ContextSourceConfig, "name">): string {
   const safeName = source.name.replace(/[^a-z0-9._-]+/gi, "_");
-  return path.join(path.resolve(root), ".agent-context", "cache", "context-registry", `${safeName}.json`);
+  const identity = createHash("sha256").update(source.name, "utf8").digest("hex").slice(0, 16);
+  return path.join(path.resolve(root), ".agent-context", "cache", "context-registry", `${safeName}-${identity}.json`);
 }
 
 export function readSourceCache(root: string, source: Pick<ContextSourceConfig, "name">, now = new Date()): SourceCacheReadResult {
@@ -42,6 +44,9 @@ export function readSourceCache(root: string, source: Pick<ContextSourceConfig, 
   }
   if (value.metadata.sourceName !== source.name) {
     return { status: "corrupt", filePath, error: `source cache belongs to ${value.metadata.sourceName}, not ${source.name}` };
+  }
+  if (value.metadata.sourceLocation !== source.location) {
+    return { status: "corrupt", filePath, error: `source cache location changed from ${value.metadata.sourceLocation} to ${source.location}` };
   }
   const computedContentHash = hashContextValue(packResult.value);
   if (value.metadata.contentHash !== computedContentHash) {

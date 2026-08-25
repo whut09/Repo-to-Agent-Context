@@ -232,6 +232,20 @@ test("corrupt source cache is diagnostic and cannot be replaced silently", () =>
   }
 });
 
+test("source cache identity includes the configured location", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-source-location-"));
+  const source = remoteSource("public", pack("public"));
+  try {
+    await loadContextSourceRegistry({ root, sources: [source], offline: false, fetch: async () => jsonResponse(pack("public")) });
+    const changed = { ...source, location: "https://example.test/changed.json" };
+    const result = readSourceCache(root, changed);
+    assert.equal(result.status, "corrupt");
+    assert.ok(result.status === "corrupt" && result.error.includes("location changed"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("merged registry snapshots use atomic revision storage and diagnose corruption", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-registry-snapshot-"));
   const source = remoteSource("public", pack("public"));
