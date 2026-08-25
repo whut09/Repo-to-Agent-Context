@@ -11,3 +11,4 @@ export * from "./registry-builder.js";
 export * from "./source-cache.js";
 export * from "./remote-source.js";
 export * from "./source-registry.js";
+export * from "./content-reader.js";
