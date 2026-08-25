@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import type { AgentEvent } from "../../outputs/agent-events.js";
 import type { GuardFindingsArtifact } from "../../outputs/guard-finding.js";
@@ -12,6 +12,7 @@ import { HARNESS_DECISION_PRIORITY } from "./decision-engine.js";
 import type { AgentExecutorResult, HarnessOrchestratorReport } from "./orchestrator.js";
 import type { ConvergenceResult } from "./convergence.js";
 import type { ContextRefreshMetrics } from "./context-refresh.js";
+import { writeTextAtomic } from "../../core/atomic-store.js";
 
 export interface IterationArtifactInput {
   runId: string;
@@ -143,7 +144,7 @@ export function writeIterationArtifacts(root: string, iterationDir: string, inpu
     const diffSource = path.join(root, input.executorResult.diffPath);
     const diffTarget = path.join(iterationDir, "diff.patch");
     if (existsSync(diffSource)) copyFileSync(diffSource, diffTarget);
-    else writeFileSync(diffTarget, "", "utf8");
+    else writeTextAtomic(diffTarget, "");
     files.push(diffTarget);
   }
   return files;
@@ -154,6 +155,6 @@ function formatAgentEvents(events: AgentEvent[]): string {
 }
 
 function write(filePath: string, content: string): string {
-  writeFileSync(filePath, `${content.trim()}\n`, "utf8");
+  writeTextAtomic(filePath, `${content.trim()}\n`);
   return filePath;
 }
