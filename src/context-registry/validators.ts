@@ -323,6 +323,31 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
       optionalString(freshness, "reason", `${path}.freshness`, issues);
     }
   }
+  const availability = input.annotationAvailability;
+  if (availability !== undefined) {
+    if (!isRecord(availability)) issues.push({ path: `${path}.annotationAvailability`, code: "type", message: "expected an availability object" });
+    else {
+      if (typeof availability.annotationAvailable !== "boolean")
+        issues.push({ path: `${path}.annotationAvailability.annotationAvailable`, code: "type", message: "expected a boolean" });
+      if (!Array.isArray(availability.annotations))
+        issues.push({ path: `${path}.annotationAvailability.annotations`, code: "type", message: "expected an array" });
+      if (!Number.isInteger(availability.staleCount) || Number(availability.staleCount) < 0)
+        issues.push({ path: `${path}.annotationAvailability.staleCount`, code: "value", message: "expected a non-negative integer" });
+    }
+  }
+  const injection = input.annotationInjection;
+  if (injection !== undefined) {
+    if (!isRecord(injection)) issues.push({ path: `${path}.annotationInjection`, code: "type", message: "expected an injection object" });
+    else {
+      if (injection.source !== "user-written") issues.push({ path: `${path}.annotationInjection.source`, code: "value", message: "must be user-written" });
+      if (injection.trustLevel !== "untrusted") issues.push({ path: `${path}.annotationInjection.trustLevel`, code: "value", message: "must be untrusted" });
+      if (injection.role !== "context-only") issues.push({ path: `${path}.annotationInjection.role`, code: "value", message: "must be context-only" });
+      if (injection.commandAuthority !== false) issues.push({ path: `${path}.annotationInjection.commandAuthority`, code: "value", message: "must be false" });
+      if (injection.evidenceAuthority !== false)
+        issues.push({ path: `${path}.annotationInjection.evidenceAuthority`, code: "value", message: "must be false" });
+      requiredString(injection, "content", `${path}.annotationInjection`, issues);
+    }
+  }
   const durationMs = input.durationMs;
   if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < 0) {
     issues.push({ path: `${path}.durationMs`, code: "value", message: "expected a non-negative number" });
