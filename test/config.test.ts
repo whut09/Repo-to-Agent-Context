@@ -29,6 +29,50 @@ test("legacy config without evidencePolicy remains advisory", () => {
   }
 });
 
+test("legacy config keeps the context registry disabled and offline", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
+  try {
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "target: opencode\n", "utf8");
+    assert.deepEqual(loadConfig(root).contextRegistry, { enabled: false, offline: true, sources: [] });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("context registry source configuration is normalized and validated", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
+  try {
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      `
+contextRegistry:
+  enabled: true
+  offline: false
+  sources:
+    - name: internal
+      kind: local
+      location: C:/context-packs
+      trustLevel: private
+`,
+      "utf8"
+    );
+    assert.deepEqual(loadConfig(root).contextRegistry, {
+      enabled: true,
+      offline: false,
+      sources: [{ name: "internal", kind: "local", location: "C:/context-packs", trustLevel: "private" }]
+    });
+
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  sources:\n    - name: bad\n      kind: unknown\n      location: C:/context\n      trustLevel: private\n",
+      "utf8"
+    );
+    assert.throws(() => loadConfig(root), /Invalid contextRegistry\.sources\[0\]\.kind/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("enabled LLM requires non-placeholder credentials", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
   try {

@@ -80,7 +80,17 @@ export function validateContextProvenance(input: unknown, path = "$"): ContextVa
   }
   if (typeof verified !== "boolean") issues.push({ path: `${path}.verified`, code: "type", message: "expected a boolean" });
   if (issues.length) return invalidResult(issues);
-  return validResult({ ...input, sourceName, sourceTrustLevel, entryId, packageVersion, contentRevision, contentHash, fetchedAt, verified } as ContextProvenance);
+  return validResult({
+    ...input,
+    sourceName,
+    sourceTrustLevel,
+    entryId,
+    packageVersion,
+    contentRevision,
+    contentHash,
+    fetchedAt,
+    verified
+  } as ContextProvenance);
 }
 
 export function validateContextAnnotation(input: unknown, path = "$"): ContextValidationResult<ContextAnnotation> {
@@ -97,7 +107,18 @@ export function validateContextAnnotation(input: unknown, path = "$"): ContextVa
   const updatedAt = requiredTimestamp(input, "updatedAt", path, issues);
   if (trustLevel !== "untrusted") issues.push({ path: `${path}.trustLevel`, code: "value", message: "annotations must be marked untrusted" });
   if (issues.length) return invalidResult(issues);
-  return validResult({ ...input, id, repository, entryId, packageVersion, contentRevision, note, trustLevel: "untrusted", createdAt, updatedAt } as ContextAnnotation);
+  return validResult({
+    ...input,
+    id,
+    repository,
+    entryId,
+    packageVersion,
+    contentRevision,
+    note,
+    trustLevel: "untrusted",
+    createdAt,
+    updatedAt
+  } as ContextAnnotation);
 }
 
 export function validateContextEntry(input: unknown, path = "$"): ContextValidationResult<ContextEntry> {
