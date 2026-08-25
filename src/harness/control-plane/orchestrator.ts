@@ -39,6 +39,7 @@ import { buildExecutorPrompt, collectChangedFiles, createAgentExecutor } from ".
 import { writeIterationArtifacts } from "./iteration-artifacts.js";
 import { combineContextRefreshMetrics, initialContextMetrics, refreshHarnessContext, type ContextRefreshMetrics } from "./context-refresh.js";
 import { renderOrchestratorReport } from "./orchestrator-report.js";
+import { recordIterationInterventions } from "../observability/intervention-mapper.js";
 
 export { renderOrchestratorReport } from "./orchestrator-report.js";
 
@@ -487,6 +488,23 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
       latestDecision = decision;
       latestConvergence = convergence;
       progress("decision", `decision: ${decision.action}`, loopIndex);
+
+      const interventionResult = recordIterationInterventions({
+        root,
+        taskId: taskRun.runId,
+        sessionId: "orchestrator",
+        iteration: loopIndex,
+        changedFiles,
+        currentWorkingTreeHash: currentWorkingTreeHash(sandboxHandle.root),
+        trace: readExecutionTrace(root, taskRun.runId),
+        policy,
+        guardFindings,
+        guardGates,
+        decision,
+        executorExitCode: executorResult.exitCode
+      });
+      decision = interventionResult.decision;
+      latestDecision = decision;
 
       if (state.currentPhase !== "persist") throw new Error(`Unexpected orchestrator phase ${state.currentPhase} before persist.`);
       const iterationFiles = writeIterationArtifacts(root, plan.iterationDir, {
