@@ -152,14 +152,24 @@ interface InterventionReport {
 
 function renderInterventionSections(interventions: InterventionReport | undefined): string[] {
   if (!interventions) {
-    return ["## Intervention Summary", "- none recorded", "", "## Verified Fixes", "- none recorded", "", "## Remaining Problems", "- none recorded", "", "## Human Review", "- none recorded"];
+    return [
+      "## Intervention Summary",
+      "- none recorded",
+      "",
+      "## Verified Fixes",
+      "- none recorded",
+      "",
+      "## Remaining Problems",
+      "- none recorded",
+      "",
+      "## Human Review",
+      "- none recorded"
+    ];
   }
   return [
     "## Intervention Summary",
     ...(interventions.selectedFiles.length ? [`- selected: ${interventions.selectedFiles.join(", ")}`] : ["- selected: none"]),
-    ...(interventions.excludedFiles.length
-      ? interventions.excludedFiles.map((file) => `- excluded: ${file.path} (${file.reason})`)
-      : ["- excluded: none"]),
+    ...(interventions.excludedFiles.length ? interventions.excludedFiles.map((file) => `- excluded: ${file.path} (${file.reason})`) : ["- excluded: none"]),
     "",
     "## Verified Fixes",
     ...formatInterventions(interventions.verifiedFixes),
@@ -174,7 +184,10 @@ function renderInterventionSections(interventions: InterventionReport | undefine
 
 function formatInterventions(items: Array<{ problem: string; action: string; status?: string; targetFiles: string[] }>, includeStatus = false): string[] {
   return items.length
-    ? items.map((item) => `- ${includeStatus && item.status ? `[${item.status}] ` : ""}${item.problem} -> ${item.action}${item.targetFiles.length ? ` (${item.targetFiles.join(", ")})` : ""}`)
+    ? items.map(
+        (item) =>
+          `- ${includeStatus && item.status ? `[${item.status}] ` : ""}${item.problem} -> ${item.action}${item.targetFiles.length ? ` (${item.targetFiles.join(", ")})` : ""}`
+      )
     : ["- none recorded"];
 }
 

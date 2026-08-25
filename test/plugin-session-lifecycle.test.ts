@@ -3,7 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createSidecarRecorder, notifyOpenCodePlusPlusToast, notifyPluginInterventionSignals, type OpenCodeSidecarRuntimeContext } from "../src/integrations/opencode/plugin-runtime/events.js";
+import {
+  createSidecarRecorder,
+  notifyOpenCodePlusPlusToast,
+  notifyPluginInterventionSignals,
+  type OpenCodeSidecarRuntimeContext
+} from "../src/integrations/opencode/plugin-runtime/events.js";
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import { readOpenCodePlusPlusPluginStatus, setOpenCodePlusPlusPluginEnabled } from "../src/integrations/opencode/plugin-runtime/state.js";
 import {

@@ -1,6 +1,12 @@
 import path from "node:path";
 import { appendJsonLineLocked } from "../../../../core/atomic-store.js";
-import { appendInterventionEvent, interventionIdFor, interventionLedgerJsonlPath, listInterventionEvents, summarizeInterventions } from "../../../../harness/observability/intervention-ledger.js";
+import {
+  appendInterventionEvent,
+  interventionIdFor,
+  interventionLedgerJsonlPath,
+  listInterventionEvents,
+  summarizeInterventions
+} from "../../../../harness/observability/intervention-ledger.js";
 import type { PolicyEngineReport } from "../../../../harness/verification-plane/policy-engine.js";
 import type { InterventionStatus } from "../../../../harness/types.js";
 import type { OpenCodeSidecarGuardStackSummary } from "../../sidecar.js";
@@ -90,7 +96,7 @@ export function recordPluginEvaluationInterventions(input: {
       category,
       problem: finding.message,
       action: finding.requiredAction ?? "inspect policy finding",
-      targetFiles: finding.file ? [finding.file] : input.changedFiles ?? [],
+      targetFiles: finding.file ? [finding.file] : (input.changedFiles ?? []),
       evidenceRefs: finding.evidence,
       status,
       source: finding.kind === "forbidden" ? "guard" : "policy",
@@ -126,21 +132,33 @@ export function recordPluginEvaluationInterventions(input: {
   });
 }
 
-function safeAppend(input: Parameters<typeof recordPluginEvaluationInterventions>[0], event: {
-  interventionId: string;
-  findingId?: string;
-  category: "boundary" | "context" | "evidence" | "decision";
-  problem: string;
-  action: string;
-  targetFiles: string[];
-  evidenceRefs: string[];
-  status: InterventionStatus;
-  source: "guard" | "policy" | "decision";
-  decisionRefs?: string[];
-  resolutionEvidence?: Array<{ kind: "command" | "ci" | "manual" | "trace"; ref: string; workingTreeHash?: string; currentWorkingTree?: boolean; valid: boolean; details?: string[] }>;
-}): void {
+function safeAppend(
+  input: Parameters<typeof recordPluginEvaluationInterventions>[0],
+  event: {
+    interventionId: string;
+    findingId?: string;
+    category: "boundary" | "context" | "evidence" | "decision";
+    problem: string;
+    action: string;
+    targetFiles: string[];
+    evidenceRefs: string[];
+    status: InterventionStatus;
+    source: "guard" | "policy" | "decision";
+    decisionRefs?: string[];
+    resolutionEvidence?: Array<{
+      kind: "command" | "ci" | "manual" | "trace";
+      ref: string;
+      workingTreeHash?: string;
+      currentWorkingTree?: boolean;
+      valid: boolean;
+      details?: string[];
+    }>;
+  }
+): void {
   try {
-    const previous = listInterventionEvents(input.root, input.taskId).filter((item) => item.interventionId === event.interventionId).at(-1);
+    const previous = listInterventionEvents(input.root, input.taskId)
+      .filter((item) => item.interventionId === event.interventionId)
+      .at(-1);
     const statuses = transitionStatuses(previous?.status, event.status);
     for (const status of statuses) {
       appendInterventionEvent(input.root, {
@@ -180,7 +198,8 @@ function statusForPolicyFinding(status: string, kind: string, trace: ExecutionTr
 function decisionStatus(decision: string, trace: ExecutionTrace | null, hash: string): InterventionStatus {
   if (/rollback|block/i.test(decision)) return "prevented";
   if (/human-review|no-progress|max-loops/i.test(decision)) return "human-review";
-  if (/finalize|ready/i.test(decision) && resolutionEvidenceForTrace("tests", trace, hash).some((item) => item.valid && item.currentWorkingTree)) return "verified";
+  if (/finalize|ready/i.test(decision) && resolutionEvidenceForTrace("tests", trace, hash).some((item) => item.valid && item.currentWorkingTree))
+    return "verified";
   if (/repair|test|repack/i.test(decision)) return "requested";
   return "observed";
 }
@@ -223,7 +242,9 @@ function uniqueSorted(items: string[]): string[] {
 }
 
 function normalizeExcluded(items: Array<{ path: string; reason: string }>): Array<{ path: string; reason: string }> {
-  return [...new Map(items.filter((item) => item.path).map((item) => [item.path, { path: item.path, reason: item.reason || "not selected" }])).values()].sort((left, right) => left.path.localeCompare(right.path));
+  return [...new Map(items.filter((item) => item.path).map((item) => [item.path, { path: item.path, reason: item.reason || "not selected" }])).values()].sort(
+    (left, right) => left.path.localeCompare(right.path)
+  );
 }
 
 function syncJsonlLedger(root: string, taskId: string, events: ReturnType<typeof listInterventionEvents>): void {

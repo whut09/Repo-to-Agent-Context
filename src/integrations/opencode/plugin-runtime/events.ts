@@ -54,7 +54,11 @@ export function notifyPluginInterventionSignals(
     ...snapshot.remainingProblems
       .filter((event) => ["prevented", "requested", "unresolved"].includes(event.status))
       .map((event) => ({ key: `blocker:${event.interventionId}:${event.eventId}`, title: "OpenCode++ blocker", message: event.problem })),
-    ...snapshot.verifiedFixes.map((event) => ({ key: `verified:${event.interventionId}:${event.eventId}`, title: "OpenCode++ verified", message: event.problem })),
+    ...snapshot.verifiedFixes.map((event) => ({
+      key: `verified:${event.interventionId}:${event.eventId}`,
+      title: "OpenCode++ verified",
+      message: event.problem
+    })),
     ...snapshot.humanReview
       .filter((event) => !/no-progress/i.test(`${event.action} ${event.problem}`))
       .map((event) => ({ key: `review:${event.interventionId}:${event.eventId}`, title: "OpenCode++ human review", message: event.problem })),

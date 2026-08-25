@@ -57,7 +57,9 @@ async function preparePluginHarnessTaskInternal(root: string, args: PluginPrepar
   });
   const artifacts = manifest.files ?? [];
   const selectedFiles = manifest.mustInspect;
-  const excludedFiles = (manifest.contextFiles ?? []).filter((file) => !selectedFiles.includes(file)).map((file) => ({ path: file, reason: "related context was not marked mustInspect" }));
+  const excludedFiles = (manifest.contextFiles ?? [])
+    .filter((file) => !selectedFiles.includes(file))
+    .map((file) => ({ path: file, reason: "related context was not marked mustInspect" }));
   recordPluginContextSelection({ root, taskId: resolvedTaskId, sessionId: args.sessionId, phase: "prepare", selectedFiles, excludedFiles });
   if (args.sessionId) {
     updateWorkflowState(root, args.sessionId, {

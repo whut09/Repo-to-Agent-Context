@@ -60,7 +60,14 @@ async function retrievePluginHarnessContextInternal(root: string, args: PluginRe
     .filter((file) => !selectedFiles.includes(file))
     .slice(0, 50)
     .map((file) => ({ path: file, reason: "ranked below the requested topK" }));
-  recordPluginContextSelection({ root, taskId: session?.taskId ?? `retrieve-${args.task}`, sessionId: args.sessionId, phase: "retrieve", selectedFiles, excludedFiles });
+  recordPluginContextSelection({
+    root,
+    taskId: session?.taskId ?? `retrieve-${args.task}`,
+    sessionId: args.sessionId,
+    phase: "retrieve",
+    selectedFiles,
+    excludedFiles
+  });
   return createPluginHarnessResult(root, {
     ok: true,
     tool: "retrieve",
@@ -104,7 +111,14 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
   });
   const selected = context.files?.map((file) => `context://${context.entry.sourceName}/${file.path}`) ?? [];
   const excludedFiles = context.omittedFiles.map((file) => ({ path: file, reason: "omitted by incremental context fetch mode" }));
-  recordPluginContextSelection({ root, taskId: session?.taskId ?? context.entry.id, sessionId: args.sessionId, phase: "retrieve", selectedFiles: selected, excludedFiles });
+  recordPluginContextSelection({
+    root,
+    taskId: session?.taskId ?? context.entry.id,
+    sessionId: args.sessionId,
+    phase: "retrieve",
+    selectedFiles: selected,
+    excludedFiles
+  });
   return createPluginHarnessResult(root, {
     ok: true,
     tool: "retrieve",

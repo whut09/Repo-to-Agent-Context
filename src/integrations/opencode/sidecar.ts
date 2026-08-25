@@ -219,12 +219,7 @@ export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecar
   const session = readPluginHarnessSession(root);
   const evaluate = session ? readPluginEvaluateState(root, session.sessionId) : readPluginEvaluateState(root);
   const interventions = session?.taskId
-    ? pluginInterventionSnapshot(
-        root,
-        session.taskId,
-        evaluate?.interventions?.selectedFiles ?? [],
-        evaluate?.interventions?.excludedFiles ?? []
-      )
+    ? pluginInterventionSnapshot(root, session.taskId, evaluate?.interventions?.selectedFiles ?? [], evaluate?.interventions?.excludedFiles ?? [])
     : undefined;
   blockers.push(...blockersFromGuardStack(guardStack));
   warnings.push(...warningsFromGuardStack(guardStack));

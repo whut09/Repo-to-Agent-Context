@@ -14,7 +14,12 @@ test("plugin intervention snapshot exposes selected, excluded, active, and verif
     appendInterventionEvent(root, requested);
     appendInterventionEvent(root, makeEvent("intervention-verified", "requested", "Login timeout fix requested."));
     appendInterventionEvent(root, makeEvent("intervention-verified", "repaired", "Login timeout fix repaired."));
-    appendInterventionEvent(root, { ...verified, eventId: "event-verified", status: "verified", resolutionEvidence: [{ kind: "command", ref: "trace-step-1", valid: true, currentWorkingTree: true }] });
+    appendInterventionEvent(root, {
+      ...verified,
+      eventId: "event-verified",
+      status: "verified",
+      resolutionEvidence: [{ kind: "command", ref: "trace-step-1", valid: true, currentWorkingTree: true }]
+    });
     const snapshot = pluginInterventionSnapshot(root, "task-1", ["src/auth/session.ts"], [{ path: "src/auth/legacy.ts", reason: "not selected by top-k" }]);
 
     assert.equal(snapshot.ledgerPath, ".agent-context/interventions/task-1.jsonl");
@@ -23,7 +28,12 @@ test("plugin intervention snapshot exposes selected, excluded, active, and verif
     assert.equal(snapshot.excludedFiles[0]?.reason, "not selected by top-k");
     assert.ok(snapshot.verifiedFixes.some((event) => event.interventionId === "intervention-verified"));
     assert.ok(snapshot.remainingProblems.some((event) => event.interventionId === "intervention-requested"));
-    assert.equal(readFileSync(path.join(root, ".agent-context", "interventions", "task-1.jsonl"), "utf8").trim().split(/\r?\n/).length, 4);
+    assert.equal(
+      readFileSync(path.join(root, ".agent-context", "interventions", "task-1.jsonl"), "utf8")
+        .trim()
+        .split(/\r?\n/).length,
+      4
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

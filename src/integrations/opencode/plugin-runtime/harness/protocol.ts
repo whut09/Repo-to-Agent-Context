@@ -41,7 +41,9 @@ export function createPluginHarnessResult(
     artifacts: normalize(input.artifacts),
     interventions:
       input.interventions ??
-      emptyPluginInterventions(path.relative(root, path.join(root, ".agent-context", "interventions", `${input.taskId ?? "unknown"}.jsonl`)).replaceAll("\\", "/"))
+      emptyPluginInterventions(
+        path.relative(root, path.join(root, ".agent-context", "interventions", `${input.taskId ?? "unknown"}.jsonl`)).replaceAll("\\", "/")
+      )
   };
 }
 
@@ -85,7 +87,8 @@ function humanReadableSummary(result: PluginHarnessResult): string {
     lines.push(`Excluded files: ${result.interventions.excludedFiles.map((file) => `${file.path} (${file.reason})`).join(", ")}`);
   }
   if (result.interventions?.verifiedFixes.length) lines.push(`Verified fixes: ${result.interventions.verifiedFixes.map((event) => event.problem).join("; ")}`);
-  if (result.interventions?.remainingProblems.length) lines.push(`Remaining problems: ${result.interventions.remainingProblems.map((event) => event.problem).join("; ")}`);
+  if (result.interventions?.remainingProblems.length)
+    lines.push(`Remaining problems: ${result.interventions.remainingProblems.map((event) => event.problem).join("; ")}`);
   if (result.interventions?.humanReview.length) lines.push(`Human review: ${result.interventions.humanReview.map((event) => event.problem).join("; ")}`);
   if (result.requiredCommands.length) lines.push(`Required commands: ${result.requiredCommands.join(" | ")}`);
   return lines.join("\n");

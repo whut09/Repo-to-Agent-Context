@@ -13,38 +13,82 @@ export { parseEvaluateArgs, parseNextArgs, parsePrepareArgs, parseRetrieveArgs }
 export { renderEvaluateText, renderHarnessError, renderNextText, renderPrepareText, renderRetrieveText } from "./format.js";
 export { completionRuleFor, isFinalizeAction } from "./completion.js";
 
-export async function executePrepareTool(root: string, args: unknown, context?: OpenCodeSidecarRuntimeContext, recorder?: OpenCodeSidecarRecorder): Promise<string> {
-  return runHarnessTool(root, "prepare", async () => {
-    const parsed = parsePrepareArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("prepare", parsed, root);
-    return renderPrepareText(await preparePluginHarnessTask(root, parsed));
-  }, context, recorder);
+export async function executePrepareTool(
+  root: string,
+  args: unknown,
+  context?: OpenCodeSidecarRuntimeContext,
+  recorder?: OpenCodeSidecarRecorder
+): Promise<string> {
+  return runHarnessTool(
+    root,
+    "prepare",
+    async () => {
+      const parsed = parsePrepareArgs(args);
+      if (typeof parsed === "string") return renderHarnessError("prepare", parsed, root);
+      return renderPrepareText(await preparePluginHarnessTask(root, parsed));
+    },
+    context,
+    recorder
+  );
 }
 
-export async function executeRetrieveTool(root: string, args: unknown, context?: OpenCodeSidecarRuntimeContext, recorder?: OpenCodeSidecarRecorder): Promise<string> {
-  return runHarnessTool(root, "retrieve", async () => {
-    const parsed = parseRetrieveArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("retrieve", parsed, root);
-    return renderRetrieveText(await retrievePluginHarnessContext(root, parsed));
-  }, context, recorder);
+export async function executeRetrieveTool(
+  root: string,
+  args: unknown,
+  context?: OpenCodeSidecarRuntimeContext,
+  recorder?: OpenCodeSidecarRecorder
+): Promise<string> {
+  return runHarnessTool(
+    root,
+    "retrieve",
+    async () => {
+      const parsed = parseRetrieveArgs(args);
+      if (typeof parsed === "string") return renderHarnessError("retrieve", parsed, root);
+      return renderRetrieveText(await retrievePluginHarnessContext(root, parsed));
+    },
+    context,
+    recorder
+  );
 }
 
-export async function executeEvaluateTool(root: string, args: unknown, context?: OpenCodeSidecarRuntimeContext, recorder?: OpenCodeSidecarRecorder): Promise<string> {
-  return runHarnessTool(root, "evaluate", async () => {
-    const parsed = parseEvaluateArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("evaluate", parsed, root);
-    const result = await evaluatePluginHarness(root, parsed);
-    return typeof result === "string" ? renderHarnessError("evaluate", result) : renderEvaluateText(result);
-  }, context, recorder);
+export async function executeEvaluateTool(
+  root: string,
+  args: unknown,
+  context?: OpenCodeSidecarRuntimeContext,
+  recorder?: OpenCodeSidecarRecorder
+): Promise<string> {
+  return runHarnessTool(
+    root,
+    "evaluate",
+    async () => {
+      const parsed = parseEvaluateArgs(args);
+      if (typeof parsed === "string") return renderHarnessError("evaluate", parsed, root);
+      const result = await evaluatePluginHarness(root, parsed);
+      return typeof result === "string" ? renderHarnessError("evaluate", result) : renderEvaluateText(result);
+    },
+    context,
+    recorder
+  );
 }
 
-export async function executeNextTool(root: string, args: unknown, context?: OpenCodeSidecarRuntimeContext, recorder?: OpenCodeSidecarRecorder): Promise<string> {
-  return runHarnessTool(root, "next", async () => {
-    const parsed = parseNextArgs(args);
-    if (typeof parsed === "string") return renderHarnessError("next", parsed, root);
-    const result = await nextPluginHarnessAction(root, parsed);
-    return typeof result === "string" ? renderHarnessError("next", result) : renderNextText(result);
-  }, context, recorder);
+export async function executeNextTool(
+  root: string,
+  args: unknown,
+  context?: OpenCodeSidecarRuntimeContext,
+  recorder?: OpenCodeSidecarRecorder
+): Promise<string> {
+  return runHarnessTool(
+    root,
+    "next",
+    async () => {
+      const parsed = parseNextArgs(args);
+      if (typeof parsed === "string") return renderHarnessError("next", parsed, root);
+      const result = await nextPluginHarnessAction(root, parsed);
+      return typeof result === "string" ? renderHarnessError("next", result) : renderNextText(result);
+    },
+    context,
+    recorder
+  );
 }
 
 async function runHarnessTool(
