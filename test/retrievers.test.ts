@@ -204,3 +204,19 @@ test("registry retrieval is stable for equal scores and applies negative penalty
   assert.equal(penalized.at(-1)?.id, "community/alpha");
   assert.equal(penalized.at(-1)?.metadata.scoreBreakdown?.negativePenalty, 40);
 });
+
+test("registry retrieval reports useful precision and recall at top K", async () => {
+  const retriever = new ContextRegistryRetriever([
+    registryEntry("official", "session-timeout"),
+    registryEntry("official", "session-auth"),
+    registryEntry("community", "billing"),
+    registryEntry("community", "unrelated", { tags: ["unrelated"] })
+  ]);
+  const expected = new Set(["official/session-timeout", "official/session-auth"]);
+  const hits = await retriever.search("session", { topK: 2 });
+  const selected = new Set(hits.map((hit) => hit.id));
+  const truePositives = [...selected].filter((id) => expected.has(id)).length;
+  assert.equal(truePositives, 2);
+  assert.equal(truePositives / selected.size, 1);
+  assert.equal(truePositives / expected.size, 1);
+});
