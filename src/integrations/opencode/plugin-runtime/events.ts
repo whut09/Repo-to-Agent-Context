@@ -50,21 +50,22 @@ export function notifyPluginInterventionSignals(
   recorder?: OpenCodeSidecarRecorder
 ): number {
   if (!snapshot || tool === "prepare" || tool === "retrieve") return 0;
+  const scope = path.resolve(context.directory);
   const signals = [
     ...snapshot.remainingProblems
       .filter((event) => ["prevented", "requested", "unresolved"].includes(event.status))
-      .map((event) => ({ key: `blocker:${event.interventionId}:${event.eventId}`, title: "OpenCode++ blocker", message: event.problem })),
+      .map((event) => ({ key: `${scope}:blocker:${event.interventionId}:${event.eventId}`, title: "OpenCode++ blocker", message: event.problem })),
     ...snapshot.verifiedFixes.map((event) => ({
-      key: `verified:${event.interventionId}:${event.eventId}`,
+      key: `${scope}:verified:${event.interventionId}:${event.eventId}`,
       title: "OpenCode++ verified",
       message: event.problem
     })),
     ...snapshot.humanReview
       .filter((event) => !/no-progress/i.test(`${event.action} ${event.problem}`))
-      .map((event) => ({ key: `review:${event.interventionId}:${event.eventId}`, title: "OpenCode++ human review", message: event.problem })),
+      .map((event) => ({ key: `${scope}:review:${event.interventionId}:${event.eventId}`, title: "OpenCode++ human review", message: event.problem })),
     ...snapshot.interventions
       .filter((event) => /no-progress/i.test(`${event.status} ${event.action} ${event.problem}`))
-      .map((event) => ({ key: `no-progress:${event.interventionId}:${event.eventId}`, title: "OpenCode++ no progress", message: event.problem }))
+      .map((event) => ({ key: `${scope}:no-progress:${event.interventionId}:${event.eventId}`, title: "OpenCode++ no progress", message: event.problem }))
   ];
   let notified = 0;
   for (const signal of signals) {

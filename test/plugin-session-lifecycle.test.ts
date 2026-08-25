@@ -89,6 +89,9 @@ test("intervention notifications only emit high-signal events and deduplicate th
   assert.ok(toastCalls.some((message) => message.includes("verified")));
   assert.ok(toastCalls.some((message) => message.includes("human review")));
   assert.ok(toastCalls.some((message) => message.includes("no progress")));
+
+  const otherRepository = { ...context, directory: "/tmp/other-opencode-repository" };
+  assert.equal(notifyPluginInterventionSignals(otherRepository, snapshot, "evaluate"), 4);
 });
 
 test("session ready build is debounced at least two seconds by default", () => {
