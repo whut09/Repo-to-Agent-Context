@@ -4,3 +4,7 @@ export * from "./hash.js";
 export * from "./schema.js";
 export * from "./validators.js";
 export * from "./store.js";
+export * from "./frontmatter.js";
+export * from "./path-resolver.js";
+export * from "./content-validator.js";
+export * from "./registry-builder.js";
