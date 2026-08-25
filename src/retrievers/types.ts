@@ -2,7 +2,7 @@ export type RetrieverProvider = "static" | "ripgrep" | "hybrid" | "lightrag" | "
 export type RetrievalTaskType = "bugfix" | "feature" | "refactor" | "auto";
 
 export interface RetrievalScoreBreakdown {
-  [signal: string]: number;
+  [signal: string]: number | undefined;
   lexical: number;
   path: number;
   changed: number;
