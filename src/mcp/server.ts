@@ -80,6 +80,8 @@ interface RetrieveArguments {
   contextId?: string;
   file?: string;
   full?: boolean;
+  annotationId?: string;
+  includeStaleAnnotation?: boolean;
 }
 
 export function createOpenCodePlusplusMcpServer(): McpServer {
@@ -149,7 +151,9 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
         includeTests: z.boolean().optional().default(false),
         contextId: z.string().optional(),
         file: z.string().optional(),
-        full: z.boolean().optional().default(false)
+        full: z.boolean().optional().default(false),
+        annotationId: z.string().optional(),
+        includeStaleAnnotation: z.boolean().optional().default(false)
       })
     },
     async (args) => jsonToolResult(await runRetrieve(args))
@@ -464,7 +468,16 @@ async function runTaskPack(args: PackInput): Promise<OpenCodePlusplusMcpResult> 
 
 async function runRetrieve(args: RetrieveArguments): Promise<OpenCodePlusplusMcpResult> {
   if (args.contextId) {
-    return { ...(await getContextFiles({ repo: args.repo ?? ".", id: args.contextId, file: args.file, full: args.full })) };
+    return {
+      ...(await getContextFiles({
+        repo: args.repo ?? ".",
+        id: args.contextId,
+        file: args.file,
+        full: args.full,
+        annotationId: args.annotationId,
+        includeStaleAnnotation: args.includeStaleAnnotation
+      }))
+    };
   }
   return retrieveApplicationContext({ repo: args.repo ?? ".", ...args });
 }
