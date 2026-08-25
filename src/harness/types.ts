@@ -28,12 +28,14 @@ export interface HarnessDecisionCandidate {
   reasons: string[];
   requiredCommands: string[];
   artifacts: ArtifactRef[];
+  interventionIds?: string[];
 }
 
 export interface HarnessDecisionArbitration {
   selectedCandidate: HarnessDecisionCandidate;
   selectedPriority: number;
   supportingCandidates: HarnessDecisionCandidate[];
+  interventionIds?: string[];
 }
 
 export interface HarnessDecision {
@@ -43,7 +45,65 @@ export interface HarnessDecision {
   reasons: string[];
   requiredCommands: string[];
   artifacts: ArtifactRef[];
+  interventionIds?: string[];
   arbitration?: HarnessDecisionArbitration;
+}
+
+export type InterventionStatus =
+  | "observed"
+  | "prevented"
+  | "requested"
+  | "repaired"
+  | "verified"
+  | "unresolved"
+  | "human-review"
+  | "stale";
+
+export type InterventionPhase = "plan" | "execute" | "collect" | "evaluate" | "decide" | "persist" | "finalize";
+export type InterventionCategory = "boundary" | "evidence" | "policy" | "context" | "hallucination" | "regression" | "repair" | "executor" | "decision" | "other";
+export type InterventionSource = "guard" | "policy" | "evidence" | "executor" | "decision" | "human" | "system";
+
+export interface ResolutionEvidence {
+  kind: "command" | "ci" | "manual" | "trace";
+  ref: string;
+  workingTreeHash?: string;
+  currentWorkingTree?: boolean;
+  valid: boolean;
+  details?: string[];
+}
+
+export interface InterventionEvent {
+  schemaVersion: "opencode-plusplus.intervention.v1";
+  revision?: number;
+  eventId: string;
+  sequence?: number;
+  interventionId: string;
+  taskId: string;
+  sessionId: string;
+  timestamp: string;
+  phase: InterventionPhase;
+  category: InterventionCategory;
+  findingId?: string;
+  problem: string;
+  targetFiles: string[];
+  action: string;
+  beforeState: Record<string, unknown>;
+  afterState: Record<string, unknown>;
+  evidenceRefs: string[];
+  status: InterventionStatus;
+  confidence: number;
+  source: InterventionSource;
+  resolutionEvidence?: ResolutionEvidence[];
+  supersedes?: string[];
+  traceRefs?: string[];
+  decisionRefs?: string[];
+}
+
+export interface InterventionSummary {
+  total: number;
+  byStatus: Record<InterventionStatus, number>;
+  active: InterventionEvent[];
+  verified: InterventionEvent[];
 }
 
 export type GuardResultSource = "policy" | "hallucination" | "regression" | "context" | "boundary" | "evidence";
@@ -65,6 +125,7 @@ export interface GuardResult {
   artifacts: ArtifactRef[];
   file?: string;
   evidence: string[];
+  interventionIds?: string[];
 }
 
 export function createHarnessDecision(input: HarnessDecision): HarnessDecision {
@@ -75,6 +136,7 @@ export function createHarnessDecision(input: HarnessDecision): HarnessDecision {
     reasons: dedupe(input.reasons.filter(Boolean)),
     requiredCommands: dedupe(input.requiredCommands.filter(Boolean)),
     artifacts: dedupeArtifacts(input.artifacts),
+    ...(input.interventionIds ? { interventionIds: dedupe(input.interventionIds.filter(Boolean)).sort((a, b) => a.localeCompare(b)) } : {}),
     ...(input.arbitration ? { arbitration: normalizeArbitration(input.arbitration) } : {})
   };
 }
@@ -86,7 +148,8 @@ export function createGuardResult(input: GuardResult): GuardResult {
     reasons: dedupe(input.reasons.filter(Boolean)),
     requiredCommands: dedupe(input.requiredCommands.filter(Boolean)),
     artifacts: dedupeArtifacts(input.artifacts),
-    evidence: dedupe(input.evidence.filter(Boolean))
+    evidence: dedupe(input.evidence.filter(Boolean)),
+    ...(input.interventionIds ? { interventionIds: dedupe(input.interventionIds.filter(Boolean)).sort((a, b) => a.localeCompare(b)) } : {})
   };
 }
 
@@ -114,7 +177,8 @@ function normalizeArbitration(arbitration: HarnessDecisionArbitration): HarnessD
   return {
     selectedCandidate: normalizeCandidate(arbitration.selectedCandidate),
     selectedPriority: arbitration.selectedPriority,
-    supportingCandidates: arbitration.supportingCandidates.map(normalizeCandidate)
+    supportingCandidates: arbitration.supportingCandidates.map(normalizeCandidate),
+    ...(arbitration.interventionIds ? { interventionIds: dedupe(arbitration.interventionIds.filter(Boolean)).sort((a, b) => a.localeCompare(b)) } : {})
   };
 }
 
@@ -124,6 +188,7 @@ function normalizeCandidate(candidate: HarnessDecisionCandidate): HarnessDecisio
     confidence: clampConfidence(candidate.confidence),
     reasons: dedupe(candidate.reasons.filter(Boolean)),
     requiredCommands: dedupe(candidate.requiredCommands.filter(Boolean)),
-    artifacts: dedupeArtifacts(candidate.artifacts)
+    artifacts: dedupeArtifacts(candidate.artifacts),
+    ...(candidate.interventionIds ? { interventionIds: dedupe(candidate.interventionIds.filter(Boolean)).sort((a, b) => a.localeCompare(b)) } : {})
   };
 }
