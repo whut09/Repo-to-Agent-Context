@@ -8,6 +8,23 @@ OpenCode++ is moving from a context compiler into an Agent Harness Runtime Contr
 Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 ```
 
+## Intervention Ledger
+
+Each harness iteration also writes an Intervention Ledger under `.agent-context/interventions/`. The ledger answers two separate questions: what OpenCode++ observed or prevented, and whether a proposed repair was actually verified. Every event links back to its finding, decision, trace, and evidence references.
+
+The status model is deliberately conservative:
+
+- `observed`: a signal was recorded without an intervention claim.
+- `prevented`: a guard stopped a boundary or unsafe action; this never means repaired.
+- `requested`: the harness requires a command, context refresh, or human action.
+- `repaired`: an executor reported a change, but verification is still pending.
+- `verified`: current-working-tree command or CI evidence passed after the repair.
+- `unresolved`: execution or verification still failed.
+- `human-review`: the harness cannot safely decide automatically.
+- `stale`: earlier evidence was superseded by a later edit.
+
+Manual claims can remain visible as context, but cannot create `verified`. Reports show the active intervention IDs, problem, action, status, and evidence references so a user can inspect exactly what changed and why the loop stopped.
+
 Current boundary: the project is a Context / Policy / Trace reporting system plus an explicit runtime state machine and bounded harness-led loop, not a fully autonomous coding agent. In harness-led mode it can invoke Codex, Claude Code, Cursor, OpenCode, or MiMoCode as an external executor, but real code edits still happen inside that executor. OpenCode++ produces evidence-linked state transitions, gate results, and decision reports that an external agent, user, or CI workflow can act on.
 
 The project does not directly ask Codex, Claude Code, Cursor, OpenCode, or MiMoCode to edit code. Instead, it provides the control plane those agents need: what to read first, what not to edit, who is affected by a change, which tests to run, whether a run can close, and whether the next turn should rebuild context, repair contracts, add tests, expand context, or move to review.
