@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { appendJsonLineLocked } from "../../../core/atomic-store.js";
+import type { PluginInterventionSnapshot } from "./harness/types.js";
 
 export interface OpenCodeSidecarRuntimeContext {
   directory: string;
@@ -38,6 +39,37 @@ export function notifyOpenCodePlusPlusToast(context: OpenCodeSidecarRuntimeConte
     // Structured logging is best-effort and must never interrupt OpenCode.
   }
   return "log";
+}
+
+const notifiedInterventionSignals = new Set<string>();
+
+export function notifyPluginInterventionSignals(
+  context: OpenCodeSidecarRuntimeContext,
+  snapshot: PluginInterventionSnapshot | undefined,
+  tool: "prepare" | "retrieve" | "evaluate" | "next",
+  recorder?: OpenCodeSidecarRecorder
+): void {
+  if (!snapshot || tool === "prepare" || tool === "retrieve") return;
+  const signals = [
+    ...snapshot.remainingProblems
+      .filter((event) => ["prevented", "requested", "unresolved"].includes(event.status))
+      .map((event) => ({ key: `blocker:${event.interventionId}:${event.eventId}`, title: "OpenCode++ blocker", message: event.problem })),
+    ...snapshot.verifiedFixes.map((event) => ({ key: `verified:${event.interventionId}:${event.eventId}`, title: "OpenCode++ verified", message: event.problem })),
+    ...snapshot.humanReview.map((event) => ({ key: `review:${event.interventionId}:${event.eventId}`, title: "OpenCode++ human review", message: event.problem })),
+    ...snapshot.interventions
+      .filter((event) => /no-progress/i.test(`${event.status} ${event.action} ${event.problem}`))
+      .map((event) => ({ key: `no-progress:${event.interventionId}:${event.eventId}`, title: "OpenCode++ no progress", message: event.problem }))
+  ];
+  for (const signal of signals) {
+    if (notifiedInterventionSignals.has(signal.key)) continue;
+    notifiedInterventionSignals.add(signal.key);
+    try {
+      const channel = notifyOpenCodePlusPlusToast(context, signal.title, signal.message);
+      recorder?.record("sidecar.intervention-signal", { signal: signal.title, interventionId: signal.key, channel, tool });
+    } catch (error) {
+      recorder?.log("debug", "intervention signal notification failed", { message: error instanceof Error ? error.message : String(error) });
+    }
+  }
 }
 
 export interface OpenCodeSidecarRecorder {
