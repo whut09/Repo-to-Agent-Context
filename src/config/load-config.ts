@@ -2,7 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 import { DEFAULT_CONFIG } from "./defaults.js";
-import type { AgentTarget, AgentsMode, AgentsSection, ContextRegistryConfig, EvidencePolicyMode, OpenCodePlusplusConfig, TokenizerMode } from "../core/types.js";
+import type {
+  AgentTarget,
+  AgentsMode,
+  AgentsSection,
+  ContextRegistryConfig,
+  EvidencePolicyMode,
+  OpenCodePlusplusConfig,
+  TokenizerMode
+} from "../core/types.js";
 import type { ContextSourceConfig, ContextSourceKind, ContextTrustLevel } from "../context-registry/types.js";
 
 const CONFIG_FILES = ["opencode-plusplus.config.yml", "opencode-plusplus.config.yaml", "opencode-plusplus.config.json"];
@@ -27,7 +35,11 @@ export function loadConfig(repoRoot: string, overrides: Partial<OpenCodePlusplus
       ...fileConfig.contextRegistry,
       ...localConfig.contextRegistry,
       ...overrides.contextRegistry,
-      sources: overrides.contextRegistry?.sources ?? localConfig.contextRegistry?.sources ?? fileConfig.contextRegistry?.sources ?? DEFAULT_CONFIG.contextRegistry.sources
+      sources:
+        overrides.contextRegistry?.sources ??
+        localConfig.contextRegistry?.sources ??
+        fileConfig.contextRegistry?.sources ??
+        DEFAULT_CONFIG.contextRegistry.sources
     },
     llm: {
       ...DEFAULT_CONFIG.llm,
