@@ -13,6 +13,8 @@ import {
 import { hashContextText } from "./hash.js";
 import type {
   ContextAnnotation,
+  ContextAnnotationKind,
+  ContextAnnotationStore,
   ContextEntry,
   ContextEntryKind,
   ContextFetchResult,
@@ -28,6 +30,7 @@ const FILE_ROLES = new Set<ContextFileRole>(["entry", "reference", "example", "e
 const SOURCE_KINDS = new Set(["local", "remote", "bundled"]);
 const TRUST_LEVELS = new Set<ContextTrustLevel>(["official", "maintainer", "community", "private", "untrusted"]);
 const ENTRY_KINDS = new Set<ContextEntryKind>(["doc", "skill", "reference", "task-pack", "repository"]);
+const ANNOTATION_KINDS = new Set<ContextAnnotationKind>(["environment", "version-difference", "failure-cause", "convention", "workaround"]);
 
 export function validateContextFile(input: unknown, path = "$"): ContextValidationResult<ContextFile> {
   const issues = validateSchemaEnvelope(input, path);
@@ -120,6 +123,43 @@ export function validateContextAnnotation(input: unknown, path = "$"): ContextVa
     createdAt,
     updatedAt
   } as ContextAnnotation);
+}
+
+export function validateLocalContextAnnotation(input: unknown, path = "$"): ContextValidationResult<import("./types.js").LocalContextAnnotation> {
+  const base = validateContextAnnotation(input, path);
+  const issues = [...(base.valid ? [] : base.issues)];
+  if (!isRecord(input)) return invalidResult(issues);
+  const kind = requiredString(input, "kind", path, issues);
+  const author = requiredString(input, "author", path, issues);
+  if (kind && !ANNOTATION_KINDS.has(kind as ContextAnnotationKind)) {
+    issues.push({ path: `${path}.kind`, code: "value", message: `unsupported annotation kind ${kind}` });
+  }
+  if (author !== "user" && author !== "agent") issues.push({ path: `${path}.author`, code: "value", message: "expected user or agent" });
+  if (issues.length || !base.valid) return invalidResult(issues);
+  return validResult({ ...base.value!, kind: kind as ContextAnnotationKind, author: author as "user" | "agent" });
+}
+
+export function validateContextAnnotationStore(input: unknown, path = "$"): ContextValidationResult<ContextAnnotationStore> {
+  const issues = validateSchemaEnvelope(input, path);
+  if (!isRecord(input)) return invalidResult(issues);
+  const repository = requiredString(input, "repository", path, issues);
+  const annotationsInput = input.annotations;
+  if (!Array.isArray(annotationsInput)) issues.push({ path: `${path}.annotations`, code: "type", message: "expected an array" });
+  const annotations: import("./types.js").LocalContextAnnotation[] = [];
+  const ids = new Set<string>();
+  for (const [index, annotation] of (Array.isArray(annotationsInput) ? annotationsInput : []).entries()) {
+    const result = validateLocalContextAnnotation(annotation, `${path}.annotations[${index}]`);
+    if (!result.valid) issues.push(...result.issues);
+    else {
+      if (ids.has(result.value!.id)) issues.push({ path: `${path}.annotations[${index}].id`, code: "value", message: "annotation ids must be unique" });
+      ids.add(result.value!.id);
+      if (result.value!.repository !== repository)
+        issues.push({ path: `${path}.annotations[${index}].repository`, code: "value", message: "must match store repository" });
+      annotations.push(result.value!);
+    }
+  }
+  if (issues.length) return invalidResult(issues);
+  return validResult({ ...input, repository, annotations } as ContextAnnotationStore);
 }
 
 export function validateContextEntry(input: unknown, path = "$"): ContextValidationResult<ContextEntry> {
