@@ -136,9 +136,9 @@ export async function getContextFiles(input: GetContextFilesInput): Promise<Cont
   const document = findBuiltDocument(built.documents, entry);
   if (!document) throw new Error(`Context files are unavailable for entry: ${entry.id}`);
   const workingTreeHash = currentWorkingTreeFingerprint(root);
-  const cacheKey = `${root}\0${entry.id}\0${built.pack.contentHash}`;
+  const cacheKey = `${root}\0${entry.id}`;
   const previous = fetchedDocumentCache.get(cacheKey);
-  const cacheHit = Boolean(previous && previous.workingTreeHash === workingTreeHash);
+  const cacheHit = Boolean(previous && previous.workingTreeHash === workingTreeHash && previous.packHash === built.pack.contentHash);
   fetchedDocumentCache.set(cacheKey, { document, workingTreeHash, packHash: built.pack.contentHash });
   const mode = input.mode ?? (input.full ? "full" : input.file ? "file" : "entry");
   if (mode === "full" && input.file) throw new Error("Context full mode cannot be combined with a file selector.");

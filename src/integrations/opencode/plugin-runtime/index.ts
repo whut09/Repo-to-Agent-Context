@@ -128,8 +128,16 @@ export async function createOpenCodePlusPlusSidecar(
         (args) => executePrepareTool(context.directory, args)
       ),
       opencode_plusplus_retrieve: harnessTool(
-        "Call to find task-relevant files without blind search. Returns ranked paths, scores, and a short reason.",
-        { task: { type: "string" }, topK: { type: "number" }, taskType: { type: "string" }, sessionId: { type: "string" } },
+        "Call to find task-relevant files or incrementally fetch a Context Registry entry. Returns ranked paths, scores, provenance, and selected content.",
+        {
+          task: { type: "string" },
+          topK: { type: "number" },
+          taskType: { type: "string" },
+          contextId: { type: "string" },
+          file: { type: "string" },
+          full: { type: "boolean" },
+          sessionId: { type: "string" }
+        },
         (args) => executeRetrieveTool(context.directory, args)
       ),
       opencode_plusplus_evaluate: harnessTool(

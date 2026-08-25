@@ -17,10 +17,15 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
   const sessionId = readOptionalSessionId(record.sessionId);
   const taskType = readTaskType(record.taskType);
   if (taskType === false) return 'retrieve taskType must be "bugfix", "feature", or "refactor".';
-  if (record.topK === undefined) return { task, ...(taskType ? { taskType } : {}), ...(sessionId ? { sessionId } : {}) };
+  const contextId = readOptionalString(record.contextId);
+  const file = readOptionalString(record.file);
+  if (record.full !== undefined && typeof record.full !== "boolean") return "retrieve full must be boolean.";
+  if (file && !contextId) return "retrieve file requires contextId.";
+  if (record.topK === undefined)
+    return { task, ...(taskType ? { taskType } : {}), ...(contextId ? { contextId } : {}), ...(file ? { file } : {}), ...(record.full ? { full: true } : {}), ...(sessionId ? { sessionId } : {}) };
   const topK = readPositiveInteger(record.topK);
   if (topK === undefined) return "retrieve topK must be a positive integer.";
-  return { task, topK, ...(taskType ? { taskType } : {}), ...(sessionId ? { sessionId } : {}) };
+  return { task, topK, ...(taskType ? { taskType } : {}), ...(contextId ? { contextId } : {}), ...(file ? { file } : {}), ...(record.full ? { full: true } : {}), ...(sessionId ? { sessionId } : {}) };
 }
 
 export function parseEvaluateArgs(args: unknown): PluginEvaluateArgs | string {
@@ -50,6 +55,10 @@ function readNonEmptyString(value: unknown): string | undefined {
 
 function readOptionalSessionId(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function readTaskType(value: unknown): PluginHarnessTaskType | undefined | false {

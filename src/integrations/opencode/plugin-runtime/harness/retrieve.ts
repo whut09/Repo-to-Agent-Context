@@ -1,4 +1,5 @@
 import { retrieveApplicationContext } from "../../../../application/retrieval-service.js";
+import { getContextFiles } from "../../../../application/context-service.js";
 import { adaptiveTopK } from "../../../../retrievers/types.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { loadPluginHarnessContext } from "./context.js";
@@ -35,6 +36,7 @@ export async function retrievePluginHarnessContext(root: string, args: PluginRet
 }
 
 async function retrievePluginHarnessContextInternal(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
+  if (args.contextId) return fetchPluginContext(root, args);
   const context = await loadPluginHarnessContext(root);
   const taskType = args.taskType ?? "auto";
   const topK = adaptiveTopK(taskType, args.topK);
@@ -76,6 +78,43 @@ async function retrievePluginHarnessContextInternal(root: string, args: PluginRe
           .filter((file) => !hits.some((hit) => hit.path === file))
           .slice(0, 50)
       )
+    }
+  });
+}
+
+async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
+  const session = readPluginHarnessSession(root, args.sessionId);
+  const context = await getContextFiles({
+    repo: root,
+    id: args.contextId!,
+    file: args.file,
+    full: args.full,
+    mode: args.full ? "full" : args.file ? "file" : "entry"
+  });
+  const selected = context.files?.map((file) => `context://${context.entry.sourceName}/${file.path}`) ?? [];
+  return createPluginHarnessResult(root, {
+    ok: true,
+    tool: "retrieve",
+    summary: `Fetched ${context.selectedFiles.length} context file${context.selectedFiles.length === 1 ? "" : "s"} for ${context.entry.id}.`,
+    taskId: session?.taskId ?? null,
+    sessionId: session?.sessionId ?? null,
+    taskIdSource: session ? "session" : "none",
+    currentPhase: "retrieve",
+    decision: "context-fetched",
+    blocking: false,
+    nextAction: session ? "evaluate" : "prepare",
+    mustInspect: selected,
+    artifacts: [".agent-context/manifest.json"],
+    context,
+    performance: {
+      stage: "retrieve",
+      durationMs: context.durationMs,
+      targetMs: 3000,
+      status: "completed",
+      cache: context.cache.status,
+      contextMode: context.contextMode,
+      selectedFiles: context.selectedFiles,
+      rejectedFiles: context.omittedFiles
     }
   });
 }

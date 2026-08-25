@@ -22,6 +22,9 @@ export interface PluginRetrieveArgs {
   task: string;
   topK?: number;
   taskType?: "bugfix" | "feature" | "refactor" | "auto";
+  contextId?: string;
+  file?: string;
+  full?: boolean;
   sessionId?: string | null;
 }
 
@@ -100,6 +103,7 @@ export interface PluginHarnessResult {
   artifacts: string[];
   nextAction: string;
   hits?: Array<{ path: string; score: number; reason: string; scoreBreakdown?: Record<string, number> }>;
+  context?: import("../../../../context-registry/types.js").ContextFetchResult;
   performance?: PluginPerformance;
 }
 
