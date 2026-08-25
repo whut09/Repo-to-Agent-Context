@@ -225,6 +225,11 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
   const omittedFiles = requiredStringArray(input, "omittedFiles", path, issues);
   const overlap = selectedFiles.filter((file) => omittedFiles.includes(file));
   if (overlap.length) issues.push({ path: `${path}.selectedFiles`, code: "value", message: `selected and omitted files overlap: ${overlap.join(", ")}` });
+  for (const [name, files] of [["selectedFiles", selectedFiles], ["omittedFiles", omittedFiles]] as const) {
+    for (const file of files) {
+      if (!normalizeContextFilePath(file)) issues.push({ path: `${path}.${name}`, code: "path", message: `must contain normalized relative paths: ${file}` });
+    }
+  }
   const entryResult = validateContextEntry(input.entry, `${path}.entry`);
   if (!entryResult.valid) issues.push(...entryResult.issues);
   const provenanceResult = validateContextProvenance(input.provenance, `${path}.provenance`);
@@ -239,6 +244,35 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
   if (contextMode !== "reused" && contextMode !== "incremental" && contextMode !== "rebuilt") {
     issues.push({ path: `${path}.contextMode`, code: "value", message: "expected reused, incremental, or rebuilt" });
   }
+  const fetchMode = input.fetchMode;
+  if (fetchMode !== undefined && fetchMode !== "entry" && fetchMode !== "file" && fetchMode !== "full") {
+    issues.push({ path: `${path}.fetchMode`, code: "value", message: "expected entry, file, or full" });
+  }
+  const filesInput = input.files;
+  if (filesInput !== undefined && !Array.isArray(filesInput)) issues.push({ path: `${path}.files`, code: "type", message: "expected an array" });
+  for (const [index, file] of (Array.isArray(filesInput) ? filesInput : []).entries()) {
+    if (!isRecord(file)) {
+      issues.push({ path: `${path}.files[${index}]`, code: "type", message: "expected a fetched file object" });
+      continue;
+    }
+    const filePath = requiredString(file, "path", `${path}.files[${index}]`, issues);
+    const role = requiredString(file, "role", `${path}.files[${index}]`, issues);
+    const content = file.content;
+    if (filePath && !normalizeContextFilePath(filePath)) issues.push({ path: `${path}.files[${index}].path`, code: "path", message: "must be a normalized relative path" });
+    if (role && !FILE_ROLES.has(role as ContextFileRole)) issues.push({ path: `${path}.files[${index}].role`, code: "value", message: `unsupported file role ${role}` });
+    if (typeof content !== "string") issues.push({ path: `${path}.files[${index}].content`, code: "type", message: "expected a string" });
+    requiredHash(file, "contentHash", `${path}.files[${index}]`, issues);
+  }
+  const freshness = input.freshness;
+  if (freshness !== undefined) {
+    if (!isRecord(freshness)) issues.push({ path: `${path}.freshness`, code: "type", message: "expected a freshness object" });
+    else {
+      if (freshness.status !== "fresh" && freshness.status !== "stale") issues.push({ path: `${path}.freshness.status`, code: "value", message: "expected fresh or stale" });
+      requiredString(freshness, "workingTreeHash", `${path}.freshness`, issues);
+      requiredTimestamp(freshness, "checkedAt", `${path}.freshness`, issues);
+      optionalString(freshness, "reason", `${path}.freshness`, issues);
+    }
+  }
   const durationMs = input.durationMs;
   if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < 0) {
     issues.push({ path: `${path}.durationMs`, code: "value", message: "expected a non-negative number" });
@@ -251,6 +285,13 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
   }
   if (issues.length) return invalidResult(issues);
   return validResult({ ...input, selectedFiles, omittedFiles, entry: entryResult.value!, provenance: provenanceResult.value! } as ContextFetchResult);
+}
+
+function normalizeContextFilePath(value: string): string | undefined {
+  if (!value || value.includes("\\") || value.startsWith("/") || value.includes("\0")) return undefined;
+  const parts = value.split("/");
+  if (parts.some((part) => !part || part === "." || part === "..")) return undefined;
+  return value;
 }
 
 function requiredHash(input: Record<string, unknown>, key: string, path: string, issues: ContextSchemaIssue[]): string | undefined {
