@@ -8,6 +8,7 @@ import { selectContextFiles } from "../context-registry/content-reader.js";
 import { adaptiveTopK } from "../retrievers/types.js";
 import { rankContextEntriesForTask } from "../core/ranker.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
+import { injectContextAnnotation, listContextAnnotations } from "../context-registry/annotations.js";
 import type { ContextEntry, ContextFetchResult, ContextFetchSelectionMode, ContextProvenance, ContextSourceConfig } from "../context-registry/types.js";
 
 export interface ContextServiceResult {
@@ -61,6 +62,7 @@ export interface GetContextEntryResult {
   provenance: ContextProvenance;
   cache: ContextFetchResult["cache"];
   conflicts: Array<{ canonicalId: string; sourceNames: string[]; entryIds: string[] }>;
+  annotationAvailability: ReturnType<typeof listContextAnnotations>;
 }
 
 export interface GetContextFilesInput {
@@ -72,6 +74,8 @@ export interface GetContextFilesInput {
   packageVersion?: string;
   language?: string;
   source?: string;
+  annotationId?: string;
+  includeStaleAnnotation?: boolean;
 }
 
 const fetchedDocumentCache = new Map<string, { document: BuiltContextDocument; workingTreeHash: string; packHash: string }>();
@@ -103,11 +107,13 @@ export async function getContextEntry(input: GetContextEntryInput): Promise<GetC
   const loaded = await loadRegistry(root);
   const entry = findEntry(loaded.snapshot?.entries ?? [], input);
   if (!entry) throw new Error(`Context entry was not found: ${input.id}`);
+  const annotationScope = { repository: root, entryId: entry.id, packageVersion: entry.packageVersion, contentRevision: entry.contentRevision };
   return {
     entry,
     provenance: { ...entry.provenance, verified: false },
     cache: cacheForSource(loaded.snapshot?.cache ?? [], entry.sourceName),
-    conflicts: loaded.snapshot?.conflicts ?? []
+    conflicts: loaded.snapshot?.conflicts ?? [],
+    annotationAvailability: listContextAnnotations(annotationScope)
   };
 }
 
@@ -137,6 +143,11 @@ export async function getContextFiles(input: GetContextFilesInput): Promise<Cont
   const mode = input.mode ?? (input.full ? "full" : input.file ? "file" : "entry");
   if (mode === "full" && input.file) throw new Error("Context full mode cannot be combined with a file selector.");
   const selection = selectContextFiles(document, entry, input.file, mode === "full");
+  const annotationScope = { repository: root, entryId: entry.id, packageVersion: entry.packageVersion, contentRevision: entry.contentRevision };
+  const annotationAvailability = listContextAnnotations(annotationScope);
+  const annotationInjection = input.annotationId
+    ? injectContextAnnotation({ ...annotationScope, id: input.annotationId, allowStale: input.includeStaleAnnotation })
+    : undefined;
   const sourceChanged = Boolean(previous && previous.packHash !== built.pack.contentHash);
   const freshness = {
     status: "fresh" as const,
@@ -166,6 +177,8 @@ export async function getContextFiles(input: GetContextFilesInput): Promise<Cont
     cache,
     contextMode: cacheHit ? "reused" : previous ? "incremental" : "rebuilt",
     freshness,
+    annotationAvailability,
+    ...(annotationInjection ? { annotationInjection: annotationInjection.injection } : {}),
     durationMs: Date.now() - startedAt
   };
 }

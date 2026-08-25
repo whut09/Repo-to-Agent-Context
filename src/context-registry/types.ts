@@ -214,6 +214,8 @@ export interface ContextFetchResult {
   fetchMode?: ContextFetchSelectionMode;
   provenance: ContextProvenance;
   annotations?: ContextAnnotation[];
+  annotationAvailability?: ContextAnnotationAvailability;
+  annotationInjection?: ContextAnnotationInjection;
   cache: ContextFetchCache;
   contextMode: ContextFetchMode;
   freshness?: ContextFetchFreshness;
