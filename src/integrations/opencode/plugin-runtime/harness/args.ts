@@ -22,10 +22,25 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
   if (record.full !== undefined && typeof record.full !== "boolean") return "retrieve full must be boolean.";
   if (file && !contextId) return "retrieve file requires contextId.";
   if (record.topK === undefined)
-    return { task, ...(taskType ? { taskType } : {}), ...(contextId ? { contextId } : {}), ...(file ? { file } : {}), ...(record.full ? { full: true } : {}), ...(sessionId ? { sessionId } : {}) };
+    return {
+      task,
+      ...(taskType ? { taskType } : {}),
+      ...(contextId ? { contextId } : {}),
+      ...(file ? { file } : {}),
+      ...(record.full ? { full: true } : {}),
+      ...(sessionId ? { sessionId } : {})
+    };
   const topK = readPositiveInteger(record.topK);
   if (topK === undefined) return "retrieve topK must be a positive integer.";
-  return { task, topK, ...(taskType ? { taskType } : {}), ...(contextId ? { contextId } : {}), ...(file ? { file } : {}), ...(record.full ? { full: true } : {}), ...(sessionId ? { sessionId } : {}) };
+  return {
+    task,
+    topK,
+    ...(taskType ? { taskType } : {}),
+    ...(contextId ? { contextId } : {}),
+    ...(file ? { file } : {}),
+    ...(record.full ? { full: true } : {}),
+    ...(sessionId ? { sessionId } : {})
+  };
 }
 
 export function parseEvaluateArgs(args: unknown): PluginEvaluateArgs | string {

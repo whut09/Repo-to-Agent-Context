@@ -147,9 +147,17 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
   try {
     const packRoot = path.join(root, "context-packs", "docs", "payments");
     mkdirSync(path.join(packRoot, "references"), { recursive: true });
-    writeFileSync(path.join(packRoot, "DOC.md"), "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nEntry content.\n", "utf8");
+    writeFileSync(
+      path.join(packRoot, "DOC.md"),
+      "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nEntry content.\n",
+      "utf8"
+    );
     writeFileSync(path.join(packRoot, "references", "errors.md"), "Error content.\n", "utf8");
-    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: private\n      kind: local\n      location: context-packs\n      trustLevel: private\n", "utf8");
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: private\n      kind: local\n      location: context-packs\n      trustLevel: private\n",
+      "utf8"
+    );
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "state.json") });
     const tools = plugin.tool as Record<string, PluginHarnessTool>;
     const main = result(await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments" }));
@@ -157,7 +165,9 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
     assert.equal(main.context?.fetchMode, "entry");
     assert.deepEqual(main.context?.selectedFiles, ["docs/payments/DOC.md"]);
     assert.equal(main.context?.files?.[0]?.content, "Entry content.\n");
-    const companion = result(await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments", file: "docs/payments/references/errors.md" }));
+    const companion = result(
+      await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments", file: "docs/payments/references/errors.md" })
+    );
     assert.equal(companion.context?.fetchMode, "file");
     assert.equal(companion.context?.files?.[0]?.content, "Error content.\n");
   } finally {

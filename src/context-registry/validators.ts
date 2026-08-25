@@ -226,7 +226,10 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
   const omittedFiles = requiredStringArray(input, "omittedFiles", path, issues);
   const overlap = selectedFiles.filter((file) => omittedFiles.includes(file));
   if (overlap.length) issues.push({ path: `${path}.selectedFiles`, code: "value", message: `selected and omitted files overlap: ${overlap.join(", ")}` });
-  for (const [name, files] of [["selectedFiles", selectedFiles], ["omittedFiles", omittedFiles]] as const) {
+  for (const [name, files] of [
+    ["selectedFiles", selectedFiles],
+    ["omittedFiles", omittedFiles]
+  ] as const) {
     for (const file of files) {
       if (!normalizeContextFilePath(file)) issues.push({ path: `${path}.${name}`, code: "path", message: `must contain normalized relative paths: ${file}` });
     }
@@ -259,8 +262,10 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
     const filePath = requiredString(file, "path", `${path}.files[${index}]`, issues);
     const role = requiredString(file, "role", `${path}.files[${index}]`, issues);
     const content = file.content;
-    if (filePath && !normalizeContextFilePath(filePath)) issues.push({ path: `${path}.files[${index}].path`, code: "path", message: "must be a normalized relative path" });
-    if (role && !FILE_ROLES.has(role as ContextFileRole)) issues.push({ path: `${path}.files[${index}].role`, code: "value", message: `unsupported file role ${role}` });
+    if (filePath && !normalizeContextFilePath(filePath))
+      issues.push({ path: `${path}.files[${index}].path`, code: "path", message: "must be a normalized relative path" });
+    if (role && !FILE_ROLES.has(role as ContextFileRole))
+      issues.push({ path: `${path}.files[${index}].role`, code: "value", message: `unsupported file role ${role}` });
     if (typeof content !== "string") issues.push({ path: `${path}.files[${index}].content`, code: "type", message: "expected a string" });
     const contentHash = requiredHash(file, "contentHash", `${path}.files[${index}]`, issues);
     if (typeof content === "string" && contentHash && hashContextText(content) !== contentHash) {
@@ -271,7 +276,8 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
   if (freshness !== undefined) {
     if (!isRecord(freshness)) issues.push({ path: `${path}.freshness`, code: "type", message: "expected a freshness object" });
     else {
-      if (freshness.status !== "fresh" && freshness.status !== "stale") issues.push({ path: `${path}.freshness.status`, code: "value", message: "expected fresh or stale" });
+      if (freshness.status !== "fresh" && freshness.status !== "stale")
+        issues.push({ path: `${path}.freshness.status`, code: "value", message: "expected fresh or stale" });
       requiredString(freshness, "workingTreeHash", `${path}.freshness`, issues);
       requiredTimestamp(freshness, "checkedAt", `${path}.freshness`, issues);
       optionalString(freshness, "reason", `${path}.freshness`, issues);

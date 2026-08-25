@@ -8,13 +8,7 @@ import { selectContextFiles } from "../context-registry/content-reader.js";
 import { adaptiveTopK } from "../retrievers/types.js";
 import { rankContextEntriesForTask } from "../core/ranker.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
-import type {
-  ContextEntry,
-  ContextFetchResult,
-  ContextFetchSelectionMode,
-  ContextProvenance,
-  ContextSourceConfig
-} from "../context-registry/types.js";
+import type { ContextEntry, ContextFetchResult, ContextFetchSelectionMode, ContextProvenance, ContextSourceConfig } from "../context-registry/types.js";
 
 export interface ContextServiceResult {
   context: ContextPackage;

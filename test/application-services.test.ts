@@ -127,8 +127,16 @@ test("context fetch revalidates freshness after a working tree change", async ()
     const entryRoot = path.join(root, "packs", "docs", "payments");
     mkdirSync(entryRoot, { recursive: true });
     writeFileSync(path.join(root, "package.json"), "{}\n", "utf8");
-    writeFileSync(path.join(entryRoot, "DOC.md"), "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nOriginal\n", "utf8");
-    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: local\n      kind: local\n      location: packs\n      trustLevel: private\n", "utf8");
+    writeFileSync(
+      path.join(entryRoot, "DOC.md"),
+      "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nOriginal\n",
+      "utf8"
+    );
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: local\n      kind: local\n      location: packs\n      trustLevel: private\n",
+      "utf8"
+    );
 
     const first = await getContextFiles({ repo: root, id: "local/payments" });
     writeFileSync(path.join(root, "changed.ts"), "export const changed = true;\n", "utf8");
