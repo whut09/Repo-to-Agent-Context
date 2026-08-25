@@ -168,6 +168,7 @@ function walkCompanions(
     }
     if (!item.isFile() || itemPath === mainPath || ["doc.md", "skill.md"].includes(item.name.toLowerCase())) continue;
     const relative = relativeContextPath(root, itemPath);
+    if (!relative || contextFileRole(relative) === "other") continue;
     const safePath = relative
       ? resolveContextFile(root, relative)
       : invalidResult<string>([{ path: itemPath, code: "path", message: "companion path is outside source" }]);

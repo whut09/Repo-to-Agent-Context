@@ -125,6 +125,9 @@ export function validateContextEntry(input: unknown, path = "$"): ContextValidat
   const issues = validateSchemaEnvelope(input, path);
   if (!isRecord(input)) return invalidResult(issues);
   const id = requiredString(input, "id", path, issues);
+  const canonicalId = optionalString(input, "canonicalId", path, issues);
+  const variantKey = optionalString(input, "variantKey", path, issues);
+  const apiVersion = optionalString(input, "apiVersion", path, issues);
   const name = requiredString(input, "name", path, issues);
   const description = requiredString(input, "description", path, issues);
   const kind = requiredString(input, "kind", path, issues);
@@ -162,6 +165,9 @@ export function validateContextEntry(input: unknown, path = "$"): ContextValidat
   return validResult({
     ...input,
     id,
+    canonicalId,
+    variantKey,
+    apiVersion,
     name,
     description,
     kind,

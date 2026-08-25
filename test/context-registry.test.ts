@@ -221,6 +221,7 @@ test("local builder expands language and package version variants with companion
       `---\nname: payments\ndescription: Payment API\nmetadata:\n  languages: [typescript, python]\n  versions: [2.0.0]\n  revision: 3\n  updated-on: 2026-02-03\n  source: official\n  tags: payments, api\n---\nUse the payment API.\n`
     );
     writeFileSync(path.join(entryRoot, "references", "errors.md"), "Error reference\n");
+    writeFileSync(path.join(entryRoot, "package.json"), '{"private":true}\n');
     const result = buildLocalContextPack({
       source: { name: "acme", kind: "local", location: root, trustLevel: "official" },
       validateOnly: true,
@@ -234,6 +235,7 @@ test("local builder expands language and package version variants with companion
       ["python", "typescript"]
     );
     assert.ok(result.pack?.entries.every((entry) => entry.files.some((file) => file.path.endsWith("references/errors.md"))));
+    assert.ok(result.pack?.entries.every((entry) => entry.files.every((file) => !file.path.endsWith("package.json"))));
     assert.equal(existsSync(path.join(root, ".agent-context")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
