@@ -33,6 +33,7 @@ import { buildAndWriteApplicationContext } from "../application/context-service.
 import { packApplicationTask, planApplicationTask } from "../application/task-service.js";
 import { inspectApplicationImpact, testApplicationChanges, verifyApplicationChanges } from "../application/verification-service.js";
 import { explainApplicationPath, retrieveApplicationContext } from "../application/retrieval-service.js";
+import { getContextFiles } from "../application/context-service.js";
 
 export const opencodePlusplusMcpToolNames = [
   "opencode_plusplus_build",
@@ -76,6 +77,9 @@ interface RetrieveArguments {
   modules?: string[];
   changedFiles?: string[];
   includeTests?: boolean;
+  contextId?: string;
+  file?: string;
+  full?: boolean;
 }
 
 export function createOpenCodePlusplusMcpServer(): McpServer {
@@ -142,7 +146,10 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
         topK: z.number().int().positive().optional().default(8),
         modules: z.array(z.string()).optional(),
         changedFiles: z.array(z.string()).optional(),
-        includeTests: z.boolean().optional().default(false)
+        includeTests: z.boolean().optional().default(false),
+        contextId: z.string().optional(),
+        file: z.string().optional(),
+        full: z.boolean().optional().default(false)
       })
     },
     async (args) => jsonToolResult(await runRetrieve(args))
@@ -456,6 +463,9 @@ async function runTaskPack(args: PackInput): Promise<OpenCodePlusplusMcpResult> 
 }
 
 async function runRetrieve(args: RetrieveArguments): Promise<OpenCodePlusplusMcpResult> {
+  if (args.contextId) {
+    return getContextFiles({ repo: args.repo ?? ".", id: args.contextId, file: args.file, full: args.full });
+  }
   return retrieveApplicationContext({ repo: args.repo ?? ".", ...args });
 }
 
