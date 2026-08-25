@@ -46,6 +46,8 @@ test("static retriever returns task-relevant context hits", async () => {
     const markdown = renderContextHits("fix session timeout", "static", hits);
     assert.match(markdown, /# Context Retrieval/);
     assert.match(markdown, /src\/auth\/session\.ts/);
+    assert.match(markdown, /Signals: lexical=/);
+    assert.match(markdown, /Must inspect:/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

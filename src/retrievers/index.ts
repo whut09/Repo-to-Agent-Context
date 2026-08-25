@@ -34,7 +34,21 @@ export function renderContextHits(task: string, provider: RetrieverProvider, hit
     ),
     "",
     heading(2, "Snippets"),
-    ...hits.flatMap((hit) => ["", heading(3, hit.path), hit.snippet || "No snippet available."])
+    ...hits.flatMap((hit) => {
+      const breakdown = hit.metadata.scoreBreakdown;
+      const signals = breakdown
+        ? `Signals: lexical=${(breakdown.lexical ?? 0).toFixed(1)}, symbol=${(breakdown.symbol ?? 0).toFixed(1)}, dependency=${(breakdown.dependency ?? breakdown.dependencyChain ?? 0).toFixed(1)}, source=${(breakdown.source ?? 0).toFixed(1)}, quality=${(breakdown.quality ?? 0).toFixed(1)}, regression=${(breakdown.regression ?? breakdown.regressionMemory ?? 0).toFixed(1)}, negativePenalty=${(breakdown.negativePenalty ?? breakdown.negativeExample ?? 0).toFixed(1)}`
+        : "Signals: unavailable";
+      return [
+        "",
+        heading(3, hit.path),
+        signals,
+        `Related files: ${(hit.relatedFiles ?? []).join(", ") || "none"}`,
+        `Must inspect: ${(hit.mustInspect ?? []).join(", ") || "none"}`,
+        `Rejected files: ${(hit.rejectedFiles ?? []).join(", ") || "none"}`,
+        hit.snippet || "No snippet available."
+      ];
+    })
   ].join("\n");
 }
 
