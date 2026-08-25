@@ -10,6 +10,8 @@ import { recordSidecarTool } from "./sidecar-evidence-recorder.js";
 import { checkSidecarCommand } from "./sidecar-command-guard.js";
 import { blockersFromGuardStack, runSidecarIncrementalVerifier, warningsFromGuardStack } from "./sidecar-incremental-verifier.js";
 import { defaultOpenCodePlusPlusPluginFile } from "./plugin-runtime/state.js";
+import { pluginInterventionSnapshot } from "./plugin-runtime/harness/interventions.js";
+import { readPluginEvaluateState, readPluginHarnessSession } from "./plugin-runtime/harness/session.js";
 
 export interface OpenCodeSidecarVerifyOptions {
   pluginPath?: string;
@@ -37,6 +39,7 @@ export interface OpenCodeSidecarVerifyResult {
   warnings: string[];
   checks: OpenCodeSidecarVerifyCheck[];
   guardStack: OpenCodeSidecarGuardStackSummary;
+  interventions?: import("./plugin-runtime/harness/types.js").PluginInterventionSnapshot;
 }
 
 export interface OpenCodeSidecarGuardStackSummary {
@@ -213,6 +216,16 @@ export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecar
   const warnings = detectWarnings(changedFiles);
   const base = resolveGitBase(root);
   const guardStack = await runSidecarIncrementalVerifier(root, { base, changedFiles });
+  const session = readPluginHarnessSession(root);
+  const evaluate = session ? readPluginEvaluateState(root, session.sessionId) : readPluginEvaluateState(root);
+  const interventions = session?.taskId
+    ? pluginInterventionSnapshot(
+        root,
+        session.taskId,
+        evaluate?.interventions?.selectedFiles ?? [],
+        evaluate?.interventions?.excludedFiles ?? []
+      )
+    : undefined;
   blockers.push(...blockersFromGuardStack(guardStack));
   warnings.push(...warningsFromGuardStack(guardStack));
   checks.push({
@@ -241,7 +254,8 @@ export async function verifyOpencodeSidecar(repo = ".", options: OpenCodeSidecar
     blockers,
     warnings,
     checks,
-    guardStack
+    guardStack,
+    interventions
   };
 }
 

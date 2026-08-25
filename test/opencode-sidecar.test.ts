@@ -262,6 +262,11 @@ test("OpenCode sidecar verify checks plugin hooks, event log readiness, and guar
     assert.equal(existsSync(path.join(root, ".agent-context", "sidecar", "latest.json")), true);
     assert.equal(existsSync(path.join(root, ".agent-context", "sidecar", "latest.md")), true);
     assert.match(readFileSync(path.join(root, ".agent-context", "sidecar", "latest.md"), "utf8"), /Guard Stack/);
+    const latest = readFileSync(path.join(root, ".agent-context", "sidecar", "latest.md"), "utf8");
+    assert.match(latest, /Intervention Summary/);
+    assert.match(latest, /Verified Fixes/);
+    assert.match(latest, /Remaining Problems/);
+    assert.match(latest, /Human Review/);
     assert.equal(existsSync(path.join(root, ".agent-context", "sidecar", "policy.md")), true);
     assert.equal(existsSync(path.join(root, ".agent-context", "sidecar", "task-verify.md")), true);
   } finally {

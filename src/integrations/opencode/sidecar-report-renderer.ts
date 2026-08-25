@@ -77,6 +77,7 @@ export function renderVerifyReport(result: {
   warnings: string[];
   guardStack: GuardStack;
   ok: boolean;
+  interventions?: InterventionReport;
 }): string {
   return [
     "OpenCode++ OpenCode Sidecar Verify",
@@ -97,6 +98,8 @@ export function renderVerifyReport(result: {
     "Warnings:",
     ...(result.warnings.length ? result.warnings.map((warning) => `- ${warning}`) : ["- none"]),
     "",
+    ...renderInterventionSections(result.interventions),
+    "",
     "Guard stack:",
     ...formatGuardStackLines(result.guardStack),
     "",
@@ -112,6 +115,7 @@ export function renderLatestMarkdown(result: {
   warnings: string[];
   guardStack: GuardStack;
   checks: Check[];
+  interventions?: InterventionReport;
 }): string {
   return [
     "# OpenCode++ Sidecar Latest",
@@ -128,12 +132,50 @@ export function renderLatestMarkdown(result: {
     "## Warnings",
     ...(result.warnings.length ? result.warnings.map((warning) => `- ${warning}`) : ["- none"]),
     "",
+    ...renderInterventionSections(result.interventions),
+    "",
     "## Guard Stack",
     ...formatGuardStackLines(result.guardStack),
     "",
     "## Checks",
     ...result.checks.map((check) => `- **${check.status.toUpperCase()}** ${check.name}: ${check.details}`)
   ].join("\n");
+}
+
+interface InterventionReport {
+  selectedFiles: string[];
+  excludedFiles: Array<{ path: string; reason: string }>;
+  verifiedFixes: Array<{ problem: string; action: string; targetFiles: string[] }>;
+  remainingProblems: Array<{ problem: string; action: string; status: string; targetFiles: string[] }>;
+  humanReview: Array<{ problem: string; action: string; targetFiles: string[] }>;
+}
+
+function renderInterventionSections(interventions: InterventionReport | undefined): string[] {
+  if (!interventions) {
+    return ["## Intervention Summary", "- none recorded", "", "## Verified Fixes", "- none recorded", "", "## Remaining Problems", "- none recorded", "", "## Human Review", "- none recorded"];
+  }
+  return [
+    "## Intervention Summary",
+    ...(interventions.selectedFiles.length ? [`- selected: ${interventions.selectedFiles.join(", ")}`] : ["- selected: none"]),
+    ...(interventions.excludedFiles.length
+      ? interventions.excludedFiles.map((file) => `- excluded: ${file.path} (${file.reason})`)
+      : ["- excluded: none"]),
+    "",
+    "## Verified Fixes",
+    ...formatInterventions(interventions.verifiedFixes),
+    "",
+    "## Remaining Problems",
+    ...formatInterventions(interventions.remainingProblems, true),
+    "",
+    "## Human Review",
+    ...formatInterventions(interventions.humanReview)
+  ];
+}
+
+function formatInterventions(items: Array<{ problem: string; action: string; status?: string; targetFiles: string[] }>, includeStatus = false): string[] {
+  return items.length
+    ? items.map((item) => `- ${includeStatus && item.status ? `[${item.status}] ` : ""}${item.problem} -> ${item.action}${item.targetFiles.length ? ` (${item.targetFiles.join(", ")})` : ""}`)
+    : ["- none recorded"];
 }
 
 export function formatGuardStackLines(summary: GuardStack): string[] {

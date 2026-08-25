@@ -47,6 +47,9 @@ test("prepare is idempotent, task state is isolated, and next consumes current e
     assert.equal(second.sessionId, "session-a");
     assert.equal(second.taskIdSource, "created");
     assert.equal(second.nextAction, "evaluate");
+    assert.ok(second.interventions);
+    assert.ok((second.interventions?.selectedFiles.length ?? 0) > 0);
+    assert.deepEqual(second.interventions?.selectedFiles, first.interventions?.selectedFiles);
     assert.equal(second.blocking, true);
     assert.equal(first.artifacts.sort().join("\n"), second.artifacts.sort().join("\n"));
 
@@ -68,6 +71,8 @@ test("prepare is idempotent, task state is isolated, and next consumes current e
     assert.equal(evaluated.sessionId, "session-a");
     assert.match(evaluated.workingTreeHash, /^[a-f0-9]{64}$/);
     assert.equal(existsSync(pluginEvaluateStatePath(root, "session-a")), true);
+    assert.ok(evaluated.interventions);
+    assert.equal(typeof evaluated.interventions?.ledgerPath, "string");
 
     const next = result(await tools.opencode_plusplus_next.execute({ taskId: first.taskId, sessionId: "session-a" }));
     assert.equal(
