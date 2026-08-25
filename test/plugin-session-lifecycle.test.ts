@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createSidecarRecorder, notifyOpenCodePlusPlusToast, type OpenCodeSidecarRuntimeContext } from "../src/integrations/opencode/plugin-runtime/events.js";
+import { createSidecarRecorder, notifyOpenCodePlusPlusToast, notifyPluginInterventionSignals, type OpenCodeSidecarRuntimeContext } from "../src/integrations/opencode/plugin-runtime/events.js";
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import { readOpenCodePlusPlusPluginStatus, setOpenCodePlusPlusPluginEnabled } from "../src/integrations/opencode/plugin-runtime/state.js";
 import {
@@ -13,6 +13,7 @@ import {
   type SessionLifecycle
 } from "../src/integrations/opencode/plugin-runtime/session-lifecycle.js";
 import type { OpenCodeSidecarVerifyResult } from "../src/integrations/opencode/sidecar.js";
+import type { PluginInterventionSnapshot } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
 
 test("toast helper prefers tui.toast.show and falls back to app.log", () => {
   const toastCalls: Array<{ title: string; message: string }> = [];
@@ -48,6 +49,41 @@ test("toast helper prefers tui.toast.show and falls back to app.log", () => {
 
   const noClient: OpenCodeSidecarRuntimeContext = { directory: "/tmp" };
   assert.equal(notifyOpenCodePlusPlusToast(noClient, "OpenCode++", "已就绪"), "log");
+});
+
+test("intervention notifications only emit high-signal events and deduplicate them", () => {
+  const toastCalls: string[] = [];
+  const context: OpenCodeSidecarRuntimeContext = {
+    directory: "/tmp",
+    client: { tui: { toast: { show: (input) => toastCalls.push(`${input.title}: ${input.message}`) } } }
+  };
+  const snapshot: PluginInterventionSnapshot = {
+    ledgerPath: "ledger.jsonl",
+    eventCount: 4,
+    selectedFiles: ["src/app.ts"],
+    excludedFiles: [],
+    interventions: [
+      signal("blocker-1", "prevented", "blocked protected edit"),
+      signal("verified-1", "verified", "test fix verified"),
+      signal("review-1", "human-review", "manual review required"),
+      signal("progress-1", "human-review", "no-progress: repeated state")
+    ],
+    problems: ["blocked protected edit"],
+    actions: ["inspect"],
+    verifiedFixes: [signal("verified-1", "verified", "test fix verified")],
+    remainingProblems: [signal("blocker-1", "prevented", "blocked protected edit")],
+    humanReview: [signal("review-1", "human-review", "manual review required"), signal("progress-1", "human-review", "no-progress: repeated state")]
+  };
+
+  assert.equal(notifyPluginInterventionSignals(context, snapshot, "prepare"), 0);
+  assert.equal(toastCalls.length, 0);
+  assert.equal(notifyPluginInterventionSignals(context, snapshot, "evaluate"), 4);
+  assert.equal(notifyPluginInterventionSignals(context, snapshot, "evaluate"), 0);
+  assert.equal(toastCalls.length, 4);
+  assert.ok(toastCalls.some((message) => message.includes("blocker")));
+  assert.ok(toastCalls.some((message) => message.includes("verified")));
+  assert.ok(toastCalls.some((message) => message.includes("human review")));
+  assert.ok(toastCalls.some((message) => message.includes("no progress")));
 });
 
 test("session ready build is debounced at least two seconds by default", () => {
@@ -307,6 +343,23 @@ function mkdirSafe(directory: string): void {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function signal(interventionId: string, status: "prevented" | "verified" | "human-review", problem: string) {
+  return {
+    interventionId,
+    eventId: `event-${interventionId}`,
+    status,
+    phase: "evaluate",
+    category: "evidence",
+    problem,
+    targetFiles: ["src/app.ts"],
+    action: "inspect",
+    evidenceRefs: [],
+    confidence: 0.9,
+    source: "test",
+    timestamp: "2026-08-25T00:00:00.000Z"
+  };
 }
 
 async function waitFor(predicate: () => boolean, timeoutMs = 10000, intervalMs = 25): Promise<void> {

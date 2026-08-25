@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { readJsonDiagnostic } from "../../../core/atomic-store.js";
 import type { TaskRunManifest } from "../../../outputs/task-run.js";
-import { notifyOpenCodePlusPlusToast, type OpenCodeSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
+import { notifyOpenCodePlusPlusToast, notifyPluginInterventionSignals, type OpenCodeSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
 import { loadPluginHarnessContext } from "./harness/context.js";
 import { readPluginEvaluateState, readPluginHarnessSession, taskRunManifestPath } from "./harness/session.js";
 import type { IdleVerifier } from "./idle-verify.js";
@@ -74,7 +74,9 @@ export function createSessionLifecycle(options: SessionLifecycleOptions): Sessio
   function onSessionIdle(verify: OpenCodeSidecarVerifyResult | null): void {
     try {
       if (!isEnabled()) return;
-      if (!verify || verify.ok) return;
+      if (!verify) return;
+      if (verify.interventions && notifyPluginInterventionSignals(context, verify.interventions, "evaluate", recorder) > 0) return;
+      if (verify.ok) return;
       const blocker = verify.blockers[0];
       if (!blocker) return;
       notifyOpenCodePlusPlusToast(context, "OpenCode++", blockerMessage(blocker));

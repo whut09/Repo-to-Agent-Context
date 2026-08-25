@@ -48,21 +48,25 @@ export function notifyPluginInterventionSignals(
   snapshot: PluginInterventionSnapshot | undefined,
   tool: "prepare" | "retrieve" | "evaluate" | "next",
   recorder?: OpenCodeSidecarRecorder
-): void {
-  if (!snapshot || tool === "prepare" || tool === "retrieve") return;
+): number {
+  if (!snapshot || tool === "prepare" || tool === "retrieve") return 0;
   const signals = [
     ...snapshot.remainingProblems
       .filter((event) => ["prevented", "requested", "unresolved"].includes(event.status))
       .map((event) => ({ key: `blocker:${event.interventionId}:${event.eventId}`, title: "OpenCode++ blocker", message: event.problem })),
     ...snapshot.verifiedFixes.map((event) => ({ key: `verified:${event.interventionId}:${event.eventId}`, title: "OpenCode++ verified", message: event.problem })),
-    ...snapshot.humanReview.map((event) => ({ key: `review:${event.interventionId}:${event.eventId}`, title: "OpenCode++ human review", message: event.problem })),
+    ...snapshot.humanReview
+      .filter((event) => !/no-progress/i.test(`${event.action} ${event.problem}`))
+      .map((event) => ({ key: `review:${event.interventionId}:${event.eventId}`, title: "OpenCode++ human review", message: event.problem })),
     ...snapshot.interventions
       .filter((event) => /no-progress/i.test(`${event.status} ${event.action} ${event.problem}`))
       .map((event) => ({ key: `no-progress:${event.interventionId}:${event.eventId}`, title: "OpenCode++ no progress", message: event.problem }))
   ];
+  let notified = 0;
   for (const signal of signals) {
     if (notifiedInterventionSignals.has(signal.key)) continue;
     notifiedInterventionSignals.add(signal.key);
+    notified += 1;
     try {
       const channel = notifyOpenCodePlusPlusToast(context, signal.title, signal.message);
       recorder?.record("sidecar.intervention-signal", { signal: signal.title, interventionId: signal.key, channel, tool });
@@ -70,6 +74,7 @@ export function notifyPluginInterventionSignals(
       recorder?.log("debug", "intervention signal notification failed", { message: error instanceof Error ? error.message : String(error) });
     }
   }
+  return notified;
 }
 
 export interface OpenCodeSidecarRecorder {
