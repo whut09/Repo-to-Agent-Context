@@ -22,3 +22,16 @@ export interface ContextFile {
   sizeBytes: number;
   updatedAt: string;
 }
+
+export interface ContextSource {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  name: string;
+  kind: ContextSourceKind;
+  location: string;
+  trustLevel: ContextTrustLevel;
+  enabled: boolean;
+  registryHash?: string;
+  fetchedAt?: string;
+  updatedAt: string;
+}
