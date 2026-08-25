@@ -81,3 +81,13 @@ export interface ContextEntry {
   contentHash: string;
   provenance: ContextProvenance;
 }
+
+export interface ContextPack {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  id: string;
+  sourceName: string;
+  generatedAt: string;
+  entries: ContextEntry[];
+  contentHash: string;
+}
