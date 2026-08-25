@@ -33,7 +33,9 @@ export function readContextPack(root: string): ContextRegistryReadResult {
   return { status: "ok", value: validated.value! };
 }
 
-export function writeContextPack(root: string, pack: ContextPack, expectedRevision = pack.revision): ContextPack {
+export function writeContextPack(root: string, pack: ContextPack, expectedRevision?: number): ContextPack {
   const value = assertValid(validateContextPack(pack));
-  return writeJsonAtomicWithRevision(contextRegistryPath(root), value, expectedRevision) as ContextPack;
+  const current = readContextPack(root);
+  const revision = expectedRevision ?? (current.status === "ok" ? current.value.revision : 0);
+  return writeJsonAtomicWithRevision(contextRegistryPath(root), value, revision) as ContextPack;
 }
