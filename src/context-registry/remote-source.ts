@@ -45,36 +45,42 @@ export async function fetchRemoteContextPack(source: ContextSourceConfig, option
   try {
     response = await (options.fetch ?? globalThis.fetch)(url, { signal, headers: { accept: "application/json" } });
   } catch (error) {
+    clearTimeout(timeout);
     if (controller.signal.aborted) throw new ContextSourceFetchError(source.name, "timeout", `request exceeded ${timeoutMs}ms`);
     throw new ContextSourceFetchError(source.name, "network", error instanceof Error ? error.message : String(error));
+  }
+  try {
+    if (!response.ok) throw new ContextSourceFetchError(source.name, "status", `HTTP ${response.status}`);
+    const declaredLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      throw new ContextSourceFetchError(source.name, "size", `response exceeds ${maxBytes} bytes`);
+    }
+    const bytes = await readLimitedBody(response, maxBytes, source.name);
+    const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    const contentHash = hashContextText(content);
+    if (source.sha256 && contentHash.toLowerCase() !== source.sha256.toLowerCase()) {
+      throw new ContextSourceFetchError(source.name, "hash", `SHA-256 mismatch: expected ${source.sha256}, received ${contentHash}`);
+    }
+    let input: unknown;
+    try {
+      input = JSON.parse(content);
+    } catch (error) {
+      throw new ContextSourceFetchError(source.name, "json", error instanceof Error ? error.message : String(error));
+    }
+    const validated = validateContextPack(input);
+    if (!validated.valid) {
+      throw new ContextSourceFetchError(source.name, "schema", validated.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+    }
+    if (validated.value!.sourceName !== source.name) {
+      throw new ContextSourceFetchError(source.name, "schema", `pack sourceName must be ${source.name}`);
+    }
+    return { pack: applyConfiguredTrust(validated.value!, source), fetchedAt: new Date().toISOString(), contentHash, sizeBytes: bytes.byteLength };
+  } catch (error) {
+    if (controller.signal.aborted) throw new ContextSourceFetchError(source.name, "timeout", `request exceeded ${timeoutMs}ms`);
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new ContextSourceFetchError(source.name, "status", `HTTP ${response.status}`);
-  const declaredLength = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    throw new ContextSourceFetchError(source.name, "size", `response exceeds ${maxBytes} bytes`);
-  }
-  const bytes = await readLimitedBody(response, maxBytes, source.name);
-  const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  const contentHash = hashContextText(content);
-  if (source.sha256 && contentHash.toLowerCase() !== source.sha256.toLowerCase()) {
-    throw new ContextSourceFetchError(source.name, "hash", `SHA-256 mismatch: expected ${source.sha256}, received ${contentHash}`);
-  }
-  let input: unknown;
-  try {
-    input = JSON.parse(content);
-  } catch (error) {
-    throw new ContextSourceFetchError(source.name, "json", error instanceof Error ? error.message : String(error));
-  }
-  const validated = validateContextPack(input);
-  if (!validated.valid) {
-    throw new ContextSourceFetchError(source.name, "schema", validated.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
-  }
-  if (validated.value!.sourceName !== source.name) {
-    throw new ContextSourceFetchError(source.name, "schema", `pack sourceName must be ${source.name}`);
-  }
-  return { pack: applyConfiguredTrust(validated.value!, source), fetchedAt: new Date().toISOString(), contentHash, sizeBytes: bytes.byteLength };
 }
 
 function applyConfiguredTrust(pack: ContextPack, source: ContextSourceConfig): ContextPack {

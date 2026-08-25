@@ -178,6 +178,26 @@ test("remote content hash, size, and schema are verified before caching", async 
   assert.equal(hashContextText(content).length, 64);
 });
 
+test("remote fetch timeout aborts a hanging response", async () => {
+  const source: ContextSourceConfig = {
+    name: "slow",
+    kind: "remote",
+    location: "https://example.test/slow.json",
+    trustLevel: "community",
+    timeoutMs: 5
+  };
+  await assert.rejects(
+    () =>
+      fetchRemoteContextPack(source, {
+        fetch: async (_input, init) =>
+          await new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+          })
+      }),
+    /timeout|request exceeded/
+  );
+});
+
 test("corrupt source cache is diagnostic and cannot be replaced silently", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-source-corrupt-"));
   const source: ContextSourceConfig = { name: "中文 source", kind: "remote", location: "https://example.test/registry.json", trustLevel: "private" };

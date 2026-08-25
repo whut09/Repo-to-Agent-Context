@@ -73,6 +73,27 @@ contextRegistry:
   }
 });
 
+test("context registry rejects duplicate source names and invalid remote limits", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
+  try {
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      `contextRegistry:\n  sources:\n    - name: public\n      kind: remote\n      location: https://example.test/one.json\n      trustLevel: official\n      timeoutMs: 0\n    - name: public\n      kind: remote\n      location: https://example.test/two.json\n      trustLevel: community\n`,
+      "utf8"
+    );
+    assert.throws(() => loadConfig(root), /timeoutMs must be a positive number|names must be unique/);
+
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      `contextRegistry:\n  sources:\n    - name: public\n      kind: remote\n      location: https://example.test/one.json\n      trustLevel: official\n    - name: public\n      kind: local\n      location: C:/context\n      trustLevel: private\n`,
+      "utf8"
+    );
+    assert.throws(() => loadConfig(root), /contextRegistry\.sources names must be unique/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("enabled LLM requires non-placeholder credentials", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
   try {

@@ -51,6 +51,15 @@ const TRUST_RANK: Record<ContextTrustLevel, number> = {
 };
 
 export async function loadContextSourceRegistry(options: ContextSourceRegistryOptions): Promise<ContextSourceRegistryResult> {
+  const duplicateNames = findDuplicateSourceNames(options.sources);
+  if (duplicateNames.length) {
+    const issues = duplicateNames.map((name) => ({
+      path: `sources.${name}`,
+      code: "value" as const,
+      message: "source names must be unique; refusing implicit override"
+    }));
+    return { valid: false, sources: [], issues };
+  }
   const sourceResults: ContextSourceLoadResult[] = [];
   for (const source of [...options.sources].filter((item) => item.enabled !== false).sort(compareSourceConfig)) {
     sourceResults.push(await loadSource(options, source));
@@ -232,4 +241,13 @@ function compareSources(left: ContextSource, right: ContextSource): number {
 
 function sourceIssue(source: ContextSourceConfig, error: unknown): ContextSchemaIssue {
   return { path: `sources.${source.name}`, code: "value", message: error instanceof Error ? error.message : String(error) };
+}
+
+function findDuplicateSourceNames(sources: ContextSourceConfig[]): string[] {
+  const counts = new Map<string, number>();
+  for (const source of sources) counts.set(source.name, (counts.get(source.name) ?? 0) + 1);
+  return [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([name]) => name)
+    .sort();
 }

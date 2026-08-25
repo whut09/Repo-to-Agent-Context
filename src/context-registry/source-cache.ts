@@ -30,6 +30,12 @@ export function readSourceCache(root: string, source: Pick<ContextSourceConfig, 
   if (!value || typeof value !== "object" || value.schemaVersion !== 1 || typeof value.revision !== "number" || !value.metadata || !value.pack) {
     return { status: "corrupt", filePath, error: "source cache must contain metadata and pack" };
   }
+  if (value.metadata.schemaVersion !== 1 || !Number.isInteger(value.metadata.revision) || value.metadata.revision < 0) {
+    return { status: "corrupt", filePath, error: "source cache metadata has an unsupported schemaVersion or revision" };
+  }
+  if (!/^[a-f0-9]{64}$/i.test(value.metadata.registryHash) || !/^[a-f0-9]{64}$/i.test(value.metadata.contentHash)) {
+    return { status: "corrupt", filePath, error: "source cache metadata hashes must be SHA-256 hex digests" };
+  }
   const packResult = validateContextPack(value.pack);
   if (!packResult.valid) {
     return { status: "corrupt", filePath, error: packResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ") };

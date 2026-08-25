@@ -207,6 +207,8 @@ function validateRawConfig(input: Record<string, unknown> | null | undefined, so
     if (registry.sources !== undefined) {
       if (!Array.isArray(registry.sources)) throw new Error("contextRegistry.sources must be an array.");
       registry.sources.forEach(validateContextSourceConfig);
+      const names = registry.sources.map((source) => String((source as Record<string, unknown>).name));
+      if (new Set(names).size !== names.length) throw new Error("contextRegistry.sources names must be unique.");
     }
   }
   if (input.tokenBudget !== undefined && (typeof input.tokenBudget !== "number" || input.tokenBudget <= 0)) {
