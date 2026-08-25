@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 import { DEFAULT_CONFIG } from "./defaults.js";
-import type { AgentTarget, AgentsMode, AgentsSection, EvidencePolicyMode, OpenCodePlusplusConfig, TokenizerMode } from "../core/types.js";
+import type { AgentTarget, AgentsMode, AgentsSection, ContextRegistryConfig, EvidencePolicyMode, OpenCodePlusplusConfig, TokenizerMode } from "../core/types.js";
+import type { ContextSourceConfig, ContextSourceKind, ContextTrustLevel } from "../context-registry/types.js";
 
 const CONFIG_FILES = ["opencode-plusplus.config.yml", "opencode-plusplus.config.yaml", "opencode-plusplus.config.json"];
 
@@ -21,6 +22,13 @@ export function loadConfig(repoRoot: string, overrides: Partial<OpenCodePlusplus
     ...overrides,
     include: overrides.include ?? localConfig.include ?? fileConfig.include ?? DEFAULT_CONFIG.include,
     exclude: [...DEFAULT_CONFIG.exclude, ...(fileConfig.exclude ?? []), ...(localConfig.exclude ?? []), ...(overrides.exclude ?? [])],
+    contextRegistry: {
+      ...DEFAULT_CONFIG.contextRegistry,
+      ...fileConfig.contextRegistry,
+      ...localConfig.contextRegistry,
+      ...overrides.contextRegistry,
+      sources: overrides.contextRegistry?.sources ?? localConfig.contextRegistry?.sources ?? fileConfig.contextRegistry?.sources ?? DEFAULT_CONFIG.contextRegistry.sources
+    },
     llm: {
       ...DEFAULT_CONFIG.llm,
       ...fileConfig.llm,
@@ -80,6 +88,10 @@ function normalizeConfig(input: Record<string, unknown> | null | undefined): Par
   return stripUndefined({
     target,
     evidencePolicy: typeof input.evidencePolicy === "string" ? (input.evidencePolicy as EvidencePolicyMode) : undefined,
+    contextRegistry:
+      typeof input.contextRegistry === "object" && input.contextRegistry
+        ? normalizeContextRegistryConfig(input.contextRegistry as Record<string, unknown>)
+        : undefined,
     tokenBudget: typeof input.tokenBudget === "number" ? input.tokenBudget : undefined,
     include: toStringArray(input.include),
     exclude: toStringArray(input.exclude),
@@ -89,6 +101,25 @@ function normalizeConfig(input: Record<string, unknown> | null | undefined): Par
     agents: typeof input.agents === "object" && input.agents ? normalizeAgentsConfig(input.agents as Record<string, unknown>) : undefined,
     outputs: typeof input.outputs === "object" && input.outputs ? (input.outputs as OpenCodePlusplusConfig["outputs"]) : undefined
   }) as Partial<OpenCodePlusplusConfig>;
+}
+
+function normalizeContextRegistryConfig(input: Record<string, unknown>): Partial<ContextRegistryConfig> {
+  return stripUndefined({
+    enabled: typeof input.enabled === "boolean" ? input.enabled : undefined,
+    offline: typeof input.offline === "boolean" ? input.offline : undefined,
+    sources: Array.isArray(input.sources) ? input.sources.map(normalizeContextSourceConfig) : undefined
+  });
+}
+
+function normalizeContextSourceConfig(input: unknown): ContextSourceConfig {
+  const source = typeof input === "object" && input ? (input as Record<string, unknown>) : {};
+  return {
+    name: String(source.name ?? ""),
+    kind: String(source.kind ?? "local") as ContextSourceKind,
+    location: String(source.location ?? ""),
+    trustLevel: String(source.trustLevel ?? "untrusted") as ContextTrustLevel,
+    ...(typeof source.enabled === "boolean" ? { enabled: source.enabled } : {})
+  };
 }
 
 export function validateConfig(config: OpenCodePlusplusConfig): void {
