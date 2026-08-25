@@ -35,6 +35,9 @@ export async function fetchRemoteContextPack(source: ContextSourceConfig, option
   if (![/^https:$/.test(url.protocol), /^http:$/.test(url.protocol)].some(Boolean)) {
     throw new ContextSourceFetchError(source.name, "url", "only HTTP(S) URLs are allowed");
   }
+  if (!source.sha256) {
+    throw new ContextSourceFetchError(source.name, "hash", "remote sources require a configured sha256 digest");
+  }
 
   const timeoutMs = source.timeoutMs ?? 5_000;
   const maxBytes = source.maxBytes ?? 5 * 1024 * 1024;

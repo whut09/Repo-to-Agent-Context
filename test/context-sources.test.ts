@@ -69,6 +69,17 @@ function jsonResponse(value: unknown): Response {
   return new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
 }
 
+function remoteSource(name: string, value: unknown, overrides: Partial<ContextSourceConfig> = {}): ContextSourceConfig {
+  return {
+    name,
+    kind: "remote",
+    location: "https://example.test/registry.json",
+    trustLevel: "official",
+    sha256: hashContextText(JSON.stringify(value)),
+    ...overrides
+  };
+}
+
 test("source merge preserves source-prefixed conflicts and trust ordering", () => {
   const result = mergeContextPacks([pack("community"), pack("official")]);
   assert.equal(result.valid, true);
@@ -84,7 +95,7 @@ test("remote sources remain offline by default and do not call fetch", async () 
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-source-offline-"));
   let calls = 0;
   try {
-    const source: ContextSourceConfig = { name: "public", kind: "remote", location: "https://example.test/registry.json", trustLevel: "official" };
+    const source: ContextSourceConfig = remoteSource("public", pack("public"));
     const result = await loadContextSourceRegistry({
       root,
       sources: [source],
@@ -103,7 +114,7 @@ test("remote sources remain offline by default and do not call fetch", async () 
 
 test("remote source fetches, caches, and falls back while offline", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-source-cache-"));
-  const source: ContextSourceConfig = { name: "public", kind: "remote", location: "https://example.test/registry.json", trustLevel: "official" };
+  const source: ContextSourceConfig = remoteSource("public", pack("public"));
   let calls = 0;
   try {
     const online = await loadContextSourceRegistry({
@@ -149,13 +160,7 @@ test("remote source fetches, caches, and falls back while offline", async () => 
 
 test("stale cache is reported and remote content is still never treated as fresh", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-source-stale-"));
-  const source: ContextSourceConfig = {
-    name: "public",
-    kind: "remote",
-    location: "https://example.test/registry.json",
-    trustLevel: "official",
-    cacheTtlMs: 1
-  };
+  const source: ContextSourceConfig = remoteSource("public", pack("public"), { cacheTtlMs: 1 });
   try {
     await loadContextSourceRegistry({ root, sources: [source], offline: false, fetch: async () => jsonResponse(pack("public")) });
     const result = await loadContextSourceRegistry({ root, sources: [source], offline: true, now: new Date(Date.now() + 10_000) });
@@ -168,13 +173,14 @@ test("stale cache is reported and remote content is still never treated as fresh
 });
 
 test("remote content hash, size, and schema are verified before caching", async () => {
-  const source: ContextSourceConfig = { name: "public", kind: "remote", location: "https://example.test/registry.json", trustLevel: "official", maxBytes: 10 };
+  const source: ContextSourceConfig = remoteSource("public", pack("public"), { maxBytes: 10 });
   await assert.rejects(() => fetchRemoteContextPack(source, { fetch: async () => jsonResponse(pack("public")) }), /exceeds 10 bytes/);
   const content = JSON.stringify(pack("public"));
   const hashSource = { ...source, maxBytes: 100_000, sha256: "0".repeat(64) };
   await assert.rejects(() => fetchRemoteContextPack(hashSource, { fetch: async () => jsonResponse(pack("public")) }), /SHA-256 mismatch/);
-  const invalidSource = { ...source, maxBytes: 100_000 };
-  await assert.rejects(() => fetchRemoteContextPack(invalidSource, { fetch: async () => jsonResponse({ bad: true }) }), /schema/);
+  const invalid = { bad: true };
+  const invalidSource = remoteSource("public", invalid, { maxBytes: 100_000 });
+  await assert.rejects(() => fetchRemoteContextPack(invalidSource, { fetch: async () => jsonResponse(invalid) }), /schema/);
   assert.equal(hashContextText(content).length, 64);
 });
 
@@ -184,6 +190,7 @@ test("remote fetch timeout aborts a hanging response", async () => {
     kind: "remote",
     location: "https://example.test/slow.json",
     trustLevel: "community",
+    sha256: "0".repeat(64),
     timeoutMs: 5
   };
   await assert.rejects(
@@ -196,6 +203,16 @@ test("remote fetch timeout aborts a hanging response", async () => {
       }),
     /timeout|request exceeded/
   );
+});
+
+test("remote fetch rejects an unsigned source before network access", async () => {
+  const source: ContextSourceConfig = {
+    name: "unsigned",
+    kind: "remote",
+    location: "https://example.test/unsigned.json",
+    trustLevel: "community"
+  };
+  await assert.rejects(() => fetchRemoteContextPack(source, { fetch: async () => jsonResponse(pack("unsigned")) }), /require a configured sha256/);
 });
 
 test("corrupt source cache is diagnostic and cannot be replaced silently", () => {
