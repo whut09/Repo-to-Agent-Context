@@ -24,10 +24,7 @@ export class ContextSourceFetchError extends Error {
   }
 }
 
-export async function fetchRemoteContextPack(
-  source: ContextSourceConfig,
-  options: RemoteContextFetchOptions = {}
-): Promise<RemoteContextFetchResult> {
+export async function fetchRemoteContextPack(source: ContextSourceConfig, options: RemoteContextFetchOptions = {}): Promise<RemoteContextFetchResult> {
   if (source.kind !== "remote") throw new ContextSourceFetchError(source.name, "url", "expected a remote source");
   let url: URL;
   try {

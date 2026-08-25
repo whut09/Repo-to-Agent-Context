@@ -107,6 +107,8 @@ export interface ContextFetchCache {
   sourceRegistryHash?: string;
   fetchedAt?: string;
   contentHash?: string;
+  stale?: boolean;
+  fallback?: boolean;
 }
 
 export interface ContextSourceCacheMetadata {

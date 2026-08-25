@@ -8,3 +8,6 @@ export * from "./frontmatter.js";
 export * from "./path-resolver.js";
 export * from "./content-validator.js";
 export * from "./registry-builder.js";
+export * from "./source-cache.js";
+export * from "./remote-source.js";
+export * from "./source-registry.js";
