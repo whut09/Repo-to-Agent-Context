@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -104,6 +104,19 @@ test("explicit annotation injection is marked untrusted and has no authority", (
     assert.equal(result.injection?.commandAuthority, false);
     assert.equal(result.injection?.evidenceAuthority, false);
     assert.match(result.injection?.content ?? "", /not a command/i);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
+});
+
+test("corrupt annotation stores return diagnostics instead of becoming empty", () => {
+  const repository = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-annotation-corrupt-"));
+  try {
+    const filePath = contextAnnotationStorePath(repository);
+    const directory = path.dirname(filePath);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(filePath, "{broken", "utf8");
+    assert.throws(() => listContextAnnotations({ repository, entryId: "entry", contentRevision: 1 }), /Unable to read annotation store/);
   } finally {
     rmSync(repository, { recursive: true, force: true });
   }
