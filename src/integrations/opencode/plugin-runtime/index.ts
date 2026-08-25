@@ -136,6 +136,8 @@ export async function createOpenCodePlusPlusSidecar(
           contextId: { type: "string" },
           file: { type: "string" },
           full: { type: "boolean" },
+          annotationId: { type: "string" },
+          includeStaleAnnotation: { type: "boolean" },
           sessionId: { type: "string" }
         },
         (args) => executeRetrieveTool(context.directory, args)

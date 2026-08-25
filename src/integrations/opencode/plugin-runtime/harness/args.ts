@@ -19,7 +19,10 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
   if (taskType === false) return 'retrieve taskType must be "bugfix", "feature", or "refactor".';
   const contextId = readOptionalString(record.contextId);
   const file = readOptionalString(record.file);
+  const annotationId = readOptionalString(record.annotationId);
   if (record.full !== undefined && typeof record.full !== "boolean") return "retrieve full must be boolean.";
+  if (record.includeStaleAnnotation !== undefined && typeof record.includeStaleAnnotation !== "boolean")
+    return "retrieve includeStaleAnnotation must be boolean.";
   if (file && !contextId) return "retrieve file requires contextId.";
   if (file && record.full === true) return "retrieve file cannot be combined with full.";
   if (record.topK === undefined)
@@ -29,6 +32,8 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
       ...(contextId ? { contextId } : {}),
       ...(file ? { file } : {}),
       ...(record.full ? { full: true } : {}),
+      ...(annotationId ? { annotationId } : {}),
+      ...(record.includeStaleAnnotation ? { includeStaleAnnotation: true } : {}),
       ...(sessionId ? { sessionId } : {})
     };
   const topK = readPositiveInteger(record.topK);
@@ -40,6 +45,8 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
     ...(contextId ? { contextId } : {}),
     ...(file ? { file } : {}),
     ...(record.full ? { full: true } : {}),
+    ...(annotationId ? { annotationId } : {}),
+    ...(record.includeStaleAnnotation ? { includeStaleAnnotation: true } : {}),
     ...(sessionId ? { sessionId } : {})
   };
 }

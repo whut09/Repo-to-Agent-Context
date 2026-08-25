@@ -25,6 +25,8 @@ export interface PluginRetrieveArgs {
   contextId?: string;
   file?: string;
   full?: boolean;
+  annotationId?: string;
+  includeStaleAnnotation?: boolean;
   sessionId?: string | null;
 }
 

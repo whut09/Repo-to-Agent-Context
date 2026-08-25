@@ -89,7 +89,9 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
     id: args.contextId!,
     file: args.file,
     full: args.full,
-    mode: args.full ? "full" : args.file ? "file" : "entry"
+    mode: args.full ? "full" : args.file ? "file" : "entry",
+    annotationId: args.annotationId,
+    includeStaleAnnotation: args.includeStaleAnnotation
   });
   const selected = context.files?.map((file) => `context://${context.entry.sourceName}/${file.path}`) ?? [];
   return createPluginHarnessResult(root, {
