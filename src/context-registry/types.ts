@@ -48,3 +48,17 @@ export interface ContextProvenance {
   fetchedAt?: string;
   verified: boolean;
 }
+
+export interface ContextAnnotation {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  id: string;
+  repository: string;
+  entryId: string;
+  packageVersion?: string;
+  contentRevision: number;
+  note: string;
+  trustLevel: "untrusted";
+  createdAt: string;
+  updatedAt: string;
+}
