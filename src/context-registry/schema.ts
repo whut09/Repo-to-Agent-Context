@@ -2,7 +2,7 @@ import type { CONTEXT_REGISTRY_SCHEMA_VERSION } from "./types.js";
 
 export interface ContextSchemaIssue {
   path: string;
-  code: "required" | "type" | "value" | "version" | "revision" | "format";
+  code: "required" | "type" | "value" | "version" | "revision" | "format" | "frontmatter" | "path";
   message: string;
 }
 

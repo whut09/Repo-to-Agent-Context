@@ -67,11 +67,8 @@ export interface ContextEntry {
   schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
   revision: number;
   id: string;
-  /** Stable base id shared by language/version variants when applicable. */
   canonicalId?: string;
-  /** Deterministic language/version discriminator for a variant entry. */
   variantKey?: string;
-  /** Optional API-level version, distinct from the package version. */
   apiVersion?: string;
   name: string;
   description: string;
