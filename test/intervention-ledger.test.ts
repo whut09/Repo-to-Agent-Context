@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -67,6 +67,19 @@ test("verified requires current command or CI evidence", () => {
   );
   assert.doesNotThrow(() => validateInterventionTransition("stale", "requested"));
   assert.doesNotThrow(() => validateInterventionTransition("stale", "repaired"));
+});
+
+test("corrupt ledger JSON returns a diagnostic error", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-corrupt-"));
+  try {
+    const filePath = interventionLedgerPath(root, "task-corrupt");
+    const directory = path.dirname(filePath);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(filePath, "{not-json", "utf8");
+    assert.throws(() => readInterventionLedger(root, "task-corrupt"), /Unable to read intervention ledger.*JSON/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("ledger transitions and reverse lookup expose a deterministic summary", () => {

@@ -116,6 +116,7 @@ export function validateInterventionTransition(previous: InterventionStatus | un
     if (["verified", "stale"].includes(next)) throw new Error(`Invalid initial intervention status: ${next}.`);
     return;
   }
+  if (previous === next) return;
   if (previous === "prevented" && next === "repaired") {
     throw new Error("A prevented intervention cannot transition directly to repaired.");
   }
