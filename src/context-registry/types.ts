@@ -67,6 +67,53 @@ export interface ContextAnnotation {
   updatedAt: string;
 }
 
+export type ContextAnnotationKind = "environment" | "version-difference" | "failure-cause" | "convention" | "workaround";
+
+export interface LocalContextAnnotation extends ContextAnnotation {
+  kind: ContextAnnotationKind;
+  author: "user" | "agent";
+}
+
+export interface ContextAnnotationStore {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  repository: string;
+  annotations: LocalContextAnnotation[];
+}
+
+export interface ContextAnnotationScope {
+  repository: string;
+  entryId: string;
+  packageVersion?: string;
+  contentRevision: number;
+}
+
+export interface ContextAnnotationSummary {
+  id: string;
+  entryId: string;
+  packageVersion?: string;
+  contentRevision: number;
+  kind: ContextAnnotationKind;
+  createdAt: string;
+  updatedAt: string;
+  stale: boolean;
+}
+
+export interface ContextAnnotationAvailability {
+  annotationAvailable: boolean;
+  annotations: ContextAnnotationSummary[];
+  staleCount: number;
+}
+
+export interface ContextAnnotationInjection {
+  source: "user-written";
+  trustLevel: "untrusted";
+  role: "context-only";
+  commandAuthority: false;
+  evidenceAuthority: false;
+  content: string;
+}
+
 export interface ContextEntry {
   schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
   revision: number;
