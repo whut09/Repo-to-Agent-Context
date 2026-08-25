@@ -20,6 +20,9 @@ test("mapper records prevented, requested, unresolved and verified states", () =
     assert.ok(statuses.includes("prevented"));
     assert.ok(statuses.includes("requested"));
     assert.ok(statuses.includes("unresolved"));
+    const boundary = listInterventionEvents(root, "task-1").find((event) => event.findingId === "boundary.forbidden");
+    assert.equal(boundary?.status, "prevented");
+    assert.equal(listInterventionEvents(root, "task-1").some((event) => event.findingId === "boundary.forbidden" && event.status === "repaired"), false);
     assert.equal(first.decision.interventionIds?.length, first.interventionIds.length);
 
     const verifiedPolicy = { ...input.policy, findings: input.policy.findings.map((finding) => ({ ...finding, status: "satisfied" as const, evidence: ["command passed"] })) };

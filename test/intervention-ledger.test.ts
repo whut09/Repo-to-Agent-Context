@@ -60,6 +60,15 @@ test("ledger enforces the intervention state machine", () => {
   assert.doesNotThrow(() => validateInterventionTransition("repaired", "verified", [{ kind: "ci", ref: "ci-1", valid: true, currentWorkingTree: true }]));
 });
 
+test("verified requires current command or CI evidence", () => {
+  assert.throws(
+    () => validateInterventionTransition("repaired", "verified", [{ kind: "manual", ref: "claim", valid: true, currentWorkingTree: true }]),
+    /current-working-tree/
+  );
+  assert.doesNotThrow(() => validateInterventionTransition("stale", "requested"));
+  assert.doesNotThrow(() => validateInterventionTransition("stale", "repaired"));
+});
+
 test("ledger transitions and reverse lookup expose a deterministic summary", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-summary-"));
   try {
