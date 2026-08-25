@@ -34,6 +34,38 @@ export function pluginInterventionSnapshot(
   };
 }
 
+export function recordPluginContextSelection(input: {
+  root: string;
+  taskId: string;
+  sessionId?: string | null;
+  phase: "prepare" | "retrieve";
+  selectedFiles: string[];
+  excludedFiles: Array<{ path: string; reason: string }>;
+}): void {
+  try {
+    const problem = `${input.phase} selected ${input.selectedFiles.length} context file(s) and excluded ${input.excludedFiles.length}.`;
+    appendInterventionEvent(input.root, {
+      interventionId: interventionIdFor({ taskId: input.taskId, category: "context", problem }),
+      taskId: input.taskId,
+      sessionId: input.sessionId ?? "default",
+      timestamp: new Date().toISOString(),
+      phase: input.phase,
+      category: "context",
+      problem,
+      targetFiles: input.selectedFiles,
+      action: `select context files for ${input.phase}`,
+      beforeState: {},
+      afterState: { selectedFiles: input.selectedFiles, excludedFiles: input.excludedFiles },
+      evidenceRefs: input.excludedFiles.map((file) => `${file.path}: ${file.reason}`),
+      status: "observed",
+      confidence: 0.8,
+      source: "system"
+    });
+  } catch {
+    // Selection telemetry is best effort and must never fail the Desktop tool.
+  }
+}
+
 export function recordPluginEvaluationInterventions(input: {
   root: string;
   taskId: string;

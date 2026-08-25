@@ -10,6 +10,7 @@ import { contextFingerprint, updateWorkflowState } from "./workflow.js";
 import { cacheStatusForStats, contextModeForStats, pluginPerformance, PLUGIN_STAGE_TARGETS, runPluginStage } from "./performance.js";
 import { createPluginHarnessError } from "./protocol.js";
 import type { PluginPrepareArgs, PluginPrepareResult } from "./types.js";
+import { pluginInterventionSnapshot, recordPluginContextSelection } from "./interventions.js";
 
 export async function preparePluginHarnessTask(root: string, args: PluginPrepareArgs): Promise<PluginPrepareResult> {
   const staged = await runPluginStage("prepare", () => preparePluginHarnessTaskInternal(root, args));
@@ -55,6 +56,9 @@ async function preparePluginHarnessTaskInternal(root: string, args: PluginPrepar
     updatedAt: new Date().toISOString()
   });
   const artifacts = manifest.files ?? [];
+  const selectedFiles = manifest.mustInspect;
+  const excludedFiles = (manifest.contextFiles ?? []).filter((file) => !selectedFiles.includes(file)).map((file) => ({ path: file, reason: "related context was not marked mustInspect" }));
+  recordPluginContextSelection({ root, taskId: resolvedTaskId, sessionId: args.sessionId, phase: "prepare", selectedFiles, excludedFiles });
   if (args.sessionId) {
     updateWorkflowState(root, args.sessionId, {
       phase: "prepared",
@@ -83,6 +87,7 @@ async function preparePluginHarnessTaskInternal(root: string, args: PluginPrepar
     avoidEditGlobs: manifest.avoidEditGlobs,
     requiredCommands: manifest.requiredCommands,
     artifacts,
+    interventions: pluginInterventionSnapshot(root, resolvedTaskId, selectedFiles, excludedFiles),
     performance: {
       ...pluginPerformance(
         "prepare",

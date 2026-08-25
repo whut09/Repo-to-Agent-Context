@@ -7,6 +7,7 @@ import { readPluginHarnessSession } from "./session.js";
 import type { PluginRetrieveArgs, PluginRetrieveResult } from "./types.js";
 import { createPluginHarnessError } from "./protocol.js";
 import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
+import { pluginInterventionSnapshot, recordPluginContextSelection } from "./interventions.js";
 
 export async function retrievePluginHarnessContext(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
   const staged = await runPluginStage("retrieve", () => retrievePluginHarnessContextInternal(root, args));
@@ -53,6 +54,13 @@ async function retrievePluginHarnessContextInternal(root: string, args: PluginRe
   const hits = [...result.hits]
     .map((hit) => ({ path: hit.path, score: hit.score, reason: hit.reason, scoreBreakdown: hit.metadata.scoreBreakdown }))
     .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path) || left.reason.localeCompare(right.reason));
+  const selectedFiles = hits.map((hit) => hit.path);
+  const excludedFiles = context.index.files
+    .map((file) => file.path)
+    .filter((file) => !selectedFiles.includes(file))
+    .slice(0, 50)
+    .map((file) => ({ path: file, reason: "ranked below the requested topK" }));
+  recordPluginContextSelection({ root, taskId: session?.taskId ?? `retrieve-${args.task}`, sessionId: args.sessionId, phase: "retrieve", selectedFiles, excludedFiles });
   return createPluginHarnessResult(root, {
     ok: true,
     tool: "retrieve",
@@ -65,6 +73,7 @@ async function retrievePluginHarnessContextInternal(root: string, args: PluginRe
     blocking: false,
     nextAction: session ? "evaluate" : "prepare",
     hits,
+    interventions: pluginInterventionSnapshot(root, session?.taskId ?? `retrieve-${args.task}`, selectedFiles, excludedFiles),
     artifacts: context.scan.root ? [".agent-context/manifest.json"] : [],
     performance: {
       ...pluginPerformance(
@@ -94,6 +103,8 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
     includeStaleAnnotation: args.includeStaleAnnotation
   });
   const selected = context.files?.map((file) => `context://${context.entry.sourceName}/${file.path}`) ?? [];
+  const excludedFiles = context.omittedFiles.map((file) => ({ path: file, reason: "omitted by incremental context fetch mode" }));
+  recordPluginContextSelection({ root, taskId: session?.taskId ?? context.entry.id, sessionId: args.sessionId, phase: "retrieve", selectedFiles: selected, excludedFiles });
   return createPluginHarnessResult(root, {
     ok: true,
     tool: "retrieve",
@@ -108,6 +119,7 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
     mustInspect: selected,
     artifacts: [".agent-context/manifest.json"],
     context,
+    interventions: pluginInterventionSnapshot(root, session?.taskId ?? context.entry.id, selected, excludedFiles),
     performance: {
       stage: "retrieve",
       durationMs: context.durationMs,

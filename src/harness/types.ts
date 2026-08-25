@@ -51,7 +51,7 @@ export interface HarnessDecision {
 
 export type InterventionStatus = "observed" | "prevented" | "requested" | "repaired" | "verified" | "unresolved" | "human-review" | "stale";
 
-export type InterventionPhase = "plan" | "execute" | "collect" | "evaluate" | "decide" | "persist" | "finalize";
+export type InterventionPhase = "plan" | "prepare" | "retrieve" | "execute" | "collect" | "evaluate" | "decide" | "persist" | "finalize";
 export type InterventionCategory =
   | "boundary"
   | "evidence"
