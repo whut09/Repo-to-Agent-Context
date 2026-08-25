@@ -72,7 +72,7 @@ export function addContextAnnotation(input: AddContextAnnotationInput): LocalCon
 
 export function listContextAnnotations(input: ListContextAnnotationsInput): ContextAnnotationAvailability {
   const root = normalizeRepository(input.repository);
-  const annotations = readStore(root).annotations.filter((annotation) => annotation.entryId === input.entryId);
+  const annotations = readStore(root).annotations.filter((annotation) => matchesScope(annotation, input));
   const summaries = annotations.map((annotation) => toSummary(annotation, input)).sort(compareSummaries);
   return {
     annotationAvailable: summaries.length > 0,
@@ -83,7 +83,7 @@ export function listContextAnnotations(input: ListContextAnnotationsInput): Cont
 
 export function readContextAnnotation(input: ReadContextAnnotationInput): ReadContextAnnotationResult {
   const root = normalizeRepository(input.repository);
-  const annotation = readStore(root).annotations.find((item) => item.id === input.id && item.entryId === input.entryId);
+  const annotation = readStore(root).annotations.find((item) => item.id === input.id && matchesScope(item, input));
   if (!annotation) throw new Error(`Context annotation was not found: ${input.id}`);
   const stale = isStale(annotation, input);
   if (stale && input.allowStale !== true) throw new Error(`Context annotation is stale: ${input.id}`);
@@ -156,6 +156,10 @@ function toSummary(annotation: LocalContextAnnotation, current: ContextAnnotatio
 
 function isStale(annotation: LocalContextAnnotation, current: ContextAnnotationScope): boolean {
   return annotation.contentRevision !== current.contentRevision || annotation.packageVersion !== current.packageVersion;
+}
+
+function matchesScope(annotation: LocalContextAnnotation, scope: ContextAnnotationScope): boolean {
+  return annotation.entryId === scope.entryId && annotation.packageVersion === scope.packageVersion && annotation.contentRevision === scope.contentRevision;
 }
 
 function normalizeRepository(repository: string): string {
