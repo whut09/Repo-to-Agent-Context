@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -17,6 +17,7 @@ import {
   validateContextSource,
   writeContextPack
 } from "../src/context-registry/index.js";
+import { buildLocalContextPack } from "../src/context-registry/index.js";
 
 const timestamp = "2026-01-01T00:00:00.000Z";
 const contentHash = hashContextText("context");
@@ -172,6 +173,105 @@ test("context packs use atomic storage and revision conflict detection", () => {
     assert.throws(() => writeContextPack(root, pack, 0), RevisionConflictError);
     const second = writeContextPack(root, { ...pack, revision: first.revision }, first.revision);
     assert.equal(second.revision, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("frontmatter parses Context Hub document and skill forms", async () => {
+  const { parseContextFrontmatter } = await import("../src/context-registry/frontmatter.js");
+  const doc = parseContextFrontmatter(
+    `---\nname: payments\ndescription: Payment API\nmetadata:\n  languages: [typescript, python]\n  versions: "2.0.0, 1.0.0"\n  revision: 4\n  updated-on: 2026-02-03\n  source: maintainer\n  tags: payments, api, payments\n---\nUse the API safely.\n`,
+    "DOC.md"
+  );
+  assert.equal(doc.valid, true);
+  assert.deepEqual(doc.value?.frontmatter.languages, ["python", "typescript"]);
+  assert.deepEqual(doc.value?.frontmatter.versions, ["1.0.0", "2.0.0"]);
+  assert.deepEqual(doc.value?.frontmatter.tags, ["api", "payments"]);
+
+  const skill = parseContextFrontmatter(
+    `---\nname: deploy\ndescription: Deployment skill\nmetadata:\n  revision: 1\n  updated-on: 2026-02-03\n  source: community\n---\nRun the deployment checks.\n`,
+    "SKILL.md"
+  );
+  assert.equal(skill.valid, true);
+  assert.equal(skill.value?.frontmatter.kind, "skill");
+});
+
+test("frontmatter reports missing metadata with precise diagnostics", async () => {
+  const { parseContextFrontmatter } = await import("../src/context-registry/frontmatter.js");
+  const result = parseContextFrontmatter("---\nname: broken\n---\ncontent\n", "DOC.md");
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.path.endsWith("metadata")));
+});
+
+test("frontmatter identifies skill files at root and Windows paths", async () => {
+  const { kindFromPath } = await import("../src/context-registry/frontmatter.js");
+  assert.equal(kindFromPath("SKILL.md"), "skill");
+  assert.equal(kindFromPath("skills\\deploy\\SKILL.md"), "skill");
+  assert.equal(kindFromPath("docs/DOC.md"), "doc");
+});
+
+test("local builder expands language and package version variants with companion files", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-pack-"));
+  try {
+    const entryRoot = path.join(root, "acme", "docs", "payments", "v2");
+    mkdirSync(path.join(entryRoot, "references"), { recursive: true });
+    writeFileSync(
+      path.join(entryRoot, "DOC.md"),
+      `---\nname: payments\ndescription: Payment API\nmetadata:\n  languages: [typescript, python]\n  versions: [2.0.0]\n  revision: 3\n  updated-on: 2026-02-03\n  source: official\n  tags: payments, api\n---\nUse the payment API.\n`
+    );
+    writeFileSync(path.join(entryRoot, "references", "errors.md"), "Error reference\n");
+    const result = buildLocalContextPack({
+      source: { name: "acme", kind: "local", location: root, trustLevel: "official" },
+      validateOnly: true,
+      generatedAt: timestamp
+    });
+    assert.equal(result.valid, true);
+    assert.equal(result.validateOnly, true);
+    assert.equal(result.pack?.entries.length, 2);
+    assert.deepEqual(result.pack?.entries.map((entry) => entry.language), ["python", "typescript"]);
+    assert.ok(result.pack?.entries.every((entry) => entry.files.some((file) => file.path.endsWith("references/errors.md"))));
+    assert.equal(existsSync(path.join(root, ".agent-context")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("companion paths cannot escape a local source", async () => {
+  const { resolveContextFile } = await import("../src/context-registry/path-resolver.js");
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-path-"));
+  try {
+    assert.equal(resolveContextFile(root, "../secret.md").valid, false);
+    assert.equal(resolveContextFile(root, "C:/secret.md").valid, false);
+    assert.equal(resolveContextFile(root, "references/../secret.md").valid, false);
+    const outside = path.join(path.dirname(root), "outside-context-file.md");
+    writeFileSync(outside, "outside\n");
+    try {
+      symlinkSync(outside, path.join(root, "escape.md"));
+      assert.equal(resolveContextFile(root, "escape.md").valid, false);
+    } catch (error) {
+      assert.ok((error as NodeJS.ErrnoException).code === "EPERM" || (error as NodeJS.ErrnoException).code === "EACCES");
+    } finally {
+      rmSync(outside, { force: true });
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("invalid local content returns diagnostics without writing runtime state", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-invalid-"));
+  try {
+    const entryRoot = path.join(root, "entry");
+    mkdirSync(entryRoot, { recursive: true });
+    writeFileSync(path.join(entryRoot, "DOC.md"), "---\nname: invalid\nmetadata: [wrong]\n---\nbody\n");
+    const result = buildLocalContextPack({
+      source: { name: "local", kind: "local", location: root, trustLevel: "private" },
+      validateOnly: true
+    });
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((issue) => issue.code === "type" || issue.code === "required"));
+    assert.equal(existsSync(path.join(root, ".agent-context")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

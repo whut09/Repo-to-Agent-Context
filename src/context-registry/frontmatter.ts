@@ -53,7 +53,8 @@ export function parseContextFrontmatter(content: string, filePath: string, kind 
 }
 
 export function kindFromPath(filePath: string): ContextDocumentKind {
-  return filePath.toLowerCase().endsWith("/skill.md") || filePath.toLowerCase().endsWith("\\skill.md") ? "skill" : "doc";
+  const normalized = filePath.replaceAll("\\", "/").toLowerCase();
+  return normalized.split("/").at(-1) === "skill.md" ? "skill" : "doc";
 }
 
 function normalizeFrontmatter(input: unknown, filePath: string, kind: ContextDocumentKind): ContextValidationResult<ContextFrontmatter> {
@@ -120,6 +121,13 @@ function positiveInteger(value: unknown, path: string, issues: ContextSchemaIssu
 }
 
 function normalizeDate(value: unknown, path: string, issues: ContextSchemaIssue[]): string | undefined {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      issues.push({ path, code: "format", message: "expected an ISO-8601 date" });
+      return undefined;
+    }
+    return value.toISOString();
+  }
   const text = optionalString(value, path, issues);
   if (!text) return undefined;
   const date = new Date(text);
