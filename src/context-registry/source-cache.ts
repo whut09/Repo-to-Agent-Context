@@ -66,6 +66,7 @@ export function writeSourceCache(root: string, source: ContextSourceConfig, pack
   mkdirSync(path.dirname(filePath), { recursive: true });
   const current = readJsonDiagnostic<CachedContextSource>(filePath);
   const expectedRevision = current.status === "ok" && typeof current.value.revision === "number" ? current.value.revision : 0;
+  value.metadata.revision = expectedRevision + 1;
   const next = writeJsonAtomicWithRevision(filePath, value, expectedRevision);
   const stored = next as CachedContextSource;
   return { ...stored, metadata: { ...stored.metadata, revision: stored.revision } };
