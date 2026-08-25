@@ -5,6 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import { recordIterationInterventions } from "../src/harness/observability/intervention-mapper.js";
 import { listInterventionEvents } from "../src/harness/observability/intervention-ledger.js";
+import { readExecutionTrace } from "../src/harness/observability/execution-trace.js";
+import { evidenceSatisfies } from "../src/outputs/evidence.js";
 import type { ExecutionTrace } from "../src/harness/observability/execution-trace.js";
 import type { PolicyEngineReport } from "../src/harness/verification-plane/policy-engine.js";
 import type { GuardFindingsArtifact } from "../src/outputs/guard-finding.js";
@@ -42,6 +44,28 @@ test("stale evidence becomes stale instead of fixed", () => {
     const result = recordIterationInterventions({ ...input, policy: stalePolicy, iteration: 2, currentWorkingTreeHash: "new", executorExitCode: 0 });
     assert.ok(result.events.some((event) => event.status === "stale"));
     assert.equal(result.events.some((event) => event.status === "verified"), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("finding, trace and evidence can reverse lookup the same intervention", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-refs-"));
+  try {
+    const input = baseInput(root);
+    const policy = {
+      ...input.policy,
+      findings: [{ ...input.policy.findings[1], status: "satisfied" as const, evidence: ["command passed"] }],
+      results: []
+    };
+    const trace = currentCommandTrace();
+    const result = recordIterationInterventions({ ...input, policy, trace, guardGates: passingGates(), decision: finalizeDecision(), executorExitCode: 0 });
+    const interventionId = result.interventionIds.find((id) => listInterventionEvents(root, "task-1").some((event) => event.interventionId === id && event.findingId === "policy.required.tests"));
+    assert.ok(interventionId);
+    assert.ok(readExecutionTrace(root, trace.id)?.steps[0]?.interventionIds?.includes(interventionId));
+    const evidence = evidenceSatisfies({ kind: "tests", currentRepoHash: "current", policy: "strict" }, readExecutionTrace(root, trace.id));
+    assert.equal(evidence.stepId, "step-1");
+    assert.ok(evidence.interventionIds?.includes(interventionId));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -90,5 +114,5 @@ function finalizeDecision(): HarnessDecision {
 }
 
 function currentCommandTrace(): ExecutionTrace {
-  return { schemaVersion: 1, id: "trace-1", task: "task", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:01.000Z", finalState: "success", steps: [{ id: "step-1", at: "2026-01-01T00:00:01.000Z", action: "run-test", command: "npm test", files: [], result: "passed", evidenceSource: "command", capturedBy: "opencode-plusplus", exitCode: 0, workingTreeHashAfter: "current" }] };
+  return { schemaVersion: 1, id: "trace-1", task: "task", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:01.000Z", finalState: "success", steps: [{ id: "step-1", at: "2026-01-01T00:00:01.000Z", action: "run-test", command: "npm test", files: [], result: "passed", evidenceSource: "command", capturedBy: "opencode-plusplus", exitCode: 0, startedAt: "2026-01-01T00:00:00.000Z", finishedAt: "2026-01-01T00:00:01.000Z", stdoutHash: "stdout", stderrHash: "stderr", workingTreeHashBefore: "current", workingTreeHashAfter: "current" }] };
 }
