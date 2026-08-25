@@ -10,6 +10,23 @@
 Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 ```
 
+## 介入记录 Ledger
+
+每轮 Harness 会在 `.agent-context/interventions/` 写入 Intervention Ledger（介入记录）。它明确区分两件事：OpenCode++ 观察到或阻止了什么，以及某个修复是否真的被验证。每条记录都能反查对应的 finding、decision、trace 和 evidence。
+
+状态模型保持保守：
+
+- `observed`：记录了信号，但没有声称介入。
+- `prevented`：Guard 阻止了越界或不安全动作；这绝不等于已修复。
+- `requested`：要求执行命令、刷新上下文或进行人工处理。
+- `repaired`：executor 报告已经修改，但验证仍未完成。
+- `verified`：修改后，当前 working tree 上的 command 或 CI 证据通过。
+- `unresolved`：执行或验证仍然失败。
+- `human-review`：系统无法安全自动决定。
+- `stale`：后续编辑使旧证据失效。
+
+手工声明可以作为上下文显示，但不能产生 `verified`。报告会显示当前介入 ID、问题、动作、状态和证据引用，用户可以准确检查修改了什么以及循环为什么停止。
+
 当前实现不会直接调用 Codex、Claude Code、Cursor、OpenCode 或 MiMoCode 去改代码。它提供的是控制面：让 Agent 知道先读什么、不要改什么、改完影响谁、该跑什么、是否能结束，以及下一轮应该补上下文、补测试、修 contract 还是进入 review。
 
 当前边界也要说清楚：它现在是 Context / Policy / Trace 报告系统 + 显式 runtime 状态机 + 有边界的 harness-led loop，不是完整自主 coding agent。Harness-led 模式可以调用 Codex / Claude Code / Cursor / OpenCode / MiMoCode 作为外部 executor，但真实代码修改仍发生在那个 executor 里；OpenCode++ 生成可验证、可排序、带证据的状态迁移、gate 结果和 decision report，由外部 Agent、用户或 CI 工作流执行后续动作。
