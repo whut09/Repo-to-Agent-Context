@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   appendInterventionEvent,
@@ -82,6 +84,25 @@ test("corrupt ledger JSON returns a diagnostic error", () => {
   }
 });
 
+test("concurrent ledger appends retain every event", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-concurrent-"));
+  const workerPath = path.join(root, "worker.mjs");
+  try {
+    const modulePath = pathToFileURL(path.resolve("src/harness/observability/intervention-ledger.ts")).href;
+    writeFileSync(
+      workerPath,
+      `import { appendInterventionEvent } from ${JSON.stringify(modulePath)};\nconst [root, prefix] = process.argv.slice(2);\nfor (let i = 0; i < 10; i += 1) appendInterventionEvent(root, { schemaVersion: "opencode-plusplus.intervention.v1", eventId: prefix + i, interventionId: prefix + i, taskId: "task-concurrent", sessionId: prefix, timestamp: new Date().toISOString(), phase: "evaluate", category: "other", problem: prefix + i, targetFiles: [], action: "observe", beforeState: {}, afterState: {}, evidenceRefs: [], status: "observed", confidence: 1, source: "system" });\n`,
+      "utf8"
+    );
+    await Promise.all([runWorker(workerPath, root, "a-"), runWorker(workerPath, root, "b-")]);
+    const ledger = readInterventionLedger(root, "task-concurrent");
+    assert.equal(ledger?.events.length, 20);
+    assert.equal(new Set(ledger?.events.map((item) => item.sequence)).size, 20);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("ledger transitions and reverse lookup expose a deterministic summary", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-summary-"));
   try {
@@ -98,3 +119,15 @@ test("ledger transitions and reverse lookup expose a deterministic summary", () 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+function runWorker(workerPath: string, root: string, prefix: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--import", "tsx", workerPath, root, prefix], { stdio: "pipe" });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(stderr || `Worker exited with ${code}.`))));
+  });
+}
