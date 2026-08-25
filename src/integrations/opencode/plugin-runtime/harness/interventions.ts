@@ -145,6 +145,7 @@ function safeAppend(input: Parameters<typeof recordPluginEvaluationInterventions
     for (const status of statuses) {
       appendInterventionEvent(input.root, {
         ...event,
+        eventId: `plugin:${event.interventionId}:${status}`,
         taskId: input.taskId,
         sessionId: input.sessionId ?? "default",
         timestamp: new Date().toISOString(),
@@ -161,7 +162,7 @@ function safeAppend(input: Parameters<typeof recordPluginEvaluationInterventions
 }
 
 function transitionStatuses(previous: InterventionStatus | undefined, next: InterventionStatus): InterventionStatus[] {
-  if (previous === next) return [next];
+  if (previous === next) return [];
   if (next === "verified" && ["requested", "stale", "unresolved", "human-review"].includes(previous ?? "")) return ["repaired", "verified"];
   if (next === "verified" && !previous) return ["requested", "repaired", "verified"];
   if (next === "stale" && !previous) return ["requested", "stale"];

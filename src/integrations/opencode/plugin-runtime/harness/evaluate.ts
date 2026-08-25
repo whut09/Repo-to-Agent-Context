@@ -11,6 +11,9 @@ import type { PluginEvaluateArgs, PluginEvaluateResult } from "./types.js";
 import { readWorkflowState, updateWorkflowState } from "./workflow.js";
 import { createPluginHarnessError } from "./protocol.js";
 import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
+import { pluginInterventionSnapshot, recordPluginEvaluationInterventions } from "./interventions.js";
+import { readExecutionTrace } from "../../../../harness/observability/execution-trace.js";
+import { blockersFromGuardStack } from "../../sidecar-incremental-verifier.js";
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
   const staged = await runPluginStage("evaluate", () => evaluatePluginHarnessInternal(root, args));
@@ -54,6 +57,20 @@ async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateA
   const traceId = traceIdForOpenCodeSession(resolved.sessionId);
   const policy = buildPolicyReport(context, { base, traceId, failOn: "required" });
   const loop = buildLoopControllerReport(context, task, { phase: "after-edit", base, traceId });
+  const trace = readExecutionTrace(root, traceId);
+  const decision = loop.decisions[0]?.action ?? "ready-for-review";
+  recordPluginEvaluationInterventions({
+    root,
+    taskId: resolved.taskId,
+    sessionId: resolved.sessionId,
+    policy,
+    guardStack,
+    blockers: blockersFromGuardStack(guardStack),
+    decision,
+    trace,
+    changedFiles: policy.changedFiles
+  });
+  const interventions = pluginInterventionSnapshot(root, resolved.taskId, policy.changedFiles, []);
   const result = createPluginHarnessResult(root, {
     ok: true,
     tool: "evaluate",
@@ -62,7 +79,7 @@ async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateA
     sessionId: resolved.sessionId,
     taskIdSource: resolved.source,
     currentPhase: "evaluate",
-    decision: loop.decisions[0]?.action ?? "ready-for-review",
+    decision,
     blocking: Boolean(loop.decisions[0]?.blocking) || !policy.passed || !guardStack.passed,
     findings: evaluateFindings({ policy, guardStack }),
     missingEvidence: evaluateMissingEvidence({ loop, policy }),
@@ -72,6 +89,7 @@ async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateA
     allowedEditGlobs: [],
     avoidEditGlobs: [],
     artifacts: [".agent-context/sidecar/plugin-evaluate.json", ".agent-context/sidecar/latest.json"],
+    interventions,
     performance: pluginPerformance(
       "evaluate",
       { status: "completed", durationMs: 0 },
@@ -101,6 +119,7 @@ async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateA
     artifacts: result.artifacts,
     nextAction: result.nextAction,
     summary: result.summary,
+    interventions: result.interventions,
     updatedAt: new Date().toISOString()
   });
   return result;

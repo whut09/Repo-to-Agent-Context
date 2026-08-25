@@ -2,6 +2,7 @@ import { isFinalizeAction } from "./completion.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { readPluginEvaluateState, resolvePluginTask, taskRunExists } from "./session.js";
 import type { PluginNextArgs, PluginNextResult } from "./types.js";
+import { pluginInterventionSnapshot } from "./interventions.js";
 
 export async function nextPluginHarnessAction(root: string, args: PluginNextArgs = {}): Promise<PluginNextResult | string> {
   const resolved = resolvePluginTask(root, args.taskId, args.sessionId);
@@ -12,6 +13,7 @@ export async function nextPluginHarnessAction(root: string, args: PluginNextArgs
 
   const finalize = isFinalizeAction(latest.decision, latest.blocking, latest.missingEvidence, latest.requiredCommands);
   const nextAction = finalize ? "finalize" : latest.decision === "ready-for-review" ? "evaluate" : latest.decision;
+  const interventions = pluginInterventionSnapshot(root, resolved.taskId, latest.interventions?.selectedFiles ?? [], latest.interventions?.excludedFiles ?? []);
   return createPluginHarnessResult(root, {
     ok: true,
     tool: "next",
@@ -32,6 +34,7 @@ export async function nextPluginHarnessAction(root: string, args: PluginNextArgs
     avoidEditGlobs: latest.avoidEditGlobs,
     artifacts: latest.artifacts,
     nextAction,
-    error: undefined
+    error: undefined,
+    interventions
   });
 }
