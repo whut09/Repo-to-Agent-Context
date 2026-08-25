@@ -11,6 +11,10 @@ export interface ContextSourceConfig {
   location: string;
   trustLevel: ContextTrustLevel;
   enabled?: boolean;
+  timeoutMs?: number;
+  maxBytes?: number;
+  sha256?: string;
+  cacheTtlMs?: number;
 }
 
 export interface ContextFile {
@@ -99,8 +103,38 @@ export type ContextFetchMode = "reused" | "incremental" | "rebuilt";
 
 export interface ContextFetchCache {
   status: "hit" | "miss";
+  sourceName?: string;
   sourceRegistryHash?: string;
+  fetchedAt?: string;
   contentHash?: string;
+}
+
+export interface ContextSourceCacheMetadata {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  sourceName: string;
+  sourceLocation: string;
+  registryHash: string;
+  fetchedAt: string;
+  contentHash: string;
+  expiresAt?: string;
+}
+
+export interface ContextRegistryConflict {
+  canonicalId: string;
+  sourceNames: string[];
+  entryIds: string[];
+}
+
+export interface ContextRegistrySnapshot {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  generatedAt: string;
+  entries: ContextEntry[];
+  sources: ContextSource[];
+  conflicts: ContextRegistryConflict[];
+  cache: ContextFetchCache[];
+  registryHash: string;
 }
 
 export interface ContextFetchResult {
