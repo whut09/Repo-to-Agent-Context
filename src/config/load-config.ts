@@ -130,6 +130,10 @@ function normalizeContextSourceConfig(input: unknown): ContextSourceConfig {
     kind: String(source.kind ?? "local") as ContextSourceKind,
     location: String(source.location ?? ""),
     trustLevel: String(source.trustLevel ?? "untrusted") as ContextTrustLevel,
+    ...(typeof source.timeoutMs === "number" ? { timeoutMs: source.timeoutMs } : {}),
+    ...(typeof source.maxBytes === "number" ? { maxBytes: source.maxBytes } : {}),
+    ...(typeof source.sha256 === "string" ? { sha256: source.sha256 } : {}),
+    ...(typeof source.cacheTtlMs === "number" ? { cacheTtlMs: source.cacheTtlMs } : {}),
     ...(typeof source.enabled === "boolean" ? { enabled: source.enabled } : {})
   };
 }
@@ -282,6 +286,14 @@ function validateContextSourceConfig(input: unknown, index: number): void {
   }
   if (source.enabled !== undefined && typeof source.enabled !== "boolean") {
     throw new Error(`contextRegistry.sources[${index}].enabled must be boolean.`);
+  }
+  for (const field of ["timeoutMs", "maxBytes", "cacheTtlMs"]) {
+    if (source[field] !== undefined && (typeof source[field] !== "number" || !Number.isFinite(source[field]) || source[field] <= 0)) {
+      throw new Error(`contextRegistry.sources[${index}].${field} must be a positive number.`);
+    }
+  }
+  if (source.sha256 !== undefined && (typeof source.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(source.sha256))) {
+    throw new Error(`contextRegistry.sources[${index}].sha256 must be a SHA-256 hex digest.`);
   }
 }
 
