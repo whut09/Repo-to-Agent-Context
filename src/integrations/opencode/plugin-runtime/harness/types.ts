@@ -11,6 +11,7 @@ export const OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES = [
 export type OpenCodePlusPlusPluginToolName = (typeof OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES)[number];
 
 export type PluginHarnessTaskType = "bugfix" | "feature" | "refactor";
+import type { InterventionStatus } from "../../../../harness/types.js";
 
 export interface PluginPrepareArgs {
   task: string;
@@ -82,6 +83,37 @@ export interface PluginPerformance {
   rejectedFiles: string[];
 }
 
+export interface PluginInterventionRecord {
+  interventionId: string;
+  eventId: string;
+  status: InterventionStatus;
+  phase: string;
+  category: string;
+  findingId?: string;
+  problem: string;
+  targetFiles: string[];
+  action: string;
+  evidenceRefs: string[];
+  confidence: number;
+  source: string;
+  timestamp: string;
+  traceRefs?: string[];
+  decisionRefs?: string[];
+}
+
+export interface PluginInterventionSnapshot {
+  ledgerPath: string;
+  eventCount: number;
+  selectedFiles: string[];
+  excludedFiles: Array<{ path: string; reason: string }>;
+  interventions: PluginInterventionRecord[];
+  problems: string[];
+  actions: string[];
+  verifiedFixes: PluginInterventionRecord[];
+  remainingProblems: PluginInterventionRecord[];
+  humanReview: PluginInterventionRecord[];
+}
+
 export interface PluginHarnessResult {
   schemaVersion: string;
   ok: boolean;
@@ -107,6 +139,7 @@ export interface PluginHarnessResult {
   hits?: Array<{ path: string; score: number; reason: string; scoreBreakdown?: Record<string, number> }>;
   context?: import("../../../../context-registry/types.js").ContextFetchResult;
   performance?: PluginPerformance;
+  interventions?: PluginInterventionSnapshot;
 }
 
 export type PluginPrepareResult = PluginHarnessResult;
@@ -134,4 +167,20 @@ export interface PluginEvaluateState {
   nextAction: string;
   summary: string;
   updatedAt: string;
+  interventions?: PluginInterventionSnapshot;
+}
+
+export function emptyPluginInterventions(ledgerPath = ""): PluginInterventionSnapshot {
+  return {
+    ledgerPath,
+    eventCount: 0,
+    selectedFiles: [],
+    excludedFiles: [],
+    interventions: [],
+    problems: [],
+    actions: [],
+    verifiedFixes: [],
+    remainingProblems: [],
+    humanReview: []
+  };
 }
