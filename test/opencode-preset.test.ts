@@ -98,6 +98,23 @@ test("OpenCode init dry-run reports files without writing them", () => {
   }
 });
 
+test("OpenCode init removes legacy project Slash Commands", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-init-legacy-"));
+  try {
+    const commandDir = path.join(root, ".opencode", "commands");
+    mkdirSync(commandDir, { recursive: true });
+    const legacyFiles = ["opencode-plusplus.md", "opencode-plusplus-verify.md"].map((file) => path.join(commandDir, file));
+    for (const file of legacyFiles) writeFileSync(file, "legacy", "utf8");
+
+    const report = initOpencodeProject(root);
+
+    assert.deepEqual(report.legacyFilesRemoved, [".opencode/commands/opencode-plusplus.md", ".opencode/commands/opencode-plusplus-verify.md"]);
+    assert.equal(legacyFiles.some(existsSync), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("OpenCode run summary keeps the terminal output compact and actionable", () => {
   const report = createReportFixture();
   const rendered = renderOpencodeRunSummary(report);

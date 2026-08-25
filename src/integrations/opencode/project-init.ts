@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { PLUSPLUS_AGENT } from "../../installer/opencode-plusplus-prompts.js";
 
@@ -16,10 +16,12 @@ export interface OpencodeInitFile {
 export interface OpencodeInitReport {
   repo: string;
   files: OpencodeInitFile[];
+  legacyFilesRemoved?: string[];
 }
 
 export function initOpencodeProject(repo: string, options: OpencodeInitOptions = {}): OpencodeInitReport {
   const root = path.resolve(repo);
+  const legacyFilesRemoved = removeLegacyProjectCommands(root, options.dryRun);
   const files = opencodeInitTemplates().map((template): OpencodeInitFile => {
     const absolutePath = path.join(root, template.path);
     if (existsSync(absolutePath) && !options.force) {
@@ -35,7 +37,7 @@ export function initOpencodeProject(repo: string, options: OpencodeInitOptions =
     return { path: template.path, status: "written" };
   });
 
-  return { repo: root, files };
+  return { repo: root, files, legacyFilesRemoved };
 }
 
 export function renderOpencodeInitReport(report: OpencodeInitReport): string {
@@ -51,10 +53,20 @@ export function renderOpencodeInitReport(report: OpencodeInitReport): string {
     ...formatInitFiles(written, "written"),
     ...formatInitFiles(wouldWrite, "would-write"),
     ...(skipped.length ? ["", "Skipped:", ...skipped.map((file) => `- ${file.path} (${file.reason ?? "skipped"})`)] : []),
+    ...(report.legacyFilesRemoved?.length ? ["", "Removed legacy commands:", ...report.legacyFilesRemoved.map((file) => `- ${file}`)] : []),
     "",
     "Next:",
     "  Select the opencode-plusplus mode in OpenCode Desktop."
   ].join("\n");
+}
+
+function removeLegacyProjectCommands(root: string, dryRun = false): string[] {
+  const files = [".opencode/commands/opencode-plusplus.md", ".opencode/commands/opencode-plusplus-verify.md"];
+  const existing = files.filter((file) => existsSync(path.join(root, file)));
+  if (!dryRun) {
+    for (const file of existing) rmSync(path.join(root, file), { force: true });
+  }
+  return existing;
 }
 
 function opencodeInitTemplates(): Array<{ path: string; content: string }> {
