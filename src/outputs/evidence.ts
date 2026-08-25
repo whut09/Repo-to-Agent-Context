@@ -1,5 +1,6 @@
 import type { ExecutionTrace, ExecutionTraceStep } from "../harness/observability/execution-trace.js";
 import type { EvidencePolicyMode } from "../core/types.js";
+import type { ResolutionEvidence } from "../harness/types.js";
 
 export type EvidenceLevel = "none" | "manual" | "command" | "ci";
 export type HarnessRequirementKind = "tests" | "contract-validation";
@@ -25,6 +26,8 @@ export interface EvidenceResult {
   verified: boolean;
   matchedCommand?: string;
   evidence: string[];
+  interventionIds?: string[];
+  resolutionEvidence?: ResolutionEvidence[];
 }
 
 export interface LatestTestResultOptions {
@@ -181,6 +184,15 @@ function evaluateCandidate(step: ExecutionTraceStep, requirement: HarnessRequire
 
 function resultForCandidate(candidate: CandidateEvaluation, traceId: string, requirement: HarnessRequirement): EvidenceResult {
   const policy = requirement.policy ?? "advisory";
+  const currentWorkingTree = (candidate.level === "command" || candidate.level === "ci") && candidate.step.workingTreeHashAfter === requirement.currentRepoHash;
+  const resolutionEvidence: ResolutionEvidence[] = [{
+    kind: candidate.level === "ci" ? "ci" : candidate.level === "command" ? "command" : "manual",
+    ref: candidate.step.id,
+    workingTreeHash: candidate.step.workingTreeHashAfter,
+    currentWorkingTree,
+    valid: candidate.satisfied && currentWorkingTree,
+    details: candidate.reasons
+  }];
   return {
     satisfied: true,
     level: candidate.level,
@@ -191,7 +203,9 @@ function resultForCandidate(candidate: CandidateEvaluation, traceId: string, req
     claimed: true,
     verified: candidate.level === "command" || candidate.level === "ci",
     matchedCommand: candidate.matchedCommand,
-    evidence: [`Trace loaded: ${traceId}.`, ...formatTraceEvidence(candidate.step, candidate.level), ...candidate.reasons]
+    evidence: [`Trace loaded: ${traceId}.`, ...formatTraceEvidence(candidate.step, candidate.level), ...candidate.reasons],
+    interventionIds: candidate.step.interventionIds,
+    resolutionEvidence
   };
 }
 

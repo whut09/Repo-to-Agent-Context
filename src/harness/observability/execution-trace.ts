@@ -46,6 +46,7 @@ export interface ExecutionTraceStep {
   stderrRedacted?: boolean;
   workingTreeHashBefore?: string;
   workingTreeHashAfter?: string;
+  interventionIds?: string[];
 }
 
 export interface ExecutionTrace {
@@ -95,6 +96,7 @@ export interface TraceStepInput {
   stderrRedacted?: boolean;
   workingTreeHashBefore?: string;
   workingTreeHashAfter?: string;
+  interventionIds?: string[];
 }
 
 export interface TraceCommandRunInput {
@@ -188,7 +190,8 @@ export function appendExecutionTraceStep(root: string, traceId: string, input: T
       stdoutRedacted: input.stdoutRedacted,
       stderrRedacted: input.stderrRedacted,
       workingTreeHashBefore: input.workingTreeHashBefore,
-      workingTreeHashAfter: input.workingTreeHashAfter
+      workingTreeHashAfter: input.workingTreeHashAfter,
+      interventionIds: input.interventionIds ? [...new Set(input.interventionIds)].sort((a, b) => a.localeCompare(b)) : undefined
     });
     trace.updatedAt = now;
     trace.revision = (trace.revision ?? 0) + 1;

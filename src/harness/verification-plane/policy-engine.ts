@@ -25,7 +25,7 @@ export interface PolicyEngineOptions {
   evidencePolicy?: EvidencePolicyMode;
 }
 
-export interface PolicyFinding extends Partial<Pick<GuardResult, "blocking" | "confidence" | "reasons" | "requiredCommands" | "artifacts">> {
+export interface PolicyFinding extends Partial<Pick<GuardResult, "blocking" | "confidence" | "reasons" | "requiredCommands" | "artifacts" | "interventionIds">> {
   id: string;
   kind: PolicyKind;
   status: PolicyStatus;
@@ -337,7 +337,8 @@ function policyFindingToResult(finding: PolicyFinding): GuardResult {
     reasons: finding.reasons ?? [finding.message, ...finding.evidence],
     requiredCommands: finding.requiredCommands ?? commandFromRequiredAction(finding.requiredAction),
     artifacts: finding.artifacts ?? [],
-    evidence: finding.evidence
+    evidence: finding.evidence,
+    interventionIds: finding.interventionIds
   });
 }
 

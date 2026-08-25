@@ -17,6 +17,7 @@ export interface GuardGate {
   action: GuardGateAction;
   evidence: string[];
   findingIds: string[];
+  interventionIds?: string[];
 }
 
 export interface GuardGateReport {
@@ -26,6 +27,7 @@ export interface GuardGateReport {
   runId: string;
   iteration: number;
   gates: GuardGate[];
+  interventionIds?: string[];
   summary: {
     total: number;
     blocking: number;

@@ -50,6 +50,7 @@ export function collectDecisionCandidates(input: DecisionEngineInput): HarnessDe
           `executor exit code: ${input.executorResult.exitCode ?? "unknown"}`,
           input.executorResult.stderr ? "executor stderr captured" : "executor stderr empty"
         ],
+        interventionIds: input.policy.results.filter((result) => result.kind === "forbidden" && result.status === "failed").flatMap((result) => result.interventionIds ?? []),
         artifacts
       })
     );
@@ -81,6 +82,7 @@ export function collectDecisionCandidates(input: DecisionEngineInput): HarnessDe
         confidence: 0.93,
         reasons: [`${gate.guard} guard blocked: ${gate.condition}.`, `guard: ${gate.guard}`, `condition: ${gate.condition}`, ...gate.evidence.slice(0, 5)],
         requiredCommands: commandForGate(gate.action),
+        interventionIds: gate.interventionIds,
         artifacts
       })
     );
@@ -168,10 +170,12 @@ export function arbitrateDecisionCandidates(candidates: HarnessDecisionCandidate
     reasons: [...selected.reasons, ...supporting.map(supportingReason)],
     requiredCommands: sorted.flatMap((item) => item.requiredCommands),
     artifacts: sorted.flatMap((item) => item.artifacts),
+    interventionIds: sorted.flatMap((item) => item.interventionIds ?? []),
     arbitration: {
       selectedCandidate: selected,
       selectedPriority: selected.priority,
-      supportingCandidates: supporting
+      supportingCandidates: supporting,
+      interventionIds: sorted.flatMap((item) => item.interventionIds ?? [])
     }
   });
 }
@@ -221,6 +225,7 @@ function decision(
     reasons: input.reasons,
     requiredCommands: input.requiredCommands ?? [],
     artifacts: input.artifacts ?? [],
+    ...(input.interventionIds ? { interventionIds: input.interventionIds } : {}),
     ...(input.arbitration ? { arbitration: input.arbitration } : {})
   });
 }
@@ -241,7 +246,8 @@ function candidate(
     confidence: input.confidence,
     reasons: input.reasons,
     requiredCommands: input.requiredCommands ?? [],
-    artifacts: input.artifacts ?? []
+    artifacts: input.artifacts ?? [],
+    interventionIds: input.interventionIds
   };
 }
 
@@ -252,7 +258,8 @@ function normalizeCandidate(input: HarnessDecisionCandidate): HarnessDecisionCan
     confidence: Math.round(Math.max(0, Math.min(1, input.confidence)) * 100) / 100,
     reasons: dedupeStrings(input.reasons),
     requiredCommands: dedupeStrings(input.requiredCommands).sort((a, b) => a.localeCompare(b)),
-    artifacts: dedupeArtifacts(input.artifacts)
+    artifacts: dedupeArtifacts(input.artifacts),
+    interventionIds: input.interventionIds ? dedupeStrings(input.interventionIds).sort((a, b) => a.localeCompare(b)) : undefined
   };
 }
 
@@ -299,7 +306,8 @@ function candidateSignature(candidate: HarnessDecisionCandidate): string {
     artifacts: candidate.artifacts,
     reasons: candidate.reasons,
     requiredCommands: candidate.requiredCommands,
-    source: candidate.source
+    source: candidate.source,
+    interventionIds: candidate.interventionIds
   });
 }
 

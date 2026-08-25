@@ -19,6 +19,7 @@ export interface GuardFinding {
   file?: string;
   evidence: string[];
   requiredAction?: string;
+  interventionIds?: string[];
 }
 
 export interface GuardFindingsArtifact {
@@ -49,7 +50,8 @@ function guardFindingFromResult(result: GuardResult): GuardFinding {
     message: result.message,
     file: result.file,
     evidence: result.evidence,
-    requiredAction: result.requiredCommands[0]
+    requiredAction: result.requiredCommands[0],
+    interventionIds: result.interventionIds
   };
 }
 
