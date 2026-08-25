@@ -103,6 +103,18 @@ test("concurrent ledger appends retain every event", async () => {
   }
 });
 
+test("Windows paths, spaces, and Chinese task IDs remain safe", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "中文 intervention ledger "));
+  try {
+    const taskId = "修复 登录 超时 / task";
+    appendInterventionEvent(root, event(taskId, "observed"));
+    assert.equal(readInterventionLedger(root, taskId)?.events[0]?.taskId, taskId);
+    assert.equal(path.dirname(interventionLedgerPath(root, taskId)).endsWith("interventions"), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("ledger transitions and reverse lookup expose a deterministic summary", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-summary-"));
   try {
