@@ -4,6 +4,7 @@ import {
   optionalString,
   requiredPositiveInteger,
   requiredString,
+  requiredStringArray,
   validateSchemaEnvelope,
   validResult,
   type ContextValidationResult,
@@ -94,7 +95,7 @@ export function validateContextAnnotation(input: unknown, path = "$"): ContextVa
   const updatedAt = requiredTimestamp(input, "updatedAt", path, issues);
   if (trustLevel !== "untrusted") issues.push({ path: `${path}.trustLevel`, code: "value", message: "annotations must be marked untrusted" });
   if (issues.length) return invalidResult(issues);
-  return validResult({ ...input, id, repository, entryId, packageVersion, contentRevision, note, trustLevel: "untrusted", createdAt, updatedAt });
+  return validResult({ ...input, id, repository, entryId, packageVersion, contentRevision, note, trustLevel: "untrusted", createdAt, updatedAt } as ContextAnnotation);
 }
 
 export function validateContextEntry(input: unknown, path = "$"): ContextValidationResult<ContextEntry> {
