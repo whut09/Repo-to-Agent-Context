@@ -72,6 +72,36 @@ test("opencode_plusplus_retrieve returns hits and suggested commands", async () 
   }
 });
 
+test("opencode_plusplus_retrieve fetches a Context Registry entry through the application service", async () => {
+  const root = createMcpRepo();
+  try {
+    const entryRoot = path.join(root, "packs", "docs", "payments");
+    mkdirSync(path.join(entryRoot, "references"), { recursive: true });
+    writeFileSync(
+      path.join(entryRoot, "DOC.md"),
+      "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nEntry.\n",
+      "utf8"
+    );
+    writeFileSync(path.join(entryRoot, "references", "errors.md"), "Errors.\n", "utf8");
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: private\n      kind: local\n      location: packs\n      trustLevel: private\n",
+      "utf8"
+    );
+    const result = await executeOpenCodePlusplusMcpTool("opencode_plusplus_retrieve", {
+      repo: root,
+      task: "fetch payments",
+      contextId: "private/payments",
+      file: "docs/payments/references/errors.md"
+    });
+    assert.equal(result.fetchMode, "file");
+    assert.deepEqual(result.selectedFiles, ["docs/payments/references/errors.md"]);
+    assert.equal((result.files as Array<{ content: string }>)[0]?.content, "Errors.\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("opencode_plusplus_verify includes contract check output", async () => {
   const root = createMcpRepo();
   try {
