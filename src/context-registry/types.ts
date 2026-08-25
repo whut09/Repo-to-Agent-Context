@@ -103,6 +103,21 @@ export interface ContextPack {
 }
 
 export type ContextFetchMode = "reused" | "incremental" | "rebuilt";
+export type ContextFetchSelectionMode = "entry" | "file" | "full";
+
+export interface ContextFetchedFile {
+  path: string;
+  role: ContextFileRole;
+  content: string;
+  contentHash: string;
+}
+
+export interface ContextFetchFreshness {
+  status: "fresh" | "stale";
+  workingTreeHash: string;
+  checkedAt: string;
+  reason?: string;
+}
 
 export interface ContextFetchCache {
   status: "hit" | "miss";
@@ -148,9 +163,12 @@ export interface ContextFetchResult {
   entry: ContextEntry;
   selectedFiles: string[];
   omittedFiles: string[];
+  files?: ContextFetchedFile[];
+  fetchMode?: ContextFetchSelectionMode;
   provenance: ContextProvenance;
   annotations?: ContextAnnotation[];
   cache: ContextFetchCache;
   contextMode: ContextFetchMode;
+  freshness?: ContextFetchFreshness;
   durationMs: number;
 }
