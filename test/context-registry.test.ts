@@ -91,6 +91,15 @@ test("schema diagnostics identify unsafe file paths and unsupported versions", (
   assert.ok(result.issues.some((issue) => issue.path === "$.files[0].path"));
 });
 
+test("registry entry ranking metadata is schema-validated", () => {
+  const invalid = validateContextEntry({ ...contextEntry(), symbols: ["ok", 42] });
+  assert.equal(invalid.valid, false);
+  assert.ok(invalid.issues.some((issue) => issue.path === "$.symbols"));
+  const valid = validateContextEntry({ ...contextEntry(), symbols: ["refresh", "refresh"], dependencyChain: ["auth"], qualityScore: 4 });
+  assert.equal(valid.valid, true);
+  assert.deepEqual(valid.value?.symbols, ["refresh"]);
+});
+
 test("source validation requires explicit trust and location", () => {
   const result = validateContextSource({
     schemaVersion: CONTEXT_REGISTRY_SCHEMA_VERSION,

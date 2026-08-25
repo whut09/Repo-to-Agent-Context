@@ -139,6 +139,9 @@ export function validateContextEntry(input: unknown, path = "$"): ContextValidat
   const sourceName = requiredString(input, "sourceName", path, issues);
   const trustLevel = requiredString(input, "trustLevel", path, issues);
   const contentHash = requiredHash(input, "contentHash", path, issues);
+  const symbols = optionalStringArray(input, "symbols", path, issues);
+  const dependencyChain = optionalStringArray(input, "dependencyChain", path, issues);
+  const qualityScore = optionalNonNegativeNumber(input, "qualityScore", path, issues);
   if (kind && !ENTRY_KINDS.has(kind as ContextEntryKind)) issues.push({ path: `${path}.kind`, code: "value", message: `unsupported entry kind ${kind}` });
   if (trustLevel && !TRUST_LEVELS.has(trustLevel as ContextTrustLevel)) {
     issues.push({ path: `${path}.trustLevel`, code: "value", message: `unsupported trust level ${trustLevel}` });
@@ -180,6 +183,9 @@ export function validateContextEntry(input: unknown, path = "$"): ContextValidat
     trustLevel,
     files: files.sort((left, right) => left.path.localeCompare(right.path)),
     contentHash,
+    symbols,
+    dependencyChain,
+    qualityScore,
     provenance: provenanceResult.value!
   } as ContextEntry);
 }
@@ -265,4 +271,22 @@ function requiredTimestamp(input: Record<string, unknown>, key: string, path: st
   const value = requiredString(input, key, path, issues);
   if (value && Number.isNaN(Date.parse(value))) issues.push({ path: `${path}.${key}`, code: "format", message: "expected an ISO-8601 timestamp" });
   return value;
+}
+
+function optionalStringArray(input: Record<string, unknown>, key: string, path: string, issues: ContextSchemaIssue[]): string[] | undefined {
+  if (input[key] === undefined) return undefined;
+  if (!Array.isArray(input[key]) || input[key].some((item) => typeof item !== "string" || item.trim() === "")) {
+    issues.push({ path: `${path}.${key}`, code: "type", message: "expected an array of non-empty strings" });
+    return undefined;
+  }
+  return [...new Set((input[key] as string[]).map((item) => item.trim()))].sort((left, right) => left.localeCompare(right));
+}
+
+function optionalNonNegativeNumber(input: Record<string, unknown>, key: string, path: string, issues: ContextSchemaIssue[]): number | undefined {
+  if (input[key] === undefined) return undefined;
+  if (typeof input[key] !== "number" || !Number.isFinite(input[key]) || input[key] < 0) {
+    issues.push({ path: `${path}.${key}`, code: "value", message: "expected a non-negative number" });
+    return undefined;
+  }
+  return input[key];
 }
