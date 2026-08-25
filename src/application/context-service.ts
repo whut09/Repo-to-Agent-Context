@@ -143,11 +143,14 @@ export async function getContextFiles(input: GetContextFilesInput): Promise<Cont
   const mode = input.mode ?? (input.full ? "full" : input.file ? "file" : "entry");
   if (mode === "full" && input.file) throw new Error("Context full mode cannot be combined with a file selector.");
   const selection = selectContextFiles(document, entry, input.file, mode === "full");
+  const sourceChanged = Boolean(previous && previous.packHash !== built.pack.contentHash);
   const freshness = {
     status: "fresh" as const,
     workingTreeHash,
     checkedAt: new Date().toISOString(),
-    ...(previous && previous.workingTreeHash !== workingTreeHash ? { reason: "Working tree changed; context source was revalidated." } : {})
+    ...(previous && (previous.workingTreeHash !== workingTreeHash || sourceChanged)
+      ? { reason: "Working tree or context source changed; context was revalidated." }
+      : {})
   };
   const cache = {
     ...cacheForSource(loaded.snapshot?.cache ?? [], entry.sourceName),
