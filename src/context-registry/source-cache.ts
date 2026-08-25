@@ -37,6 +37,17 @@ export function readSourceCache(root: string, source: Pick<ContextSourceConfig, 
   if (value.metadata.sourceName !== source.name) {
     return { status: "corrupt", filePath, error: `source cache belongs to ${value.metadata.sourceName}, not ${source.name}` };
   }
+  const computedContentHash = hashContextValue(packResult.value);
+  if (value.metadata.contentHash !== computedContentHash) {
+    return { status: "corrupt", filePath, error: `source cache contentHash mismatch: expected ${computedContentHash}, received ${value.metadata.contentHash}` };
+  }
+  if (value.metadata.registryHash !== packResult.value!.contentHash) {
+    return {
+      status: "corrupt",
+      filePath,
+      error: `source cache registryHash mismatch: expected ${packResult.value!.contentHash}, received ${value.metadata.registryHash}`
+    };
+  }
   const expiresAt = value.metadata.expiresAt ? Date.parse(value.metadata.expiresAt) : NaN;
   return { status: "hit", value: { ...value, pack: packResult.value! }, stale: Number.isFinite(expiresAt) && expiresAt <= now.getTime() };
 }
@@ -65,6 +76,7 @@ export function writeSourceCache(root: string, source: ContextSourceConfig, pack
   const filePath = sourceCachePath(root, source);
   mkdirSync(path.dirname(filePath), { recursive: true });
   const current = readJsonDiagnostic<CachedContextSource>(filePath);
+  if (current.status === "corrupt") throw new Error(`Unable to update corrupt source cache ${filePath}: ${current.error}`);
   const expectedRevision = current.status === "ok" && typeof current.value.revision === "number" ? current.value.revision : 0;
   value.metadata.revision = expectedRevision + 1;
   const next = writeJsonAtomicWithRevision(filePath, value, expectedRevision);

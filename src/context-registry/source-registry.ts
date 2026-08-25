@@ -117,7 +117,7 @@ async function loadSource(options: ContextSourceRegistryOptions, source: Context
     updatedAt: now.toISOString()
   };
   const cache = readSourceCache(options.root, source, now);
-  if (options.offline !== true && source.kind === "remote") {
+  if (options.offline === false && source.kind === "remote") {
     try {
       const fetched = await fetchRemoteContextPack(source, { fetch: options.fetch });
       const stored = writeSourceCache(options.root, source, fetched.pack, new Date(fetched.fetchedAt));
@@ -197,7 +197,7 @@ function mergePacks(packs: ContextPack[]): { entries: ContextEntry[]; conflicts:
     const conflict = sourceNames.length > 1;
     if (conflict) conflicts.push({ canonicalId, sourceNames, entryIds: group.map((entry) => entry.id).sort() });
     for (const entry of rankContextEntries(group)) {
-      entries.push(conflict ? { ...entry, id: `${entry.sourceName}:${canonicalId}`, canonicalId } : entry);
+      entries.push(conflict ? { ...entry, id: conflictEntryId(entry, canonicalId), canonicalId } : entry);
     }
   }
   return { entries: rankContextEntries(entries), conflicts };
@@ -214,6 +214,12 @@ function createSourceFromPack(pack: ContextPack): ContextSource {
     enabled: true,
     updatedAt: pack.generatedAt
   };
+}
+
+function conflictEntryId(entry: ContextEntry, canonicalId: string): string {
+  const sourcePrefix = `${entry.sourceName}/${canonicalId}`;
+  const variantSuffix = entry.id.startsWith(sourcePrefix) ? entry.id.slice(sourcePrefix.length) : "";
+  return `${entry.sourceName}:${canonicalId}${variantSuffix}`;
 }
 
 function compareSourceConfig(left: ContextSourceConfig, right: ContextSourceConfig): number {

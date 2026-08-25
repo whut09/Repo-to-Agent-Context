@@ -214,14 +214,15 @@ function createEntries(documents: DiscoveredDocument[], source: ContextSourceCon
   });
   const counts = new Map<string, number>();
   for (const variant of variants) {
-    const canonicalId = `${source.name}/${variant.document.parsed.frontmatter.name}`;
+    const canonicalId = variant.document.parsed.frontmatter.name;
     counts.set(canonicalId, (counts.get(canonicalId) ?? 0) + 1);
   }
   return variants.map((variant) => {
     const frontmatter = variant.document.parsed.frontmatter;
-    const canonicalId = `${source.name}/${frontmatter.name}`;
+    const canonicalId = frontmatter.name;
     const variantKey = [variant.language ?? "", variant.packageVersion ?? "", frontmatter.apiVersion ?? ""].join("|");
-    const id = (counts.get(canonicalId) ?? 0) === 1 ? canonicalId : `${canonicalId}@${slug(variantKey)}`;
+    const sourceId = `${source.name}/${canonicalId}`;
+    const id = (counts.get(canonicalId) ?? 0) === 1 ? sourceId : `${sourceId}@${slug(variantKey)}`;
     const entryHash = hashContextValue({
       body: hashContextText(
         frontmatter.name + "\n" + variant.document.contentByPath[relativeContextPath(variant.document.sourceRoot, variant.document.mainPath)!]
