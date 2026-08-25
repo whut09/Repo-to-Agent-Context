@@ -50,7 +50,14 @@ test("retrieval application service includes configured local registry context",
       "utf8"
     );
 
-    const result = await retrieveApplicationContext({ repo: root, task: "payments", provider: "static", topK: 1, language: "typescript", packageVersion: "2.0.0" });
+    const result = await retrieveApplicationContext({
+      repo: root,
+      task: "payments",
+      provider: "static",
+      topK: 1,
+      language: "typescript",
+      packageVersion: "2.0.0"
+    });
     const registryHit = result.hits.find((hit) => hit.metadata.contextSource === "official");
     assert.ok(registryHit);
     assert.deepEqual(registryHit.mustInspect, ["context://official/official/docs/payments/DOC.md"]);
