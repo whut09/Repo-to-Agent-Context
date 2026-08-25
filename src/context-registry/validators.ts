@@ -14,8 +14,10 @@ import type {
   ContextAnnotation,
   ContextEntry,
   ContextEntryKind,
+  ContextFetchResult,
   ContextFile,
   ContextFileRole,
+  ContextPack,
   ContextProvenance,
   ContextSource,
   ContextTrustLevel
@@ -153,6 +155,69 @@ export function validateContextEntry(input: unknown, path = "$"): ContextValidat
     contentHash,
     provenance: provenanceResult.value!
   } as ContextEntry);
+}
+
+export function validateContextPack(input: unknown, path = "$"): ContextValidationResult<ContextPack> {
+  const issues = validateSchemaEnvelope(input, path);
+  if (!isRecord(input)) return invalidResult(issues);
+  const id = requiredString(input, "id", path, issues);
+  const sourceName = requiredString(input, "sourceName", path, issues);
+  const generatedAt = requiredTimestamp(input, "generatedAt", path, issues);
+  const contentHash = requiredHash(input, "contentHash", path, issues);
+  const entriesInput = input.entries;
+  if (!Array.isArray(entriesInput)) issues.push({ path: `${path}.entries`, code: "type", message: "expected an array of ContextEntry values" });
+  const entries: ContextEntry[] = [];
+  const ids = new Set<string>();
+  for (const [index, entry] of (Array.isArray(entriesInput) ? entriesInput : []).entries()) {
+    const result = validateContextEntry(entry, `${path}.entries[${index}]`);
+    if (!result.valid) {
+      issues.push(...result.issues);
+      continue;
+    }
+    if (ids.has(result.value!.id)) issues.push({ path: `${path}.entries[${index}].id`, code: "value", message: "entry ids must be unique within a pack" });
+    ids.add(result.value!.id);
+    if (result.value!.sourceName !== sourceName) {
+      issues.push({ path: `${path}.entries[${index}].sourceName`, code: "value", message: "must match pack sourceName" });
+    }
+    entries.push(result.value!);
+  }
+  if (issues.length) return invalidResult(issues);
+  return validResult({ ...input, id, sourceName, generatedAt, entries, contentHash } as ContextPack);
+}
+
+export function validateContextFetchResult(input: unknown, path = "$"): ContextValidationResult<ContextFetchResult> {
+  const issues = validateSchemaEnvelope(input, path);
+  if (!isRecord(input)) return invalidResult(issues);
+  const selectedFiles = requiredStringArray(input, "selectedFiles", path, issues);
+  const omittedFiles = requiredStringArray(input, "omittedFiles", path, issues);
+  const overlap = selectedFiles.filter((file) => omittedFiles.includes(file));
+  if (overlap.length) issues.push({ path: `${path}.selectedFiles`, code: "value", message: `selected and omitted files overlap: ${overlap.join(", ")}` });
+  const entryResult = validateContextEntry(input.entry, `${path}.entry`);
+  if (!entryResult.valid) issues.push(...entryResult.issues);
+  const provenanceResult = validateContextProvenance(input.provenance, `${path}.provenance`);
+  if (!provenanceResult.valid) issues.push(...provenanceResult.issues);
+  const cache = input.cache;
+  if (!isRecord(cache)) {
+    issues.push({ path: `${path}.cache`, code: "type", message: "expected a cache object" });
+  } else if (cache.status !== "hit" && cache.status !== "miss") {
+    issues.push({ path: `${path}.cache.status`, code: "value", message: "expected hit or miss" });
+  }
+  const contextMode = input.contextMode;
+  if (contextMode !== "reused" && contextMode !== "incremental" && contextMode !== "rebuilt") {
+    issues.push({ path: `${path}.contextMode`, code: "value", message: "expected reused, incremental, or rebuilt" });
+  }
+  const durationMs = input.durationMs;
+  if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < 0) {
+    issues.push({ path: `${path}.durationMs`, code: "value", message: "expected a non-negative number" });
+  }
+  const annotations = input.annotations;
+  if (annotations !== undefined && !Array.isArray(annotations)) issues.push({ path: `${path}.annotations`, code: "type", message: "expected an array" });
+  for (const [index, annotation] of (Array.isArray(annotations) ? annotations : []).entries()) {
+    const result = validateContextAnnotation(annotation, `${path}.annotations[${index}]`);
+    if (!result.valid) issues.push(...result.issues);
+  }
+  if (issues.length) return invalidResult(issues);
+  return validResult({ ...input, selectedFiles, omittedFiles, entry: entryResult.value!, provenance: provenanceResult.value! } as ContextFetchResult);
 }
 
 function requiredHash(input: Record<string, unknown>, key: string, path: string, issues: ContextSchemaIssue[]): string | undefined {
