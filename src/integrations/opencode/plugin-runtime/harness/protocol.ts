@@ -1,6 +1,6 @@
 import path from "node:path";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
-import type { PluginHarnessResult, PluginHarnessToolKind, PluginPerformance, PluginTaskIdSource } from "./types.js";
+import { emptyPluginInterventions, type PluginHarnessResult, type PluginHarnessToolKind, type PluginPerformance, type PluginTaskIdSource } from "./types.js";
 
 export const PLUGIN_HARNESS_SCHEMA_VERSION = "opencode-plusplus.desktop-harness.v1";
 
@@ -18,9 +18,13 @@ export function createPluginHarnessResult(
     | "allowedEditGlobs"
     | "avoidEditGlobs"
     | "artifacts"
+    | "interventions"
   > &
     Partial<
-      Pick<PluginHarnessResult, "findings" | "missingEvidence" | "requiredCommands" | "mustInspect" | "allowedEditGlobs" | "avoidEditGlobs" | "artifacts">
+      Pick<
+        PluginHarnessResult,
+        "findings" | "missingEvidence" | "requiredCommands" | "mustInspect" | "allowedEditGlobs" | "avoidEditGlobs" | "artifacts" | "interventions"
+      >
     >
 ): PluginHarnessResult {
   return {
@@ -34,7 +38,10 @@ export function createPluginHarnessResult(
     mustInspect: normalize(input.mustInspect),
     allowedEditGlobs: normalize(input.allowedEditGlobs),
     avoidEditGlobs: normalize(input.avoidEditGlobs),
-    artifacts: normalize(input.artifacts)
+    artifacts: normalize(input.artifacts),
+    interventions:
+      input.interventions ??
+      emptyPluginInterventions(path.relative(root, path.join(root, ".agent-context", "interventions", `${input.taskId ?? "unknown"}.jsonl`)).replaceAll("\\", "/"))
   };
 }
 
