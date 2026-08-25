@@ -91,3 +91,24 @@ export interface ContextPack {
   entries: ContextEntry[];
   contentHash: string;
 }
+
+export type ContextFetchMode = "reused" | "incremental" | "rebuilt";
+
+export interface ContextFetchCache {
+  status: "hit" | "miss";
+  sourceRegistryHash?: string;
+  contentHash?: string;
+}
+
+export interface ContextFetchResult {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  entry: ContextEntry;
+  selectedFiles: string[];
+  omittedFiles: string[];
+  provenance: ContextProvenance;
+  annotations?: ContextAnnotation[];
+  cache: ContextFetchCache;
+  contextMode: ContextFetchMode;
+  durationMs: number;
+}
