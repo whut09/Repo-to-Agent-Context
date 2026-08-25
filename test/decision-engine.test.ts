@@ -53,6 +53,17 @@ test("policy forbidden explicitly outranks executor failure when rollback is ava
   assert.ok(result.arbitration?.supportingCandidates.some((candidate) => candidate.id === "executor.failure"));
 });
 
+test("arbitration preserves intervention references from selected and supporting candidates", () => {
+  const result = arbitrateDecisionCandidates([
+    { ...candidate("repair", "repair", ["npm test"], []), interventionIds: ["intervention-repair"] },
+    { ...candidate("tests", "run-tests", ["npm test"], []), interventionIds: ["intervention-tests"] }
+  ]);
+
+  assert.deepEqual(result.interventionIds, ["intervention-repair", "intervention-tests"]);
+  assert.deepEqual(result.arbitration?.interventionIds, ["intervention-repair", "intervention-tests"]);
+  assert.ok(result.arbitration?.selectedCandidate.interventionIds?.includes("intervention-repair"));
+});
+
 function decisionInput(
   gates: GuardGate[],
   options: { checkpointMode?: "none" | "git-worktree"; executorExitCode?: number; forbidden?: number } = {}
