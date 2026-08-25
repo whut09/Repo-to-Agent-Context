@@ -49,18 +49,20 @@ export interface HarnessDecision {
   arbitration?: HarnessDecisionArbitration;
 }
 
-export type InterventionStatus =
-  | "observed"
-  | "prevented"
-  | "requested"
-  | "repaired"
-  | "verified"
-  | "unresolved"
-  | "human-review"
-  | "stale";
+export type InterventionStatus = "observed" | "prevented" | "requested" | "repaired" | "verified" | "unresolved" | "human-review" | "stale";
 
 export type InterventionPhase = "plan" | "execute" | "collect" | "evaluate" | "decide" | "persist" | "finalize";
-export type InterventionCategory = "boundary" | "evidence" | "policy" | "context" | "hallucination" | "regression" | "repair" | "executor" | "decision" | "other";
+export type InterventionCategory =
+  | "boundary"
+  | "evidence"
+  | "policy"
+  | "context"
+  | "hallucination"
+  | "regression"
+  | "repair"
+  | "executor"
+  | "decision"
+  | "other";
 export type InterventionSource = "guard" | "policy" | "evidence" | "executor" | "decision" | "human" | "system";
 
 export interface ResolutionEvidence {

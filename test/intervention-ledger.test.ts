@@ -16,7 +16,11 @@ import {
   validateInterventionTransition
 } from "../src/harness/observability/intervention-ledger.js";
 
-function event(taskId: string, status: "observed" | "prevented" | "requested" | "repaired" | "verified" | "unresolved" | "human-review" | "stale", interventionId = interventionIdFor({ taskId, findingId: "finding-1", category: "evidence", problem: "test evidence" })) {
+function event(
+  taskId: string,
+  status: "observed" | "prevented" | "requested" | "repaired" | "verified" | "unresolved" | "human-review" | "stale",
+  interventionId = interventionIdFor({ taskId, findingId: "finding-1", category: "evidence", problem: "test evidence" })
+) {
   return createInterventionEvent({
     interventionId,
     taskId,

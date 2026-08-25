@@ -50,7 +50,9 @@ export function collectDecisionCandidates(input: DecisionEngineInput): HarnessDe
           `executor exit code: ${input.executorResult.exitCode ?? "unknown"}`,
           input.executorResult.stderr ? "executor stderr captured" : "executor stderr empty"
         ],
-        interventionIds: input.policy.results.filter((result) => result.kind === "forbidden" && result.status === "failed").flatMap((result) => result.interventionIds ?? []),
+        interventionIds: input.policy.results
+          .filter((result) => result.kind === "forbidden" && result.status === "failed")
+          .flatMap((result) => result.interventionIds ?? []),
         artifacts
       })
     );

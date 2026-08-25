@@ -42,18 +42,20 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     for (const step of traceEvidenceForFinding(finding, input.trace)) {
       step.interventionIds = [...new Set([...(step.interventionIds ?? []), interventionId])].sort((a, b) => a.localeCompare(b));
     }
-    events.push(...appendForStatus(input, {
-      interventionId,
-      findingId: finding.id,
-      category,
-      problem: finding.message,
-      action: finding.requiredAction ?? "observe policy result",
-      targetFiles: finding.file ? [finding.file] : input.changedFiles,
-      evidenceRefs: finding.evidence,
-      status,
-      source: finding.kind === "forbidden" ? "guard" : "policy",
-      resolutionEvidence: resolutionEvidenceForFinding(finding, evidence)
-    }));
+    events.push(
+      ...appendForStatus(input, {
+        interventionId,
+        findingId: finding.id,
+        category,
+        problem: finding.message,
+        action: finding.requiredAction ?? "observe policy result",
+        targetFiles: finding.file ? [finding.file] : input.changedFiles,
+        evidenceRefs: finding.evidence,
+        status,
+        source: finding.kind === "forbidden" ? "guard" : "policy",
+        resolutionEvidence: resolutionEvidenceForFinding(finding, evidence)
+      })
+    );
   }
 
   for (const finding of input.guardFindings.findings) {
@@ -61,17 +63,19 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     finding.interventionIds = [interventionId];
     allIds.add(interventionId);
     const isBlocking = finding.status === "failed" || finding.status === "missing";
-    events.push(...appendForStatus(input, {
-      interventionId,
-      findingId: finding.id,
-      category: finding.source,
-      problem: finding.message,
-      action: finding.requiredAction ?? "observe guard finding",
-      targetFiles: finding.file ? [finding.file] : input.changedFiles,
-      evidenceRefs: finding.evidence,
-      status: finding.source === "hallucination" && isBlocking ? "prevented" : isBlocking ? "requested" : "observed",
-      source: "guard"
-    }));
+    events.push(
+      ...appendForStatus(input, {
+        interventionId,
+        findingId: finding.id,
+        category: finding.source,
+        problem: finding.message,
+        action: finding.requiredAction ?? "observe guard finding",
+        targetFiles: finding.file ? [finding.file] : input.changedFiles,
+        evidenceRefs: finding.evidence,
+        status: finding.source === "hallucination" && isBlocking ? "prevented" : isBlocking ? "requested" : "observed",
+        source: "guard"
+      })
+    );
   }
 
   for (const gate of input.guardGates.gates) {
@@ -80,18 +84,20 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     gate.interventionIds = [interventionId];
     allIds.add(interventionId);
     if (gate.status === "blocked") {
-      events.push(...appendForStatus(input, {
-        interventionId,
-        findingId: gate.id,
-        category,
-        problem: gate.condition,
-        action: gate.action,
-        targetFiles: input.changedFiles,
-        evidenceRefs: gate.evidence,
-        status: statusForGate(gate.guard, gate.action, input.executorExitCode),
-        source: "guard",
-        confidence: 0.9
-      }));
+      events.push(
+        ...appendForStatus(input, {
+          interventionId,
+          findingId: gate.id,
+          category,
+          problem: gate.condition,
+          action: gate.action,
+          targetFiles: input.changedFiles,
+          evidenceRefs: gate.evidence,
+          status: statusForGate(gate.guard, gate.action, input.executorExitCode),
+          source: "guard",
+          confidence: 0.9
+        })
+      );
     }
   }
 
@@ -102,19 +108,21 @@ export function recordIterationInterventions(input: RecordIterationInterventions
   const decisionId = `decision:${input.taskId}:${input.iteration}`;
   const decisionInterventionId = interventionIdFor({ taskId: input.taskId, findingId: decisionId, category: "decision", problem: input.decision.action });
   allIds.add(decisionInterventionId);
-  events.push(...appendForStatus(input, {
-    interventionId: decisionInterventionId,
-    findingId: decisionId,
-    category: "decision",
-    problem: input.decision.reasons[0] ?? `Decision: ${input.decision.action}.`,
-    action: input.decision.action,
-    targetFiles: input.changedFiles,
-    evidenceRefs: input.decision.reasons,
-    status: statusForDecision(input.decision.action, evidence),
-    source: "decision",
-    decisionRefs: [decisionId],
-    resolutionEvidence: toResolutionEvidence(evidence)
-  }));
+  events.push(
+    ...appendForStatus(input, {
+      interventionId: decisionInterventionId,
+      findingId: decisionId,
+      category: "decision",
+      problem: input.decision.reasons[0] ?? `Decision: ${input.decision.action}.`,
+      action: input.decision.action,
+      targetFiles: input.changedFiles,
+      evidenceRefs: input.decision.reasons,
+      status: statusForDecision(input.decision.action, evidence),
+      source: "decision",
+      decisionRefs: [decisionId],
+      resolutionEvidence: toResolutionEvidence(evidence)
+    })
+  );
 
   const decision = {
     ...input.decision,
@@ -136,33 +144,42 @@ type PendingIntervention = Omit<NewInterventionEvent, "taskId" | "sessionId" | "
 };
 
 function appendForStatus(input: RecordIterationInterventionsInput, event: PendingIntervention): ReturnType<typeof appendInterventionEvent>[] {
-  const previous = listInterventionEvents(input.root, input.taskId).filter((item) => item.interventionId === event.interventionId).at(-1);
+  const previous = listInterventionEvents(input.root, input.taskId)
+    .filter((item) => item.interventionId === event.interventionId)
+    .at(-1);
   if (previous && event.status === "observed") return [];
   const statuses: InterventionStatus[] = [];
   if (event.status === "verified" && !previous) statuses.push("requested", "repaired");
   else if (event.status === "verified" && ["requested", "stale", "unresolved", "human-review"].includes(previous?.status ?? "")) statuses.push("repaired");
   else if (event.status === "stale" && !previous) statuses.push("requested");
   statuses.push(event.status);
-  return statuses.map((status) => appendInterventionEvent(input.root, {
-    ...event,
-    taskId: input.taskId,
-    sessionId: input.sessionId,
-    timestamp: new Date().toISOString(),
-    phase: "evaluate",
-    status,
-    beforeState: event.beforeState ?? { status: previous?.status ?? "none", workingTreeHash: previous?.afterState.workingTreeHash ?? null },
-    afterState: event.afterState ?? { status, workingTreeHash: input.currentWorkingTreeHash },
-    confidence: event.confidence ?? 0.85,
-    supersedes: previous ? [previous.eventId] : undefined,
-    traceRefs: input.trace ? [input.trace.id] : undefined
-  }));
+  return statuses.map((status) =>
+    appendInterventionEvent(input.root, {
+      ...event,
+      taskId: input.taskId,
+      sessionId: input.sessionId,
+      timestamp: new Date().toISOString(),
+      phase: "evaluate",
+      status,
+      beforeState: event.beforeState ?? { status: previous?.status ?? "none", workingTreeHash: previous?.afterState.workingTreeHash ?? null },
+      afterState: event.afterState ?? { status, workingTreeHash: input.currentWorkingTreeHash },
+      confidence: event.confidence ?? 0.85,
+      supersedes: previous ? [previous.eventId] : undefined,
+      traceRefs: input.trace ? [input.trace.id] : undefined
+    })
+  );
 }
 
 function statusForFinding(finding: PolicyFinding, evidence: ExecutionTraceStep[]): InterventionStatus {
   if (finding.evidence.some((item) => /stale|before last edit|working tree hash mismatch/i.test(item))) return "stale";
   if (finding.kind === "forbidden" && finding.status === "failed") return "prevented";
   if (finding.kind === "risk" || finding.status === "warning") return "human-review";
-  if (finding.kind === "required" && finding.status === "satisfied" && resolutionEvidenceForFinding(finding, evidence).some((item) => item.valid && item.currentWorkingTree)) return "verified";
+  if (
+    finding.kind === "required" &&
+    finding.status === "satisfied" &&
+    resolutionEvidenceForFinding(finding, evidence).some((item) => item.valid && item.currentWorkingTree)
+  )
+    return "verified";
   if (finding.status === "missing" || finding.status === "failed") return "requested";
   return "observed";
 }
@@ -184,7 +201,9 @@ function statusForDecision(action: HarnessDecision["action"], evidence: Executio
   return "observed";
 }
 
-function categoryForFinding(finding: PolicyFinding): "boundary" | "evidence" | "policy" | "context" | "hallucination" | "regression" | "repair" | "executor" | "decision" | "other" {
+function categoryForFinding(
+  finding: PolicyFinding
+): "boundary" | "evidence" | "policy" | "context" | "hallucination" | "regression" | "repair" | "executor" | "decision" | "other" {
   if (finding.id.includes("tests") || finding.id.includes("contract-validation")) return "evidence";
   if (finding.id.includes("context")) return "context";
   if (finding.kind === "forbidden") return "boundary";
@@ -221,9 +240,6 @@ function toResolutionEvidence(steps: ExecutionTraceStep[]): ResolutionEvidence[]
 
 function currentEvidence(trace: ExecutionTrace | null, hash: string): ExecutionTraceStep[] {
   return (trace?.steps ?? []).filter(
-    (step) =>
-      (step.evidenceSource === "command" || step.evidenceSource === "ci") &&
-      step.exitCode === 0 &&
-      step.workingTreeHashAfter === hash
+    (step) => (step.evidenceSource === "command" || step.evidenceSource === "ci") && step.exitCode === 0 && step.workingTreeHashAfter === hash
   );
 }

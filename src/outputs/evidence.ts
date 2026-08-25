@@ -185,14 +185,16 @@ function evaluateCandidate(step: ExecutionTraceStep, requirement: HarnessRequire
 function resultForCandidate(candidate: CandidateEvaluation, traceId: string, requirement: HarnessRequirement): EvidenceResult {
   const policy = requirement.policy ?? "advisory";
   const currentWorkingTree = (candidate.level === "command" || candidate.level === "ci") && candidate.step.workingTreeHashAfter === requirement.currentRepoHash;
-  const resolutionEvidence: ResolutionEvidence[] = [{
-    kind: candidate.level === "ci" ? "ci" : candidate.level === "command" ? "command" : "manual",
-    ref: candidate.step.id,
-    workingTreeHash: candidate.step.workingTreeHashAfter,
-    currentWorkingTree,
-    valid: candidate.satisfied && currentWorkingTree,
-    details: candidate.reasons
-  }];
+  const resolutionEvidence: ResolutionEvidence[] = [
+    {
+      kind: candidate.level === "ci" ? "ci" : candidate.level === "command" ? "command" : "manual",
+      ref: candidate.step.id,
+      workingTreeHash: candidate.step.workingTreeHashAfter,
+      currentWorkingTree,
+      valid: candidate.satisfied && currentWorkingTree,
+      details: candidate.reasons
+    }
+  ];
   return {
     satisfied: true,
     level: candidate.level,

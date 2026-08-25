@@ -17,7 +17,16 @@ test("mapper records prevented, requested, unresolved and verified states", () =
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-map-"));
   try {
     const input = baseInput(root);
-    input.guardFindings.findings.push({ schemaVersion: "opencode-plusplus.guard-finding.v1", id: "hallucination.missing-file", source: "hallucination", kind: "forbidden", status: "failed", severity: "error", message: "Missing file reference.", evidence: ["missing"] });
+    input.guardFindings.findings.push({
+      schemaVersion: "opencode-plusplus.guard-finding.v1",
+      id: "hallucination.missing-file",
+      source: "hallucination",
+      kind: "forbidden",
+      status: "failed",
+      severity: "error",
+      message: "Missing file reference.",
+      evidence: ["missing"]
+    });
     const first = recordIterationInterventions({ ...input, executorExitCode: 2 });
     const statuses = listInterventionEvents(root, "task-1").map((event) => event.status);
     assert.ok(statuses.includes("prevented"));
@@ -26,11 +35,24 @@ test("mapper records prevented, requested, unresolved and verified states", () =
     const boundary = listInterventionEvents(root, "task-1").find((event) => event.findingId === "boundary.forbidden");
     assert.equal(boundary?.status, "prevented");
     assert.ok(listInterventionEvents(root, "task-1").some((event) => event.findingId === "hallucination.missing-file" && event.status === "prevented"));
-    assert.equal(listInterventionEvents(root, "task-1").some((event) => event.findingId === "boundary.forbidden" && event.status === "repaired"), false);
+    assert.equal(
+      listInterventionEvents(root, "task-1").some((event) => event.findingId === "boundary.forbidden" && event.status === "repaired"),
+      false
+    );
     assert.equal(first.decision.interventionIds?.length, first.interventionIds.length);
 
-    const verifiedPolicy = { ...input.policy, findings: input.policy.findings.map((finding) => ({ ...finding, status: "satisfied" as const, evidence: ["command passed"] })) };
-    const verified = recordIterationInterventions({ ...input, policy: verifiedPolicy, trace: currentCommandTrace(), guardGates: passingGates(), decision: finalizeDecision(), executorExitCode: 0 });
+    const verifiedPolicy = {
+      ...input.policy,
+      findings: input.policy.findings.map((finding) => ({ ...finding, status: "satisfied" as const, evidence: ["command passed"] }))
+    };
+    const verified = recordIterationInterventions({
+      ...input,
+      policy: verifiedPolicy,
+      trace: currentCommandTrace(),
+      guardGates: passingGates(),
+      decision: finalizeDecision(),
+      executorExitCode: 0
+    });
     assert.ok(verified.events.some((event) => event.status === "verified"));
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -42,10 +64,16 @@ test("stale evidence becomes stale instead of fixed", () => {
   try {
     const input = baseInput(root);
     recordIterationInterventions({ ...input, executorExitCode: 0 });
-    const stalePolicy = { ...input.policy, findings: input.policy.findings.map((finding) => ({ ...finding, evidence: ["Working tree hash is stale: old -> new."] })) };
+    const stalePolicy = {
+      ...input.policy,
+      findings: input.policy.findings.map((finding) => ({ ...finding, evidence: ["Working tree hash is stale: old -> new."] }))
+    };
     const result = recordIterationInterventions({ ...input, policy: stalePolicy, iteration: 2, currentWorkingTreeHash: "new", executorExitCode: 0 });
     assert.ok(result.events.some((event) => event.status === "stale"));
-    assert.equal(result.events.some((event) => event.status === "verified"), false);
+    assert.equal(
+      result.events.some((event) => event.status === "verified"),
+      false
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -62,7 +90,9 @@ test("finding, trace and evidence can reverse lookup the same intervention", () 
     };
     const trace = currentCommandTrace();
     const result = recordIterationInterventions({ ...input, policy, trace, guardGates: passingGates(), decision: finalizeDecision(), executorExitCode: 0 });
-    const interventionId = result.interventionIds.find((id) => listInterventionEvents(root, "task-1").some((event) => event.interventionId === id && event.findingId === "policy.required.tests"));
+    const interventionId = result.interventionIds.find((id) =>
+      listInterventionEvents(root, "task-1").some((event) => event.interventionId === id && event.findingId === "policy.required.tests")
+    );
     assert.ok(interventionId);
     assert.ok(readExecutionTrace(root, trace.id)?.steps[0]?.interventionIds?.includes(interventionId));
     const evidence = evidenceSatisfies({ kind: "tests", currentRepoHash: "current", policy: "strict" }, readExecutionTrace(root, trace.id));
@@ -83,8 +113,25 @@ function baseInput(root: string) {
     generatedContextFiles: [],
     summary: { forbidden: 1, risks: 0, requiredMissing: 1, requiredSatisfied: 0 },
     findings: [
-      { id: "policy.forbidden.path", kind: "forbidden", status: "failed", severity: "error", message: "Forbidden path changed.", file: "src/session.ts", evidence: ["boundary"], requiredAction: "rollback" },
-      { id: "policy.required.tests", kind: "required", status: "missing", severity: "required", message: "Tests missing.", evidence: ["No test evidence"], requiredAction: "npm test" }
+      {
+        id: "policy.forbidden.path",
+        kind: "forbidden",
+        status: "failed",
+        severity: "error",
+        message: "Forbidden path changed.",
+        file: "src/session.ts",
+        evidence: ["boundary"],
+        requiredAction: "rollback"
+      },
+      {
+        id: "policy.required.tests",
+        kind: "required",
+        status: "missing",
+        severity: "required",
+        message: "Tests missing.",
+        evidence: ["No test evidence"],
+        requiredAction: "npm test"
+      }
     ],
     results: []
   };
@@ -97,18 +144,69 @@ function baseInput(root: string) {
     currentWorkingTreeHash: "current",
     trace: null as ExecutionTrace | null,
     policy,
-    guardFindings: { schemaVersion: "opencode-plusplus.guard-findings.v1", kind: "guard-findings", generatedAt: "2026-01-01T00:00:00.000Z", runId: "task-1", iteration: 1, findings: [], summary: { total: 0, forbidden: 0, requiredMissing: 0, risks: 0, hallucinationErrors: 0, regressionMatches: 0 } } as GuardFindingsArtifact,
-    guardGates: { schemaVersion: "opencode-plusplus.guard-gates.v1", kind: "guard-gates", generatedAt: "2026-01-01T00:00:00.000Z", runId: "task-1", iteration: 1, gates: [{ id: "boundary.forbidden", guard: "boundary", condition: "forbidden path", status: "blocked", severity: "blocker", action: "block", evidence: ["src/session.ts"], findingIds: [] }, { id: "evidence.test", guard: "evidence", condition: "test failed", status: "blocked", severity: "blocker", action: "repair", evidence: ["test failed"], findingIds: [] }], summary: { total: 2, blocking: 2, warnings: 0, passed: 0, byGuard: guardCounts() } } as GuardGateReport,
-    decision: ({ action: "block", blocking: true, confidence: 1, reasons: ["blocked"], requiredCommands: [], artifacts: [] } as HarnessDecision)
+    guardFindings: {
+      schemaVersion: "opencode-plusplus.guard-findings.v1",
+      kind: "guard-findings",
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      runId: "task-1",
+      iteration: 1,
+      findings: [],
+      summary: { total: 0, forbidden: 0, requiredMissing: 0, risks: 0, hallucinationErrors: 0, regressionMatches: 0 }
+    } as GuardFindingsArtifact,
+    guardGates: {
+      schemaVersion: "opencode-plusplus.guard-gates.v1",
+      kind: "guard-gates",
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      runId: "task-1",
+      iteration: 1,
+      gates: [
+        {
+          id: "boundary.forbidden",
+          guard: "boundary",
+          condition: "forbidden path",
+          status: "blocked",
+          severity: "blocker",
+          action: "block",
+          evidence: ["src/session.ts"],
+          findingIds: []
+        },
+        {
+          id: "evidence.test",
+          guard: "evidence",
+          condition: "test failed",
+          status: "blocked",
+          severity: "blocker",
+          action: "repair",
+          evidence: ["test failed"],
+          findingIds: []
+        }
+      ],
+      summary: { total: 2, blocking: 2, warnings: 0, passed: 0, byGuard: guardCounts() }
+    } as GuardGateReport,
+    decision: { action: "block", blocking: true, confidence: 1, reasons: ["blocked"], requiredCommands: [], artifacts: [] } as HarnessDecision
   };
 }
 
 function guardCounts(): GuardGateReport["summary"]["byGuard"] {
-  return { context: { blocking: 0, warnings: 0, passed: 0 }, boundary: { blocking: 1, warnings: 0, passed: 0 }, evidence: { blocking: 0, warnings: 0, passed: 0 }, hallucination: { blocking: 0, warnings: 0, passed: 0 }, regression: { blocking: 0, warnings: 0, passed: 0 } };
+  return {
+    context: { blocking: 0, warnings: 0, passed: 0 },
+    boundary: { blocking: 1, warnings: 0, passed: 0 },
+    evidence: { blocking: 0, warnings: 0, passed: 0 },
+    hallucination: { blocking: 0, warnings: 0, passed: 0 },
+    regression: { blocking: 0, warnings: 0, passed: 0 }
+  };
 }
 
 function passingGates(): GuardGateReport {
-  return { schemaVersion: "opencode-plusplus.guard-gates.v1", kind: "guard-gates", generatedAt: "2026-01-01T00:00:00.000Z", runId: "task-1", iteration: 1, gates: [], summary: { total: 0, blocking: 0, warnings: 0, passed: 0, byGuard: guardCounts() } };
+  return {
+    schemaVersion: "opencode-plusplus.guard-gates.v1",
+    kind: "guard-gates",
+    generatedAt: "2026-01-01T00:00:00.000Z",
+    runId: "task-1",
+    iteration: 1,
+    gates: [],
+    summary: { total: 0, blocking: 0, warnings: 0, passed: 0, byGuard: guardCounts() }
+  };
 }
 
 function finalizeDecision(): HarnessDecision {
@@ -116,5 +214,31 @@ function finalizeDecision(): HarnessDecision {
 }
 
 function currentCommandTrace(): ExecutionTrace {
-  return { schemaVersion: 1, id: "trace-1", task: "task", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:01.000Z", finalState: "success", steps: [{ id: "step-1", at: "2026-01-01T00:00:01.000Z", action: "run-test", command: "npm test", files: [], result: "passed", evidenceSource: "command", capturedBy: "opencode-plusplus", exitCode: 0, startedAt: "2026-01-01T00:00:00.000Z", finishedAt: "2026-01-01T00:00:01.000Z", stdoutHash: "stdout", stderrHash: "stderr", workingTreeHashBefore: "current", workingTreeHashAfter: "current" }] };
+  return {
+    schemaVersion: 1,
+    id: "trace-1",
+    task: "task",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:01.000Z",
+    finalState: "success",
+    steps: [
+      {
+        id: "step-1",
+        at: "2026-01-01T00:00:01.000Z",
+        action: "run-test",
+        command: "npm test",
+        files: [],
+        result: "passed",
+        evidenceSource: "command",
+        capturedBy: "opencode-plusplus",
+        exitCode: 0,
+        startedAt: "2026-01-01T00:00:00.000Z",
+        finishedAt: "2026-01-01T00:00:01.000Z",
+        stdoutHash: "stdout",
+        stderrHash: "stderr",
+        workingTreeHashBefore: "current",
+        workingTreeHashAfter: "current"
+      }
+    ]
+  };
 }

@@ -26,14 +26,16 @@ export function interventionIdFor(input: Pick<NewInterventionEvent, "taskId" | "
 }
 
 export function eventIdFor(input: NewInterventionEvent): string {
-  return `event-${digest(stableJson({
-    interventionId: input.interventionId,
-    status: input.status,
-    phase: input.phase,
-    action: input.action,
-    evidenceRefs: [...input.evidenceRefs].sort(),
-    resolutionEvidence: input.resolutionEvidence ?? []
-  }))}`;
+  return `event-${digest(
+    stableJson({
+      interventionId: input.interventionId,
+      status: input.status,
+      phase: input.phase,
+      action: input.action,
+      evidenceRefs: [...input.evidenceRefs].sort(),
+      resolutionEvidence: input.resolutionEvidence ?? []
+    })
+  )}`;
 }
 
 export function createInterventionEvent(input: NewInterventionEvent): InterventionEvent {
@@ -70,7 +72,9 @@ export function readInterventionLedger(root: string, taskId: string): Interventi
   if (result.status === "corrupt") throw new Error(`Unable to read intervention ledger ${taskId}: ${result.error}`);
   if (result.status !== "ok") return null;
   if (result.value.schemaVersion !== INTERVENTION_SCHEMA_VERSION) {
-    throw new Error(`Unsupported intervention ledger schemaVersion "${String(result.value.schemaVersion)}" for task ${taskId}; expected ${INTERVENTION_SCHEMA_VERSION}.`);
+    throw new Error(
+      `Unsupported intervention ledger schemaVersion "${String(result.value.schemaVersion)}" for task ${taskId}; expected ${INTERVENTION_SCHEMA_VERSION}.`
+    );
   }
   return result.value;
 }
@@ -87,7 +91,9 @@ export function appendInterventionEvent(root: string, input: NewInterventionEven
       events: []
     };
     if (ledger.schemaVersion !== INTERVENTION_SCHEMA_VERSION) {
-      throw new Error(`Unsupported intervention ledger schemaVersion "${String(ledger.schemaVersion)}" for task ${event.taskId}; expected ${INTERVENTION_SCHEMA_VERSION}.`);
+      throw new Error(
+        `Unsupported intervention ledger schemaVersion "${String(ledger.schemaVersion)}" for task ${event.taskId}; expected ${INTERVENTION_SCHEMA_VERSION}.`
+      );
     }
     const duplicate = ledger.events.find((item) => item.eventId === event.eventId);
     if (duplicate) {
@@ -138,13 +144,14 @@ export function listInterventionEvents(root: string, taskId: string): Interventi
 }
 
 export function findInterventions(root: string, taskId: string, ref: string): InterventionEvent[] {
-  return listInterventionEvents(root, taskId).filter((event) =>
-    event.interventionId === ref ||
-    event.findingId === ref ||
-    event.eventId === ref ||
-    event.evidenceRefs.includes(ref) ||
-    (event.traceRefs ?? []).includes(ref) ||
-    (event.decisionRefs ?? []).includes(ref)
+  return listInterventionEvents(root, taskId).filter(
+    (event) =>
+      event.interventionId === ref ||
+      event.findingId === ref ||
+      event.eventId === ref ||
+      event.evidenceRefs.includes(ref) ||
+      (event.traceRefs ?? []).includes(ref) ||
+      (event.decisionRefs ?? []).includes(ref)
   );
 }
 
@@ -171,7 +178,10 @@ function compareEvents(a: InterventionEvent, b: InterventionEvent): number {
 }
 
 function safeLedgerId(value: string): string {
-  const clean = value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const clean = value
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
   return clean || digest(value);
 }
 
@@ -182,7 +192,10 @@ function digest(value: string): string {
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
 }

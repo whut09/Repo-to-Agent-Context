@@ -6,7 +6,9 @@ import type { InterventionStatus, InterventionSummary } from "../types.js";
 
 const emptyInterventions: InterventionSummary = {
   total: 0,
-  byStatus: Object.fromEntries(["observed", "prevented", "requested", "repaired", "verified", "unresolved", "human-review", "stale"].map((status) => [status, 0])) as Record<InterventionStatus, number>,
+  byStatus: Object.fromEntries(
+    ["observed", "prevented", "requested", "repaired", "verified", "unresolved", "human-review", "stale"].map((status) => [status, 0])
+  ) as Record<InterventionStatus, number>,
   active: [],
   verified: []
 };
@@ -76,9 +78,7 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
       ["Status", "Count"],
       Object.entries(interventions.byStatus).map(([status, count]) => [status, String(count)])
     ),
-    bullet(
-      interventions.active.map((event) => `${event.status}: ${event.problem} (${event.action})${event.findingId ? ` [${event.findingId}]` : ""}`)
-    ),
+    bullet(interventions.active.map((event) => `${event.status}: ${event.problem} (${event.action})${event.findingId ? ` [${event.findingId}]` : ""}`)),
     "",
     heading(2, "Guard Gates"),
     table(
