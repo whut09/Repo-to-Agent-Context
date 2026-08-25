@@ -66,7 +66,7 @@ export function buildContextPack(options: ContextPackBuildOptions): ContextPackB
       parsed,
       sourceRoot,
       mainPath,
-      files: [createContextFile(sourceRoot, mainPath, "entry", parsed.frontmatter.revision), ...companion.files],
+      files: [createContextFile(sourceRoot, mainPath, "entry", parsed.frontmatter.revision, parsed.body), ...companion.files],
       contentByPath: { ...companion.contentByPath, [relativeContextPath(sourceRoot, mainPath)!]: parsed.body }
     });
   }
@@ -191,10 +191,10 @@ function containsEntryDocument(directory: string): boolean {
   return readdirSync(directory, { withFileTypes: true }).some((item) => item.isFile() && ["doc.md", "skill.md"].includes(item.name.toLowerCase()));
 }
 
-function createContextFile(root: string, filePath: string, role: ContextFile["role"], revision: number): ContextFile {
+function createContextFile(root: string, filePath: string, role: ContextFile["role"], revision: number, contentOverride?: string): ContextFile {
   const relative = relativeContextPath(root, filePath);
   if (!relative) throw new Error(`Context file is outside source root: ${filePath}`);
-  const content = readFileSync(filePath, "utf8");
+  const content = contentOverride ?? readFileSync(filePath, "utf8");
   return {
     schemaVersion: 1,
     revision,
