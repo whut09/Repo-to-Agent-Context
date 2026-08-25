@@ -32,3 +32,9 @@ Context Registry 通过 Desktop 和兼容性集成共同使用的 application se
 - `full`：返回主文件和所有可用附属文件。
 
 每次获取都会报告 `selectedFiles`、`omittedFiles`、来源/版本/revision/hash、缓存状态、耗时和工作树 freshness。工作树变化后，返回内容前会重新构建并验证本地来源。Registry 的可信等级和文档只能作为辅助上下文；证明代码修改有效，仍必须依赖当前工作树上的 command 或 CI evidence。
+
+## 本地 Annotation
+
+OpenCode++ 可以保存仓库本地的环境限制、版本差异、常见失败原因、项目约定和已验证 workaround。Annotation 按仓库、Context entry、package version 和 content revision 隔离，并通过 atomic store 写入 `.agent-context/knowledge/annotations/`。
+
+Fetch 默认只返回 `annotationAvailable` 和 stale 摘要，不自动注入正文。读取或注入必须显式请求。注入内容会标记为 `user-written`、`untrusted`、`context-only` 和 `not a command`，不能满足 evidence、关闭 Guard blocker 或获得命令权限。旧 package version 或 content revision 的 annotation 默认是 stale，必须显式允许后才能读取。
