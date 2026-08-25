@@ -96,7 +96,7 @@ export function appendInterventionEvent(root: string, input: NewInterventionEven
     }
     const previous = latestIntervention(ledger.events, event.interventionId);
     validateInterventionTransition(previous?.status, event.status, event.resolutionEvidence);
-    persisted = { ...event, sequence: ledger.events.length + 1 };
+    persisted = { ...event, revision: ledger.revision + 1, sequence: ledger.events.length + 1 };
     ledger.events.push(persisted);
     ledger.revision += 1;
     return ledger;
@@ -150,13 +150,13 @@ export function findInterventions(root: string, taskId: string, ref: string): In
 
 export function summarizeInterventions(events: InterventionEvent[]): InterventionSummary {
   const statuses: InterventionStatus[] = ["observed", "prevented", "requested", "repaired", "verified", "unresolved", "human-review", "stale"];
-  const byStatus = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<InterventionStatus, number>;
   const latest = new Map<string, InterventionEvent>();
   for (const event of events) {
-    byStatus[event.status] += 1;
     const existing = latest.get(event.interventionId);
     if (!existing || (event.sequence ?? 0) > (existing.sequence ?? 0)) latest.set(event.interventionId, event);
   }
+  const byStatus = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<InterventionStatus, number>;
+  for (const event of latest.values()) byStatus[event.status] += 1;
   const active = [...latest.values()].filter((event) => !["verified", "stale"].includes(event.status)).sort(compareEvents);
   const verified = [...latest.values()].filter((event) => event.status === "verified").sort(compareEvents);
   return { total: events.length, byStatus, active, verified };

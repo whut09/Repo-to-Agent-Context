@@ -39,7 +39,7 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     if (result) result.interventionIds = [interventionId];
     allIds.add(interventionId);
     const status = statusForFinding(finding, evidence);
-    for (const step of evidenceForFinding(finding, evidence)) {
+    for (const step of traceEvidenceForFinding(finding, input.trace)) {
       step.interventionIds = [...new Set([...(step.interventionIds ?? []), interventionId])].sort((a, b) => a.localeCompare(b));
     }
     events.push(...appendForStatus(input, {
@@ -194,6 +194,13 @@ function categoryForFinding(finding: PolicyFinding): "boundary" | "evidence" | "
 function evidenceForFinding(finding: PolicyFinding, evidence: ExecutionTraceStep[]): ExecutionTraceStep[] {
   if (finding.id.includes("tests")) return evidence.filter((step) => /test|verify|check|lint|typecheck/i.test(`${step.action} ${step.command ?? ""}`));
   if (finding.id.includes("contract-validation")) return evidence.filter((step) => /contract|validate/i.test(`${step.action} ${step.command ?? ""}`));
+  return [];
+}
+
+function traceEvidenceForFinding(finding: PolicyFinding, trace: ExecutionTrace | null): ExecutionTraceStep[] {
+  const steps = trace?.steps ?? [];
+  if (finding.id.includes("tests")) return steps.filter((step) => /test|verify|check|lint|typecheck/i.test(`${step.action} ${step.command ?? ""}`));
+  if (finding.id.includes("contract-validation")) return steps.filter((step) => /contract|validate/i.test(`${step.action} ${step.command ?? ""}`));
   return [];
 }
 
