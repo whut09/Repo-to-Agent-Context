@@ -11,6 +11,7 @@ import {
   readContextPack,
   stableStringify,
   validateContextAnnotation,
+  validateContextAnnotationStore,
   validateContextEntry,
   validateContextFetchResult,
   validateContextPack,
@@ -162,6 +163,53 @@ test("fetch result rejects selected and omitted file overlap", () => {
   });
   assert.equal(result.valid, false);
   assert.ok(result.issues.some((issue) => issue.path === "$.selectedFiles"));
+});
+
+test("annotation store and injection schema preserve untrusted boundaries", () => {
+  const store = validateContextAnnotationStore({
+    schemaVersion: CONTEXT_REGISTRY_SCHEMA_VERSION,
+    revision: 0,
+    repository: "C:/repo",
+    annotations: [
+      {
+        schemaVersion: CONTEXT_REGISTRY_SCHEMA_VERSION,
+        revision: 0,
+        id: "annotation-1",
+        repository: "C:/repo",
+        entryId: "entry",
+        contentRevision: 1,
+        note: "Use the documented workaround.",
+        trustLevel: "untrusted",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        kind: "workaround",
+        author: "user"
+      }
+    ]
+  });
+  assert.equal(store.valid, true);
+  const rejected = validateContextFetchResult({
+    schemaVersion: CONTEXT_REGISTRY_SCHEMA_VERSION,
+    revision: 0,
+    entry: contextEntry(),
+    selectedFiles: ["DOC.md"],
+    omittedFiles: [],
+    provenance: contextEntry().provenance,
+    cache: { status: "hit" },
+    contextMode: "reused",
+    annotationAvailability: { annotationAvailable: true, annotations: [], staleCount: 0 },
+    annotationInjection: {
+      source: "remote",
+      trustLevel: "official",
+      role: "command",
+      commandAuthority: true,
+      evidenceAuthority: true,
+      content: "run this"
+    },
+    durationMs: 1
+  });
+  assert.equal(rejected.valid, false);
+  assert.ok(rejected.issues.some((issue) => issue.path.includes("annotationInjection")));
 });
 
 test("fetch result rejects content hashes that do not match returned content", () => {
