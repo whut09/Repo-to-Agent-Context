@@ -12,3 +12,13 @@ export interface ContextSourceConfig {
   trustLevel: ContextTrustLevel;
   enabled?: boolean;
 }
+
+export interface ContextFile {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  path: string;
+  role: ContextFileRole;
+  contentHash: string;
+  sizeBytes: number;
+  updatedAt: string;
+}
