@@ -5,14 +5,16 @@ import { HybridContextRetriever } from "./hybrid.js";
 import { ExternalProtocolRetriever } from "./external.js";
 import { CodeGraphContextRetriever } from "./codegraph.js";
 import type { ContextHit, ContextRetriever, RetrieverProvider } from "./types.js";
+import type { ContextRegistryInput } from "./context-registry.js";
 import { code, heading, table } from "../outputs/renderers/markdown.js";
 
 export type { ContextHit, ContextRetriever, ContextRetrieverOptions, RetrieverProvider } from "./types.js";
+export type { ContextRegistryInput } from "./context-registry.js";
 
-export function createContextRetriever(context: ContextPackage, provider: RetrieverProvider): ContextRetriever {
-  if (provider === "static") return new StaticContextRetriever(context);
+export function createContextRetriever(context: ContextPackage, provider: RetrieverProvider, registry?: ContextRegistryInput): ContextRetriever {
+  if (provider === "static") return new StaticContextRetriever(context, registry);
   if (provider === "ripgrep") return new RipgrepContextRetriever(context);
-  if (provider === "hybrid") return new HybridContextRetriever([new StaticContextRetriever(context), new RipgrepContextRetriever(context)]);
+  if (provider === "hybrid") return new HybridContextRetriever([new StaticContextRetriever(context, registry), new RipgrepContextRetriever(context)]);
   if (provider === "codegraph") return new CodeGraphContextRetriever(context);
   return new ExternalProtocolRetriever(provider);
 }

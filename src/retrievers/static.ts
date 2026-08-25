@@ -1,12 +1,16 @@
 import type { ContextPackage, IndexedFile } from "../core/types.js";
 import { buildRegressionReport } from "../harness/verification-plane/guards/regression.js";
 import { buildRagDocuments } from "../outputs/rag.js";
+import { ContextRegistryRetriever, type ContextRegistryInput } from "./context-registry.js";
 import type { ContextHit, ContextRetriever, ContextRetrieverOptions, RetrievalScoreBreakdown } from "./types.js";
 
 export class StaticContextRetriever implements ContextRetriever {
   readonly name = "static" as const;
 
-  constructor(private readonly context: ContextPackage) {}
+  constructor(
+    private readonly context: ContextPackage,
+    private readonly registry?: ContextRegistryInput
+  ) {}
 
   async search(task: string, options: ContextRetrieverOptions): Promise<ContextHit[]> {
     const terms = taskTerms(task);
@@ -60,12 +64,16 @@ export class StaticContextRetriever implements ContextRetriever {
               exactId: 0,
               total: score
             }
-          }
+          },
+          relatedFiles: [doc.path],
+          mustInspect: changed.has(doc.path) || symbolBoost > 0 ? [doc.path] : [],
+          rejectedFiles: []
         };
       })
       .filter((hit): hit is NonNullable<typeof hit> => Boolean(hit));
 
-    return sortHits(hits).slice(0, Math.max(1, options.topK));
+    const registryHits = this.registry ? await new ContextRegistryRetriever(this.registry).search(task, options) : [];
+    return sortHits([...hits, ...registryHits]).slice(0, Math.max(1, options.topK));
   }
 }
 
@@ -165,8 +173,8 @@ export function negativeExamplePenalty(filePath: string, text: string, task: str
   return /negative|unrelated|fixture|example/i.test(`${filePath} ${text}`) && !normalizedTask.includes(normalizedPath) ? 8 : 0;
 }
 
-export function sortHits<T extends { score: number; path: string }>(hits: T[]): T[] {
-  return [...hits].sort((a, b) => b.score - a.score || a.path.localeCompare(b.path));
+export function sortHits<T extends { score: number; path: string; id?: string }>(hits: T[]): T[] {
+  return [...hits].sort((a, b) => b.score - a.score || a.path.localeCompare(b.path) || (a.id ?? "").localeCompare(b.id ?? ""));
 }
 
 export function mergeScoreBreakdowns(left: RetrievalScoreBreakdown | undefined, right: RetrievalScoreBreakdown | undefined): RetrievalScoreBreakdown {
