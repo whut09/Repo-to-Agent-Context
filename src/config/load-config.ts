@@ -184,6 +184,15 @@ function validateRawConfig(input: Record<string, unknown> | null | undefined, so
   if (input.evidencePolicy !== undefined && (typeof input.evidencePolicy !== "string" || !["advisory", "balanced", "strict"].includes(input.evidencePolicy))) {
     throw new Error(`Invalid evidencePolicy "${String(input.evidencePolicy)}". Expected one of: advisory, balanced, strict.`);
   }
+  if (input.contextRegistry !== undefined) {
+    const registry = objectValue(input.contextRegistry, "contextRegistry");
+    if (registry.enabled !== undefined && typeof registry.enabled !== "boolean") throw new Error("contextRegistry.enabled must be boolean.");
+    if (registry.offline !== undefined && typeof registry.offline !== "boolean") throw new Error("contextRegistry.offline must be boolean.");
+    if (registry.sources !== undefined) {
+      if (!Array.isArray(registry.sources)) throw new Error("contextRegistry.sources must be an array.");
+      registry.sources.forEach(validateContextSourceConfig);
+    }
+  }
   if (input.tokenBudget !== undefined && (typeof input.tokenBudget !== "number" || input.tokenBudget <= 0)) {
     throw new Error("tokenBudget must be a positive number.");
   }
@@ -244,6 +253,24 @@ function validateRawConfig(input: Record<string, unknown> | null | undefined, so
     }
   }
   void source;
+}
+
+function validateContextSourceConfig(input: unknown, index: number): void {
+  const source = objectValue(input, `contextRegistry.sources[${index}]`);
+  for (const field of ["name", "kind", "location", "trustLevel"]) {
+    if (typeof source[field] !== "string" || !source[field].trim()) {
+      throw new Error(`contextRegistry.sources[${index}].${field} must be a non-empty string.`);
+    }
+  }
+  if (!["local", "remote", "bundled"].includes(source.kind as string)) {
+    throw new Error(`Invalid contextRegistry.sources[${index}].kind "${String(source.kind)}".`);
+  }
+  if (!["official", "maintainer", "community", "private", "untrusted"].includes(source.trustLevel as string)) {
+    throw new Error(`Invalid contextRegistry.sources[${index}].trustLevel "${String(source.trustLevel)}".`);
+  }
+  if (source.enabled !== undefined && typeof source.enabled !== "boolean") {
+    throw new Error(`contextRegistry.sources[${index}].enabled must be boolean.`);
+  }
 }
 
 function normalizeTokenizerConfig(input: Record<string, unknown>): Partial<OpenCodePlusplusConfig["tokenizer"]> {
