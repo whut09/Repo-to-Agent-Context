@@ -159,7 +159,7 @@ function isStale(annotation: LocalContextAnnotation, current: ContextAnnotationS
 }
 
 function matchesScope(annotation: LocalContextAnnotation, scope: ContextAnnotationScope): boolean {
-  return annotation.entryId === scope.entryId && annotation.packageVersion === scope.packageVersion && annotation.contentRevision === scope.contentRevision;
+  return annotation.entryId === scope.entryId && annotation.packageVersion === scope.packageVersion;
 }
 
 function normalizeRepository(repository: string): string {
