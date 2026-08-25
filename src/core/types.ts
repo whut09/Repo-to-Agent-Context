@@ -1,3 +1,5 @@
+import type { ContextSourceConfig } from "../context-registry/types.js";
+
 export type AgentTarget = "opencode" | "codex" | "claude" | "cursor" | "all";
 export type AgentsMode = "minimal" | "balanced" | "full";
 export type AgentsSection = "commands" | "safety" | "entrypoints" | "contextLinks";
@@ -9,6 +11,7 @@ export type EvidencePolicyMode = "advisory" | "balanced" | "strict";
 export interface OpenCodePlusplusConfig {
   target: AgentTarget;
   evidencePolicy: EvidencePolicyMode;
+  contextRegistry: ContextRegistryConfig;
   tokenBudget: number;
   include: string[];
   exclude: string[];
@@ -24,6 +27,12 @@ export interface OpenCodePlusplusConfig {
     readiness: boolean;
     rag: boolean;
   };
+}
+
+export interface ContextRegistryConfig {
+  enabled: boolean;
+  offline: boolean;
+  sources: ContextSourceConfig[];
 }
 
 export interface AgentsConfig {
