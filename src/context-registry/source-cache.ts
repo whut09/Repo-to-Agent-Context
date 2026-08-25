@@ -18,13 +18,13 @@ export type SourceCacheReadResult =
   | { status: "missing"; filePath: string }
   | { status: "corrupt"; filePath: string; error: string };
 
-export function sourceCachePath(root: string, source: Pick<ContextSourceConfig, "name">): string {
+export function sourceCachePath(root: string, source: Pick<ContextSourceConfig, "name" | "location">): string {
   const safeName = source.name.replace(/[^a-z0-9._-]+/gi, "_");
   const identity = createHash("sha256").update(source.name, "utf8").digest("hex").slice(0, 16);
   return path.join(path.resolve(root), ".agent-context", "cache", "context-registry", `${safeName}-${identity}.json`);
 }
 
-export function readSourceCache(root: string, source: Pick<ContextSourceConfig, "name">, now = new Date()): SourceCacheReadResult {
+export function readSourceCache(root: string, source: Pick<ContextSourceConfig, "name" | "location">, now = new Date()): SourceCacheReadResult {
   const filePath = sourceCachePath(root, source);
   const result = readJsonDiagnostic<CachedContextSource>(filePath);
   if (result.status !== "ok") return result;
