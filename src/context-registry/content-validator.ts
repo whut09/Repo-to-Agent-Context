@@ -16,10 +16,7 @@ export interface ValidatedContextContent {
   body: string;
 }
 
-export function validateContextDocument(
-  document: ParsedContextDocument,
-  policy: ContextContentPolicy = {}
-): ContextValidationResult<ValidatedContextContent> {
+export function validateContextDocument(document: ParsedContextDocument, policy: ContextContentPolicy = {}): ContextValidationResult<ValidatedContextContent> {
   const maxFileBytes = policy.maxFileBytes ?? 2 * 1024 * 1024;
   const body = document.body;
   const byteLength = Buffer.byteLength(body, "utf8");
@@ -37,7 +34,11 @@ export function validateContextDocument(
   return validResult({ filePath: document.filePath, byteLength, body });
 }
 
-export function validateCompanionContent(filePath: string, content: string, policy: ContextContentPolicy = {}): ContextValidationResult<ValidatedContextContent> {
+export function validateCompanionContent(
+  filePath: string,
+  content: string,
+  policy: ContextContentPolicy = {}
+): ContextValidationResult<ValidatedContextContent> {
   const maxFileBytes = policy.maxFileBytes ?? 2 * 1024 * 1024;
   const byteLength = Buffer.byteLength(content, "utf8");
   const issues: ContextSchemaIssue[] = [];

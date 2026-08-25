@@ -49,7 +49,14 @@ export function parseContextFrontmatter(content: string, filePath: string, kind 
 
   const result = normalizeFrontmatter(raw, filePath, kind);
   if (!result.valid) return invalidResult(result.issues);
-  return validResult({ filePath, body: lines.slice(endIndex + 1).join("\n").replace(/^\n/, ""), frontmatter: result.value! });
+  return validResult({
+    filePath,
+    body: lines
+      .slice(endIndex + 1)
+      .join("\n")
+      .replace(/^\n/, ""),
+    frontmatter: result.value!
+  });
 }
 
 export function kindFromPath(filePath: string): ContextDocumentKind {

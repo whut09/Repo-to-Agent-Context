@@ -229,7 +229,10 @@ test("local builder expands language and package version variants with companion
     assert.equal(result.valid, true);
     assert.equal(result.validateOnly, true);
     assert.equal(result.pack?.entries.length, 2);
-    assert.deepEqual(result.pack?.entries.map((entry) => entry.language), ["python", "typescript"]);
+    assert.deepEqual(
+      result.pack?.entries.map((entry) => entry.language),
+      ["python", "typescript"]
+    );
     assert.ok(result.pack?.entries.every((entry) => entry.files.some((file) => file.path.endsWith("references/errors.md"))));
     assert.equal(existsSync(path.join(root, ".agent-context")), false);
   } finally {

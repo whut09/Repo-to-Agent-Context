@@ -1,9 +1,9 @@
-import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { hashContextText, hashContextValue } from "./hash.js";
 import { parseContextFrontmatter, type ParsedContextDocument } from "./frontmatter.js";
 import { validateCompanionContent, validateContextDocument, companionUpdatedAt, contextFileRole, type ContextContentPolicy } from "./content-validator.js";
-import { invalidResult, validResult, type ContextSchemaIssue, type ContextValidationResult } from "./schema.js";
+import { invalidResult, type ContextSchemaIssue } from "./schema.js";
 import { relativeContextPath, resolveContextFile, resolveContextSource, type ContextPathOptions } from "./path-resolver.js";
 import { validateContextPack } from "./validators.js";
 import type { ContextEntry, ContextFile, ContextPack, ContextSourceConfig } from "./types.js";
@@ -133,7 +133,11 @@ function walkDocuments(directory: string, result: string[]): void {
   }
 }
 
-function collectCompanionFiles(root: string, mainPath: string, policy?: ContextContentPolicy): {
+function collectCompanionFiles(
+  root: string,
+  mainPath: string,
+  policy?: ContextContentPolicy
+): {
   files: ContextFile[];
   contentByPath: Record<string, string>;
   issues: ContextSchemaIssue[];
@@ -164,7 +168,9 @@ function walkCompanions(
     }
     if (!item.isFile() || itemPath === mainPath || ["doc.md", "skill.md"].includes(item.name.toLowerCase())) continue;
     const relative = relativeContextPath(root, itemPath);
-    const safePath = relative ? resolveContextFile(root, relative) : invalidResult<string>([{ path: itemPath, code: "path", message: "companion path is outside source" }]);
+    const safePath = relative
+      ? resolveContextFile(root, relative)
+      : invalidResult<string>([{ path: itemPath, code: "path", message: "companion path is outside source" }]);
     if (!safePath.valid) {
       issues.push(...safePath.issues);
       continue;
@@ -216,7 +222,9 @@ function createEntries(documents: DiscoveredDocument[], source: ContextSourceCon
     const variantKey = [variant.language ?? "", variant.packageVersion ?? "", frontmatter.apiVersion ?? ""].join("|");
     const id = (counts.get(canonicalId) ?? 0) === 1 ? canonicalId : `${canonicalId}@${slug(variantKey)}`;
     const entryHash = hashContextValue({
-      body: hashContextText(frontmatter.name + "\n" + variant.document.contentByPath[relativeContextPath(variant.document.sourceRoot, variant.document.mainPath)!]),
+      body: hashContextText(
+        frontmatter.name + "\n" + variant.document.contentByPath[relativeContextPath(variant.document.sourceRoot, variant.document.mainPath)!]
+      ),
       files: variant.document.files,
       language: variant.language,
       packageVersion: variant.packageVersion,
@@ -259,8 +267,10 @@ function createEntries(documents: DiscoveredDocument[], source: ContextSourceCon
 }
 
 function slug(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "default";
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "default"
+  );
 }
