@@ -12,6 +12,12 @@ export interface RetrievalScoreBreakdown {
   dependencyChain: number;
   regressionMemory: number;
   negativeExample: number;
+  negativePenalty?: number;
+  dependency?: number;
+  source?: number;
+  quality?: number;
+  regression?: number;
+  exactId?: number;
   total: number;
 }
 
@@ -22,6 +28,10 @@ export interface ContextRetrieverOptions {
   changedFiles?: string[];
   negativeExamples?: string[];
   includeTests?: boolean;
+  packageVersion?: string;
+  language?: string;
+  source?: string;
+  tags?: string[];
 }
 
 export function adaptiveTopK(taskType: RetrievalTaskType = "auto", requested?: number): number {
@@ -44,6 +54,9 @@ export interface ContextHit {
   score: number;
   source: RetrieverProvider;
   snippet: string;
+  relatedFiles?: string[];
+  mustInspect?: string[];
+  rejectedFiles?: string[];
   metadata: Record<string, unknown> & { scoreBreakdown?: RetrievalScoreBreakdown };
 }
 
