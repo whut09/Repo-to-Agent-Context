@@ -21,7 +21,7 @@ export interface AddContextAnnotationInput extends ContextAnnotationScope {
   now?: Date;
 }
 
-export interface ListContextAnnotationsInput extends ContextAnnotationScope {}
+export type ListContextAnnotationsInput = ContextAnnotationScope;
 
 export interface ReadContextAnnotationInput extends ContextAnnotationScope {
   id: string;

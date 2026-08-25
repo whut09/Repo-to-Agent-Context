@@ -23,7 +23,7 @@ export interface AddHarnessAnnotationInput extends Omit<AddContextAnnotationInpu
   author?: "user" | "agent";
 }
 
-export interface HarnessAnnotationQuery extends ContextAnnotationScope {}
+export type HarnessAnnotationQuery = ContextAnnotationScope;
 
 export function addHarnessAnnotation(input: AddHarnessAnnotationInput): LocalContextAnnotation {
   return addContextAnnotation(input);
