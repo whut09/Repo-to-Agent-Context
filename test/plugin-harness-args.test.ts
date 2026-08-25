@@ -8,6 +8,14 @@ test("plugin harness arg parsers reject empty tasks and accept optional fields",
   assert.match(String(parsePrepareArgs({ task: "x", type: "docs" })), /bugfix/);
   assert.deepEqual(parseRetrieveArgs({ task: "auth", topK: "5" }), { task: "auth", topK: 5 });
   assert.deepEqual(parseRetrieveArgs({ task: "auth", taskType: "refactor" }), { task: "auth", taskType: "refactor" });
+  assert.deepEqual(parseRetrieveArgs({ task: "auth", contextId: "private/auth", file: "docs/auth/errors.md" }), {
+    task: "auth",
+    contextId: "private/auth",
+    file: "docs/auth/errors.md"
+  });
+  assert.deepEqual(parseRetrieveArgs({ task: "auth", contextId: "private/auth", full: true }), { task: "auth", contextId: "private/auth", full: true });
+  assert.equal(parseRetrieveArgs({ task: "auth", file: "docs/auth/errors.md" }), "retrieve file requires contextId.");
+  assert.equal(parseRetrieveArgs({ task: "auth", contextId: "private/auth", file: "x.md", full: true }), "retrieve file cannot be combined with full.");
   assert.match(String(parseRetrieveArgs({ task: "auth", taskType: "docs" })), /taskType/);
   assert.equal(parseRetrieveArgs({ task: "auth", topK: 0 }), "retrieve topK must be a positive integer.");
   assert.deepEqual(parseEvaluateArgs({}), {});

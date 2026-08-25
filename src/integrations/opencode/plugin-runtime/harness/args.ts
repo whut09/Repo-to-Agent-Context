@@ -21,6 +21,7 @@ export function parseRetrieveArgs(args: unknown): PluginRetrieveArgs | string {
   const file = readOptionalString(record.file);
   if (record.full !== undefined && typeof record.full !== "boolean") return "retrieve full must be boolean.";
   if (file && !contextId) return "retrieve file requires contextId.";
+  if (file && record.full === true) return "retrieve file cannot be combined with full.";
   if (record.topK === undefined)
     return {
       task,
