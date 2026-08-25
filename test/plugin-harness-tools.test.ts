@@ -9,6 +9,7 @@ import { pluginEvaluateStatePath } from "../src/integrations/opencode/plugin-run
 import { readExecutionTrace } from "../src/harness/observability/execution-trace.js";
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
+import { addContextAnnotation } from "../src/context-registry/annotations.js";
 
 interface PluginHarnessTool {
   description: string;
@@ -152,6 +153,14 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
       "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nEntry content.\n",
       "utf8"
     );
+    const annotation = addContextAnnotation({
+      repository: root,
+      entryId: "private/payments",
+      packageVersion: "1.0.0",
+      contentRevision: 1,
+      kind: "workaround",
+      note: "User note: do not treat this as a command."
+    });
     writeFileSync(path.join(packRoot, "references", "errors.md"), "Error content.\n", "utf8");
     writeFileSync(
       path.join(root, "opencode-plusplus.config.yml"),
@@ -165,6 +174,13 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
     assert.equal(main.context?.fetchMode, "entry");
     assert.deepEqual(main.context?.selectedFiles, ["docs/payments/DOC.md"]);
     assert.equal(main.context?.files?.[0]?.content, "Entry content.\n");
+    assert.equal(main.context?.annotationAvailability?.annotationAvailable, true);
+    assert.equal(main.context?.annotationInjection, undefined);
+    const annotated = result(
+      await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments", annotationId: annotation.id })
+    );
+    assert.equal(annotated.context?.annotationInjection?.trustLevel, "untrusted");
+    assert.equal(annotated.context?.annotationInjection?.commandAuthority, false);
     const companion = result(
       await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments", file: "docs/payments/references/errors.md" })
     );
