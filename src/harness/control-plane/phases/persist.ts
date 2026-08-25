@@ -46,6 +46,7 @@ export function runPersistPhase(input: PersistPhaseInput): PersistPhaseOutput {
       gates: { summary: input.guardGates.summary, gates: input.guardGates.gates },
       decision: input.decision,
       convergence: input.convergence,
+      interventionIds: input.decision.interventionIds,
       contextRefresh: input.contextRefresh,
       files: input.files.map((file) => path.relative(input.root, file).replaceAll("\\", "/"))
     }

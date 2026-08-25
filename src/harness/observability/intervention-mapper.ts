@@ -80,6 +80,9 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     }
   }
 
+  input.guardGates.interventionIds = input.guardGates.gates.flatMap((gate) => gate.interventionIds ?? []).sort((a, b) => a.localeCompare(b));
+  input.guardFindings.interventionIds = input.guardFindings.findings.flatMap((finding) => finding.interventionIds ?? []).sort((a, b) => a.localeCompare(b));
+
   const decisionId = `decision:${input.taskId}:${input.iteration}`;
   const decisionInterventionId = interventionIdFor({ taskId: input.taskId, findingId: decisionId, category: "decision", problem: input.decision.action });
   allIds.add(decisionInterventionId);
@@ -122,6 +125,7 @@ function appendForStatus(input: RecordIterationInterventionsInput, event: Pendin
   const statuses: InterventionStatus[] = [];
   if (event.status === "verified" && !previous) statuses.push("requested", "repaired");
   else if (event.status === "verified" && previous?.status === "requested") statuses.push("repaired");
+  else if (event.status === "stale" && !previous) statuses.push("requested");
   statuses.push(event.status);
   return statuses.map((status) => appendInterventionEvent(input.root, {
     ...event,

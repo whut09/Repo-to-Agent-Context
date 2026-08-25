@@ -2,6 +2,14 @@ import type { HarnessDecision } from "../types.js";
 import { HARNESS_DECISION_PRIORITY } from "./decision-engine.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
 import type { HarnessOrchestratorReport } from "./orchestrator.js";
+import type { InterventionStatus, InterventionSummary } from "../types.js";
+
+const emptyInterventions: InterventionSummary = {
+  total: 0,
+  byStatus: Object.fromEntries(["observed", "prevented", "requested", "repaired", "verified", "unresolved", "human-review", "stale"].map((status) => [status, 0])) as Record<InterventionStatus, number>,
+  active: [],
+  verified: []
+};
 
 function decisionReason(decision: HarnessDecision): string {
   return decision.reasons[0] ?? decision.action;
@@ -12,6 +20,7 @@ function decisionPriority(decision: HarnessDecision): number {
 }
 
 export function renderOrchestratorReport(report: HarnessOrchestratorReport): string {
+  const interventions = report.interventions ?? emptyInterventions;
   return [
     heading(1, "Harness Orchestrator"),
     "",
@@ -60,6 +69,15 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
         ["Selected decision candidate", report.decision.arbitration?.selectedCandidate.id ?? "legacy/direct decision"],
         ["Final decision", `${report.decision.action} - ${decisionReason(report.decision)}`]
       ]
+    ),
+    "",
+    heading(2, "Intervention Ledger"),
+    table(
+      ["Status", "Count"],
+      Object.entries(interventions.byStatus).map(([status, count]) => [status, String(count)])
+    ),
+    bullet(
+      interventions.active.map((event) => `${event.status}: ${event.problem} (${event.action})${event.findingId ? ` [${event.findingId}]` : ""}`)
     ),
     "",
     heading(2, "Guard Gates"),

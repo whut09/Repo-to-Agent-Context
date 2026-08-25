@@ -40,6 +40,9 @@ import { writeIterationArtifacts } from "./iteration-artifacts.js";
 import { combineContextRefreshMetrics, initialContextMetrics, refreshHarnessContext, type ContextRefreshMetrics } from "./context-refresh.js";
 import { renderOrchestratorReport } from "./orchestrator-report.js";
 import { recordIterationInterventions } from "../observability/intervention-mapper.js";
+import { listInterventionEvents, summarizeInterventions } from "../observability/intervention-ledger.js";
+import type { InterventionSummary } from "../types.js";
+import { writeJsonAtomic, writeTextAtomic } from "../../core/atomic-store.js";
 
 export { renderOrchestratorReport } from "./orchestrator-report.js";
 
@@ -138,6 +141,7 @@ export interface HarnessOrchestratorReport {
   gates: Pick<GuardGateReport, "summary" | "gates">;
   decision: HarnessDecision;
   convergence: ConvergenceResult;
+  interventions?: InterventionSummary;
   artifacts: {
     contextFiles: string[];
     runFiles: string[];
@@ -149,6 +153,7 @@ export interface HarnessOrchestratorReport {
     sandboxPatchFile?: string;
     memoryCandidateFile?: string;
     stateFile?: string;
+    interventionLedgerFile?: string;
   };
   sandbox: {
     mode: SandboxHandle["mode"];
@@ -174,6 +179,7 @@ export interface OrchestratorIterationReport {
   decision: HarnessOrchestratorReport["decision"];
   convergence: ConvergenceResult;
   contextRefresh?: ContextRefreshMetrics;
+  interventionIds?: string[];
   files: string[];
 }
 
@@ -563,6 +569,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
       throw new Error("Orchestrator loop did not produce an iteration.");
     }
 
+    const interventions = summarizeInterventions(listInterventionEvents(root, taskRun.runId));
     const report: HarnessOrchestratorReport = {
       task,
       taskId: taskRun.runId,
@@ -595,6 +602,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
       },
       decision: latestDecision,
       convergence: latestConvergence,
+      interventions,
       artifacts: {
         contextFiles: contextWrite.files.map((file) => path.relative(root, file).replaceAll("\\", "/")),
         runFiles: taskRun.files.map((file) => path.relative(root, file).replaceAll("\\", "/")),
@@ -604,7 +612,8 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         diffFile: latestExecutorResult.diffPath,
         sandboxGatewayManifest: relativeOptional(root, sandboxHandle.manifestPath),
         sandboxPatchFile: relativeOptional(root, sandboxHandle.patchPath),
-        stateFile: path.relative(root, stateRepository.pathFor(taskRun.runId)).replaceAll("\\", "/")
+        stateFile: path.relative(root, stateRepository.pathFor(taskRun.runId)).replaceAll("\\", "/"),
+        interventionLedgerFile: path.relative(root, path.join(root, ".agent-context", "interventions", `${taskRun.runId}.json`)).replaceAll("\\", "/")
       },
       sandbox: {
         mode: sandboxHandle.mode,
@@ -631,15 +640,15 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
     }
 
     const files = [
-      write(path.join(dir, "orchestrator.md"), renderOrchestratorReport(report)),
-      write(path.join(dir, "orchestrator.json"), JSON.stringify(report, null, 2)),
+      writeAtomic(path.join(dir, "orchestrator.md"), renderOrchestratorReport(report)),
+      path.join(dir, "orchestrator.json"),
       write(path.join(dir, "policy.md"), renderPolicyReport(latestPolicy)),
       write(path.join(dir, "impact.md"), impactMd),
       write(path.join(dir, "verify.md"), verifyMd),
       write(path.join(dir, "loop.md"), loopMd)
     ];
     report.artifacts.orchestratorFiles = files.map((file) => path.relative(root, file).replaceAll("\\", "/"));
-    writeFileSync(path.join(dir, "orchestrator.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    writeJsonAtomic(path.join(dir, "orchestrator.json"), report);
     if (state.currentPhase === "finalize") {
       advance("finalize", "completed", { completedAt: new Date().toISOString(), latestDecision, convergence: latestConvergence });
     }
@@ -876,6 +885,11 @@ function mirrorTraceForEvaluation(hostRoot: string, evaluationRoot: string, trac
 
 function write(filePath: string, content: string): string {
   writeFileSync(filePath, `${content.trim()}\n`, "utf8");
+  return filePath;
+}
+
+function writeAtomic(filePath: string, content: string): string {
+  writeTextAtomic(filePath, `${content.trim()}\n`);
   return filePath;
 }
 

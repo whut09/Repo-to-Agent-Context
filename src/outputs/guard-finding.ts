@@ -28,6 +28,7 @@ export interface GuardFindingsArtifact {
   generatedAt: string;
   runId: string;
   iteration: number;
+  interventionIds?: string[];
   findings: GuardFinding[];
   summary: {
     total: number;
