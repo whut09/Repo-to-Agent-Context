@@ -35,3 +35,16 @@ export interface ContextSource {
   fetchedAt?: string;
   updatedAt: string;
 }
+
+export interface ContextProvenance {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  sourceName: string;
+  sourceTrustLevel: ContextTrustLevel;
+  entryId: string;
+  packageVersion?: string;
+  contentRevision: number;
+  contentHash: string;
+  fetchedAt?: string;
+  verified: boolean;
+}
