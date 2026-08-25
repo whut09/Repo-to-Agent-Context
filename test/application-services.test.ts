@@ -149,3 +149,27 @@ test("context fetch revalidates freshness after a working tree change", async ()
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("context fetch rejects traversal and unavailable companion files", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-path-"));
+  try {
+    mkdirSync(path.join(root, ".git"));
+    const entryRoot = path.join(root, "packs", "docs", "payments");
+    mkdirSync(entryRoot, { recursive: true });
+    writeFileSync(path.join(root, "package.json"), "{}\n", "utf8");
+    writeFileSync(
+      path.join(entryRoot, "DOC.md"),
+      "---\nname: payments\ndescription: Payments\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nOriginal\n",
+      "utf8"
+    );
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: private\n      kind: local\n      location: packs\n      trustLevel: private\n",
+      "utf8"
+    );
+    await assert.rejects(() => getContextFiles({ repo: root, id: "private/payments", file: "../secret.md" }), /normalized relative path|not available/i);
+    await assert.rejects(() => getContextFiles({ repo: root, id: "private/payments", file: "missing.md" }), /not available/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
