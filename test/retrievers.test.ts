@@ -7,6 +7,9 @@ import { buildContextPackage } from "../src/core/context-builder.js";
 import { adaptiveTopK } from "../src/retrievers/types.js";
 import { createContextRetriever, renderContextHits } from "../src/retrievers/index.js";
 import { negativeExamplePenalty } from "../src/retrievers/static.js";
+import { ContextRegistryRetriever } from "../src/retrievers/context-registry.js";
+import { hashContextText } from "../src/context-registry/index.js";
+import type { ContextEntry } from "../src/context-registry/types.js";
 
 function createRetrieverRepo(): string {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-retriever-"));
@@ -121,4 +124,81 @@ test("static retrieval exposes symbol and dependency-chain signals", async () =>
 test("explicit negative examples are strongly down-ranked", () => {
   assert.equal(negativeExamplePenalty("examples/session.ts", "fixture", "fix session", ["examples"]), 40);
   assert.equal(negativeExamplePenalty("examples/session.ts", "fixture", "fix examples/session.ts", ["examples"]), 0);
+});
+
+function registryEntry(sourceName: string, name: string, overrides: Partial<ContextEntry> = {}): ContextEntry {
+  const contentHash = hashContextText(`${sourceName}:${name}`);
+  return {
+    schemaVersion: 1,
+    revision: 0,
+    id: `${sourceName}/${name}`,
+    canonicalId: name,
+    name,
+    description: `${name} API reference for session timeout handling`,
+    kind: "doc",
+    tags: ["api", "session"],
+    language: "typescript",
+    packageVersion: "2.0.0",
+    contentRevision: 2,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    sourceName,
+    trustLevel: sourceName === "official" ? "official" : "community",
+    files: [{ schemaVersion: 1, revision: 0, path: "DOC.md", role: "entry", contentHash, sizeBytes: 1, updatedAt: "2026-01-01T00:00:00.000Z" }],
+    contentHash,
+    provenance: {
+      schemaVersion: 1,
+      revision: 0,
+      sourceName,
+      sourceTrustLevel: sourceName === "official" ? "official" : "community",
+      entryId: `${sourceName}/${name}`,
+      packageVersion: "2.0.0",
+      contentRevision: 2,
+      contentHash,
+      verified: false
+    },
+    symbols: ["refreshSessionTimeout"],
+    dependencyChain: ["authMiddleware"],
+    qualityScore: 8,
+    ...overrides
+  };
+}
+
+test("registry retrieval supports exact ID, fuzzy search, empty query, filters, and explanations", async () => {
+  const retriever = new ContextRegistryRetriever([
+    registryEntry("official", "session-timeout"),
+    registryEntry("community", "billing"),
+    registryEntry("official", "session-other", { language: "python", packageVersion: "1.0.0", tags: ["other"] })
+  ]);
+  const exact = await retriever.search("official/session-timeout", { topK: 3, tags: ["session"], language: "typescript", packageVersion: "2.0.0" });
+  assert.equal(exact[0]?.id, "official/session-timeout");
+  assert.equal(exact[0]?.metadata.scoreBreakdown?.exactId, 1000);
+  assert.ok(
+    exact[0]?.metadata.scoreBreakdown &&
+      ["lexical", "symbol", "dependency", "source", "quality", "regression", "negativePenalty"].every((key) => key in exact[0]!.metadata.scoreBreakdown!)
+  );
+  assert.deepEqual(exact[0]?.mustInspect, ["context://official/DOC.md"]);
+
+  const listed = await retriever.search("", { topK: 10 });
+  assert.equal(listed.length, 3);
+  assert.equal(listed[0]?.metadata.contextTrustLevel, "official");
+  const filtered = await retriever.search("billing", { topK: 10, source: "community" });
+  assert.deepEqual(
+    filtered.map((hit) => hit.id),
+    ["community/billing"]
+  );
+});
+
+test("registry retrieval is stable for equal scores and applies negative penalty", async () => {
+  const retriever = new ContextRegistryRetriever([
+    registryEntry("community", "zeta", { qualityScore: 0 }),
+    registryEntry("community", "alpha", { qualityScore: 0 })
+  ]);
+  const listed = await retriever.search("", { topK: 10 });
+  assert.deepEqual(
+    listed.map((hit) => hit.id),
+    ["community/alpha", "community/zeta"]
+  );
+  const penalized = await retriever.search("session", { topK: 10, negativeExamples: ["community/alpha"] });
+  assert.equal(penalized.at(-1)?.id, "community/alpha");
+  assert.equal(penalized.at(-1)?.metadata.scoreBreakdown?.negativePenalty, 40);
 });
