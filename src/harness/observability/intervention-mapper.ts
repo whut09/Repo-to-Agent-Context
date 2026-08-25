@@ -1,4 +1,4 @@
-import type { ExecutionTrace, ExecutionTraceStep } from "./execution-trace.js";
+import { writeExecutionTrace, type ExecutionTrace, type ExecutionTraceStep } from "./execution-trace.js";
 import { appendInterventionEvent, interventionIdFor, listInterventionEvents, type NewInterventionEvent } from "./intervention-ledger.js";
 import type { HarnessDecision, InterventionStatus, ResolutionEvidence } from "../types.js";
 import type { GuardFindingsArtifact } from "../../outputs/guard-finding.js";
@@ -39,6 +39,9 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     if (result) result.interventionIds = [interventionId];
     allIds.add(interventionId);
     const status = statusForFinding(finding, evidence);
+    for (const step of evidenceForFinding(finding, evidence)) {
+      step.interventionIds = [...new Set([...(step.interventionIds ?? []), interventionId])].sort((a, b) => a.localeCompare(b));
+    }
     events.push(...appendForStatus(input, {
       interventionId,
       findingId: finding.id,
@@ -82,6 +85,7 @@ export function recordIterationInterventions(input: RecordIterationInterventions
 
   input.guardGates.interventionIds = input.guardGates.gates.flatMap((gate) => gate.interventionIds ?? []).sort((a, b) => a.localeCompare(b));
   input.guardFindings.interventionIds = input.guardFindings.findings.flatMap((finding) => finding.interventionIds ?? []).sort((a, b) => a.localeCompare(b));
+  if (input.trace && input.trace.steps.some((step) => step.interventionIds?.length)) writeExecutionTrace(input.root, input.trace);
 
   const decisionId = `decision:${input.taskId}:${input.iteration}`;
   const decisionInterventionId = interventionIdFor({ taskId: input.taskId, findingId: decisionId, category: "decision", problem: input.decision.action });
@@ -124,7 +128,7 @@ function appendForStatus(input: RecordIterationInterventionsInput, event: Pendin
   if (previous && event.status === "observed") return [];
   const statuses: InterventionStatus[] = [];
   if (event.status === "verified" && !previous) statuses.push("requested", "repaired");
-  else if (event.status === "verified" && previous?.status === "requested") statuses.push("repaired");
+  else if (event.status === "verified" && ["requested", "stale", "unresolved", "human-review"].includes(previous?.status ?? "")) statuses.push("repaired");
   else if (event.status === "stale" && !previous) statuses.push("requested");
   statuses.push(event.status);
   return statuses.map((status) => appendInterventionEvent(input.root, {
@@ -153,6 +157,7 @@ function statusForFinding(finding: PolicyFinding, evidence: ExecutionTraceStep[]
 
 function statusForGate(guard: string, action: string, executorExitCode: number | null): InterventionStatus {
   if (guard === "boundary" || action === "rollback" || action === "block") return "prevented";
+  if (guard === "evidence" && action === "repair") return "unresolved";
   if ((action === "repair" || action === "run-tests" || action === "run-regression-tests") && executorExitCode !== 0) return "unresolved";
   if (action === "human-review") return "human-review";
   return "requested";
