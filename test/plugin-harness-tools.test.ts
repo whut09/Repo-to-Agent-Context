@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { runGit } from "../src/core/git.js";
+import { appendInterventionEvent, createInterventionEvent } from "../src/harness/observability/intervention-ledger.js";
 import { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "../src/integrations/opencode/plugin-runtime/harness/index.js";
 import { pluginEvaluateStatePath } from "../src/integrations/opencode/plugin-runtime/harness/session.js";
 import { readExecutionTrace } from "../src/harness/observability/execution-trace.js";
@@ -127,6 +128,52 @@ test("Desktop hook evidence is readable from the shared execution trace", async 
     assert.equal(trace?.steps.at(-1)?.capturedBy, "opencode-plusplus");
     assert.equal(trace?.steps.at(-1)?.source, "desktop-hook");
     assert.match(trace?.steps.at(-1)?.stdoutHash ?? "", /^[a-f0-9]{64}$/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Desktop plugin keeps retrieval quiet and surfaces an evaluate blocker once", async () => {
+  const root = createPluginHarnessRepo();
+  const toasts: string[] = [];
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar(
+      {
+        directory: root,
+        client: { tui: { toast: { show: (input) => toasts.push(`${input.title}: ${input.message}`) } } }
+      },
+      { stateFile: path.join(root, "state.json") }
+    );
+    const tools = plugin.tool as Record<string, PluginHarnessTool>;
+    const prepared = result(await tools.opencode_plusplus_prepare.execute({ task: "fix login timeout bug", sessionId: "session-signals" }));
+    await tools.opencode_plusplus_retrieve.execute({ task: "fix login timeout bug", sessionId: "session-signals" });
+    assert.deepEqual(toasts, []);
+
+    appendInterventionEvent(
+      root,
+      createInterventionEvent({
+        interventionId: "desktop-blocker",
+        taskId: prepared.taskId!,
+        sessionId: "session-signals",
+        timestamp: "2026-08-25T00:00:00.000Z",
+        phase: "evaluate",
+        category: "boundary",
+        problem: "A protected path requires review.",
+        targetFiles: [".agent-context/AGENTS.md"],
+        action: "review protected path",
+        beforeState: {},
+        afterState: {},
+        evidenceRefs: [],
+        status: "prevented",
+        confidence: 1,
+        source: "guard"
+      })
+    );
+    const evaluated = result(await tools.opencode_plusplus_evaluate.execute({ taskId: prepared.taskId, sessionId: "session-signals" }));
+    assert.ok(evaluated.interventions?.remainingProblems.some((event) => event.interventionId === "desktop-blocker"));
+    assert.equal(toasts.length, 1);
+    await tools.opencode_plusplus_evaluate.execute({ taskId: prepared.taskId, sessionId: "session-signals" });
+    assert.equal(toasts.length, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
