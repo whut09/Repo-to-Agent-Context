@@ -71,7 +71,24 @@ export function createPluginHarnessError(
 }
 
 export function renderPluginHarnessResult(result: PluginHarnessResult): string {
-  return `${JSON.stringify(result, null, 2)}\n`;
+  return `${JSON.stringify({ ...result, humanReadable: humanReadableSummary(result) }, null, 2)}\n`;
+}
+
+function humanReadableSummary(result: PluginHarnessResult): string {
+  const lines = [
+    `OpenCode++ ${result.tool}: ${result.summary}`,
+    `Decision: ${result.decision}${result.blocking ? " (blocking)" : ""}`,
+    `Next: ${result.nextAction}`
+  ];
+  if (result.mustInspect.length) lines.push(`Selected files: ${result.mustInspect.join(", ")}`);
+  if (result.interventions?.excludedFiles.length) {
+    lines.push(`Excluded files: ${result.interventions.excludedFiles.map((file) => `${file.path} (${file.reason})`).join(", ")}`);
+  }
+  if (result.interventions?.verifiedFixes.length) lines.push(`Verified fixes: ${result.interventions.verifiedFixes.map((event) => event.problem).join("; ")}`);
+  if (result.interventions?.remainingProblems.length) lines.push(`Remaining problems: ${result.interventions.remainingProblems.map((event) => event.problem).join("; ")}`);
+  if (result.interventions?.humanReview.length) lines.push(`Human review: ${result.interventions.humanReview.map((event) => event.problem).join("; ")}`);
+  if (result.requiredCommands.length) lines.push(`Required commands: ${result.requiredCommands.join(" | ")}`);
+  return lines.join("\n");
 }
 
 function normalize(items: string[] | undefined): string[] {

@@ -48,6 +48,7 @@ test("prepare is idempotent, task state is isolated, and next consumes current e
     assert.equal(second.taskIdSource, "created");
     assert.equal(second.nextAction, "evaluate");
     assert.ok(second.interventions);
+    assert.match(second.humanReadable ?? "", /Decision:/);
     assert.ok((second.interventions?.selectedFiles.length ?? 0) > 0);
     assert.deepEqual(second.interventions?.selectedFiles, first.interventions?.selectedFiles);
     assert.equal(second.blocking, true);

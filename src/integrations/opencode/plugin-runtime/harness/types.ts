@@ -119,6 +119,7 @@ export interface PluginHarnessResult {
   ok: boolean;
   tool: PluginHarnessToolKind;
   summary: string;
+  humanReadable?: string;
   error?: { code: string; message: string };
   taskId: string | null;
   sessionId: string | null;
