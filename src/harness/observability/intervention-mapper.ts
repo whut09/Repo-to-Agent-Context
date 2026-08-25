@@ -60,6 +60,18 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     const interventionId = interventionIdFor({ taskId: input.taskId, findingId: finding.id, category: finding.source, problem: finding.message });
     finding.interventionIds = [interventionId];
     allIds.add(interventionId);
+    const isBlocking = finding.status === "failed" || finding.status === "missing";
+    events.push(...appendForStatus(input, {
+      interventionId,
+      findingId: finding.id,
+      category: finding.source,
+      problem: finding.message,
+      action: finding.requiredAction ?? "observe guard finding",
+      targetFiles: finding.file ? [finding.file] : input.changedFiles,
+      evidenceRefs: finding.evidence,
+      status: finding.source === "hallucination" && isBlocking ? "prevented" : isBlocking ? "requested" : "observed",
+      source: "guard"
+    }));
   }
 
   for (const gate of input.guardGates.gates) {

@@ -17,6 +17,7 @@ test("mapper records prevented, requested, unresolved and verified states", () =
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-map-"));
   try {
     const input = baseInput(root);
+    input.guardFindings.findings.push({ schemaVersion: "opencode-plusplus.guard-finding.v1", id: "hallucination.missing-file", source: "hallucination", kind: "forbidden", status: "failed", severity: "error", message: "Missing file reference.", evidence: ["missing"] });
     const first = recordIterationInterventions({ ...input, executorExitCode: 2 });
     const statuses = listInterventionEvents(root, "task-1").map((event) => event.status);
     assert.ok(statuses.includes("prevented"));
@@ -24,6 +25,7 @@ test("mapper records prevented, requested, unresolved and verified states", () =
     assert.ok(statuses.includes("unresolved"));
     const boundary = listInterventionEvents(root, "task-1").find((event) => event.findingId === "boundary.forbidden");
     assert.equal(boundary?.status, "prevented");
+    assert.ok(listInterventionEvents(root, "task-1").some((event) => event.findingId === "hallucination.missing-file" && event.status === "prevented"));
     assert.equal(listInterventionEvents(root, "task-1").some((event) => event.findingId === "boundary.forbidden" && event.status === "repaired"), false);
     assert.equal(first.decision.interventionIds?.length, first.interventionIds.length);
 
