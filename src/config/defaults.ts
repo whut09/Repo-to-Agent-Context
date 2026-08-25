@@ -24,6 +24,11 @@ export const DEFAULT_EXCLUDES = [
 export const DEFAULT_CONFIG: OpenCodePlusplusConfig = {
   target: "opencode",
   evidencePolicy: "advisory",
+  contextRegistry: {
+    enabled: false,
+    offline: true,
+    sources: []
+  },
   tokenBudget: 60000,
   include: ["**/*"],
   exclude: DEFAULT_EXCLUDES,
