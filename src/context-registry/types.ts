@@ -62,3 +62,22 @@ export interface ContextAnnotation {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ContextEntry {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  id: string;
+  name: string;
+  description: string;
+  kind: ContextEntryKind;
+  tags: string[];
+  language?: string;
+  packageVersion?: string;
+  contentRevision: number;
+  updatedAt: string;
+  sourceName: string;
+  trustLevel: ContextTrustLevel;
+  files: ContextFile[];
+  contentHash: string;
+  provenance: ContextProvenance;
+}
