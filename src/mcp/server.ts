@@ -464,7 +464,7 @@ async function runTaskPack(args: PackInput): Promise<OpenCodePlusplusMcpResult> 
 
 async function runRetrieve(args: RetrieveArguments): Promise<OpenCodePlusplusMcpResult> {
   if (args.contextId) {
-    return getContextFiles({ repo: args.repo ?? ".", id: args.contextId, file: args.file, full: args.full });
+    return { ...(await getContextFiles({ repo: args.repo ?? ".", id: args.contextId, file: args.file, full: args.full })) };
   }
   return retrieveApplicationContext({ repo: args.repo ?? ".", ...args });
 }
