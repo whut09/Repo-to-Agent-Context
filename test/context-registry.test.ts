@@ -164,6 +164,24 @@ test("fetch result rejects selected and omitted file overlap", () => {
   assert.ok(result.issues.some((issue) => issue.path === "$.selectedFiles"));
 });
 
+test("fetch result rejects content hashes that do not match returned content", () => {
+  const result = validateContextFetchResult({
+    schemaVersion: CONTEXT_REGISTRY_SCHEMA_VERSION,
+    revision: 0,
+    entry: contextEntry(),
+    selectedFiles: ["DOC.md"],
+    omittedFiles: [],
+    files: [{ path: "DOC.md", role: "entry", content: "tampered", contentHash }],
+    provenance: contextEntry().provenance,
+    cache: { status: "hit" },
+    contextMode: "reused",
+    fetchMode: "entry",
+    durationMs: 2
+  });
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.path.endsWith("contentHash")));
+});
+
 test("context packs use atomic storage and revision conflict detection", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-registry-"));
   try {
