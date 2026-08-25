@@ -10,6 +10,7 @@ import {
   type ContextValidationResult,
   type ContextSchemaIssue
 } from "./schema.js";
+import { hashContextText } from "./hash.js";
 import type {
   ContextAnnotation,
   ContextEntry,
@@ -261,7 +262,10 @@ export function validateContextFetchResult(input: unknown, path = "$"): ContextV
     if (filePath && !normalizeContextFilePath(filePath)) issues.push({ path: `${path}.files[${index}].path`, code: "path", message: "must be a normalized relative path" });
     if (role && !FILE_ROLES.has(role as ContextFileRole)) issues.push({ path: `${path}.files[${index}].role`, code: "value", message: `unsupported file role ${role}` });
     if (typeof content !== "string") issues.push({ path: `${path}.files[${index}].content`, code: "type", message: "expected a string" });
-    requiredHash(file, "contentHash", `${path}.files[${index}]`, issues);
+    const contentHash = requiredHash(file, "contentHash", `${path}.files[${index}]`, issues);
+    if (typeof content === "string" && contentHash && hashContextText(content) !== contentHash) {
+      issues.push({ path: `${path}.files[${index}].contentHash`, code: "value", message: "does not match fetched file content" });
+    }
   }
   const freshness = input.freshness;
   if (freshness !== undefined) {
