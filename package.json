@@ -49,11 +49,12 @@
     "benchmark:desktop": "tsx scripts/run-desktop-plugin-benchmark.ts",
     "benchmark:explainability": "tsx scripts/run-context-explainability-benchmark.ts",
     "benchmark:agent": "tsx src/cli/index.ts benchmark-agent benchmarks --executor mock --dry-run",
+    "benchmark:deterministic": "npm run benchmark && npm run benchmark:agent && npm run benchmark:explainability",
     "benchmark:agent:real": "tsx src/cli/index.ts benchmark-agent-real benchmarks",
     "pack:dry-run": "npm pack --dry-run --ignore-scripts",
     "pack:json": "npm pack --json --dry-run --ignore-scripts",
     "release:verify": "node scripts/verify-release.mjs",
-    "prepublishOnly": "npm run clean:build && npm run check && npm run lint && npm run format:check && npm run docs:cli:check && npm run docs:bilingual:check && npm test && npm run benchmark && npm run benchmark:agent && npm run build && npm run release:verify"
+    "prepublishOnly": "npm run clean:build && npm run check && npm run lint && npm run format:check && npm run docs:cli:check && npm run docs:bilingual:check && npm test && npm run benchmark:deterministic && npm run build && npm run release:verify"
   },
   "engines": {
     "node": ">=20"
