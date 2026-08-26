@@ -18,6 +18,11 @@ test("deterministic Context explainability benchmark records provenance and nega
   assert.ok(result.samples.every((sample) => /^[a-f0-9]{64}$/.test(sample.promptHash)));
   assert.ok(result.samples.every((sample) => /^[a-f0-9]{40}$/.test(sample.repoCommit)));
   assert.ok(result.samples.every((sample) => sample.scoreBreakdown.length > 0));
+  assert.ok(result.samples.every((sample) => sample.contextSelectedFiles.length > 0));
+  assert.ok(result.samples.some((sample) => sample.contextOmittedFiles.length > 0));
+  assert.ok(result.samples.some((sample) => sample.contextOmittedFiles.length === 0));
+  assert.ok(result.samples.every((sample) => /^[a-f0-9]{64}$/.test(sample.contextFetch.contentHash)));
+  assert.ok(result.samples.every((sample) => sample.contextFetch.cacheStatus === "hit"));
   assert.ok(result.samples.some((sample) => sample.scenario === "similar-unrelated"));
   assert.ok(result.samples.some((sample) => sample.scenario === "stale-context"));
   assert.ok(result.samples.some((sample) => sample.scenario === "wrong-command"));

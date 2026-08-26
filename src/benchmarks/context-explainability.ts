@@ -63,6 +63,14 @@ export interface ContextExplainabilitySample {
   scenario: ExplainabilityScenario;
   selectedFiles: string[];
   rejectedFiles: string[];
+  contextSelectedFiles: string[];
+  contextOmittedFiles: string[];
+  contextFetch: {
+    cacheStatus: "hit" | "miss";
+    contextMode: "reused" | "incremental" | "rebuilt";
+    freshness: "fresh" | "stale";
+    contentHash: string;
+  };
   scoreBreakdown: RetrievalScoreBreakdown[];
   interventionEvents: Array<{
     eventId: string;
@@ -273,6 +281,14 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       scenario: definition.scenario,
       selectedFiles,
       rejectedFiles,
+      contextSelectedFiles: fetched.selectedFiles,
+      contextOmittedFiles: fetched.omittedFiles,
+      contextFetch: {
+        cacheStatus: fetchedAgain.cache.status,
+        contextMode: fetchedAgain.contextMode,
+        freshness: status.data.freshness.status === "stale" ? "stale" : "fresh",
+        contentHash: fetchedAgain.entry.contentHash
+      },
       scoreBreakdown: retrieval.hits
         .slice(0, topK)
         .map((hit) => hit.metadata.scoreBreakdown)
@@ -494,7 +510,7 @@ function buildSampleMetrics(input: {
         : 0
       : 1,
     humanReviewRate: input.events.some((event) => event.status === "human-review") ? 1 : 0,
-    tokenSavings: Math.max(0, input.retrieval.hits.length - input.selectedFiles.length)
+    tokenSavings: tokenSavings(input.fetched, input.fetchedAgain)
   };
 }
 
@@ -506,6 +522,17 @@ function decisionFromInterventions(events: Array<{ status: string }>): ContextEx
   if (events.some((event) => event.status === "verified") && !events.some((event) => event.status === "stale")) return "finalize";
   if (events.some((event) => event.status === "prevented")) return "block";
   return "human-review";
+}
+
+function tokenSavings(fetched: Awaited<ReturnType<typeof getContextFiles>>, fetchedAgain: Awaited<ReturnType<typeof getContextFiles>>): number {
+  const fullTokens = (fetchedAgain.files ?? []).reduce((total, file) => total + approximateTokens(file.content), 0);
+  const selectedTokens = (fetched.files ?? []).reduce((total, file) => total + approximateTokens(file.content), 0);
+  if (fullTokens <= 0) return 0;
+  return Math.max(0, (fullTokens - selectedTokens) / fullTokens);
+}
+
+function approximateTokens(content: string): number {
+  return Math.max(1, Math.ceil(content.length / 4));
 }
 
 function problemFor(scenario: ExplainabilityScenario): string {
