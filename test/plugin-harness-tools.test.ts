@@ -232,6 +232,8 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
     assert.equal(main.context?.annotationInjection, undefined);
     assert.equal(readContextUsage(root, main.context!.entry.id).length, 1);
     assert.ok(main.artifacts.some((artifact) => artifact.includes("context-registry/usage")));
+    assert.ok(main.interventions?.contextHelp?.some((item) => item.includes("DOC.md")));
+    assert.ok(main.interventions?.adoptedContextAdvice?.some((item) => item.kind === "file-location"));
     const annotated = result(
       await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments", annotationId: annotation.id })
     );
