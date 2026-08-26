@@ -17,6 +17,7 @@ OpenCode++ 是面向官方 OpenCode Desktop 的 Windows Harness 插件。安装 
 | 选择 Agent-led 或 Harness-led         | [集成模式](concepts/integration-modes.zh-CN.md)                         |
 | 使用 CLI（开发者面）                  | [CLI 参考](reference/cli-reference.zh-CN.md)                            |
 | 配置证据可信等级                      | [配置参考](reference/config.zh-CN.md)                                   |
+| 在不发送源码的前提下评价 Context 质量 | [Context Feedback](reference/context-feedback.zh-CN.md)                 |
 | 构建和发布                            | [发布检查](release.zh-CN.md)                                            |
 | 贡献或定制 Harness                    | [贡献指南](../CONTRIBUTING.zh-CN.md)                                    |
 
@@ -48,6 +49,7 @@ OpenCode++ 是面向官方 OpenCode Desktop 的 Windows Harness 插件。安装 
 - [生成文件策略](reference/generated-files.zh-CN.md)
 - [Executor Adapter](reference/executor-adapters.zh-CN.md)
 - [Retrieval](reference/retrieval.zh-CN.md)
+- [Context Feedback](reference/context-feedback.zh-CN.md)
 - [Roadmap](roadmap.zh-CN.md)
 
 每个英文人工维护页旁边都有 .zh-CN.md 中文页。CLI help snapshot 是机器生成的规范输出，中文 CLI 参考说明相同命令组并链接到该快照。

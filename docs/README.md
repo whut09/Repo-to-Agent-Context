@@ -17,6 +17,7 @@ OpenCode++ is a Windows-first Harness plugin for the official OpenCode Desktop. 
 | Choose agent-led or harness-led usage              | [Integration Modes](concepts/integration-modes.md)                                    |
 | Operate the CLI (developer surface)                | [CLI Reference](reference/cli-reference.md)                                           |
 | Configure evidence trust                           | [Configuration](reference/config.md)                                                  |
+| Rate Context quality without sending source code   | [Context Feedback](reference/context-feedback.md)                                     |
 | Build and publish releases                         | [Release Checklist](release.md)                                                       |
 | Contribute or customize the Harness                | [Contribution Guide](../CONTRIBUTING.md)                                              |
 
@@ -58,6 +59,7 @@ OpenCode++ is a Windows-first Harness plugin for the official OpenCode Desktop. 
 - [Generated Files](reference/generated-files.md)
 - [Executor Adapters](reference/executor-adapters.md)
 - [Retrieval Providers](reference/retrieval.md)
+- [Context Feedback](reference/context-feedback.md)
 - [Release Checklist](release.md)
 - [Roadmap](roadmap.md)
 
