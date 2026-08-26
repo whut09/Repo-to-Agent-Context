@@ -1,6 +1,6 @@
 {
   "name": "opencode-plusplus",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "The official OpenCode Desktop Windows plugin with an in-plugin reliability harness. Install from the release EXE and use inside OpenCode Desktop.",
   "type": "module",
   "bin": {
@@ -54,6 +54,7 @@
     "pack:dry-run": "npm pack --dry-run --ignore-scripts",
     "pack:json": "npm pack --json --dry-run --ignore-scripts",
     "release:verify": "node scripts/verify-release.mjs",
+    "release:verify:desktop": "node scripts/verify-release.mjs --desktop",
     "prepublishOnly": "npm run clean:build && npm run check && npm run lint && npm run format:check && npm run docs:cli:check && npm run docs:bilingual:check && npm test && npm run benchmark:deterministic && npm run build && npm run release:verify"
   },
   "engines": {
