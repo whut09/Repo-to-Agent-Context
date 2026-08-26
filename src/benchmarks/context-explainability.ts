@@ -9,20 +9,19 @@ import { appendInterventionEvent, createInterventionEvent, listInterventionEvent
 import { recordContextUsage } from "../context-registry/usage-ledger.js";
 import { addContextAnnotation } from "../context-registry/annotations.js";
 import { getContextFiles } from "../application/context-service.js";
-import { runContextStatusTool, type ApplicationContextStatus } from "../application/context-tools-service.js";
+import { runContextStatusTool } from "../application/context-tools-service.js";
 import { retrieveApplicationContext } from "../application/retrieval-service.js";
 import type { RetrievalScoreBreakdown } from "../retrievers/types.js";
-import { summarizeDistribution } from "./statistics.js";
 import { code, heading, table } from "../outputs/renderers/markdown.js";
 import {
   CONTEXT_EXPLAINABILITY_SCHEMA_VERSION,
   type ContextExplainabilityBenchmarkResult,
   type ContextExplainabilityOptions,
   type ContextExplainabilitySample,
-  type ContextExplainabilitySampleMetrics,
   type ContextExplainabilityScenarioDefinition,
   type ExplainabilityScenario
 } from "./context-explainability-types.js";
+import { buildExplainabilitySampleMetrics, summarizeExplainabilityMetrics } from "./context-explainability-metrics.js";
 
 export * from "./context-explainability-types.js";
 
@@ -44,32 +43,7 @@ export async function runContextExplainabilityBenchmark(options: ContextExplaina
   };
 }
 
-export function summarizeExplainabilityMetrics(samples: ContextExplainabilitySample[]): ContextExplainabilityBenchmarkResult["metrics"] {
-  const keys: Array<keyof ContextExplainabilitySampleMetrics> = [
-    "precisionAtK",
-    "recallAtK",
-    "selectedFilesAccuracy",
-    "rejectedFilesAccuracy",
-    "contextCacheHitRate",
-    "contextFetchDurationMs",
-    "staleContextDetectionRate",
-    "interventionDetectionAccuracy",
-    "verifiedFixPrecision",
-    "falseFixedRate",
-    "unresolvedBlockerRecall",
-    "humanReviewRate",
-    "tokenSavings"
-  ];
-  return Object.fromEntries(
-    keys.map((key) => [
-      key,
-      {
-        value: summarizeDistribution(samples.map((sample) => sample.metrics[key])),
-        unit: key === "contextFetchDurationMs" ? "milliseconds" : "ratio"
-      }
-    ])
-  ) as ContextExplainabilityBenchmarkResult["metrics"];
-}
+export { summarizeExplainabilityMetrics } from "./context-explainability-metrics.js";
 
 export function renderContextExplainabilityBenchmark(result: ContextExplainabilityBenchmarkResult): string {
   const metricRows = Object.entries(result.metrics).map(([name, metric]) => [
@@ -212,7 +186,7 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       interventionEvents: events,
       finalDecision,
       expectedDecision,
-      metrics: buildSampleMetrics({
+      metrics: buildExplainabilitySampleMetrics({
         definition,
         retrieval,
         fetched,
@@ -412,45 +386,6 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
   }));
 }
 
-function buildSampleMetrics(input: {
-  definition: ContextExplainabilityScenarioDefinition;
-  retrieval: Awaited<ReturnType<typeof retrieveApplicationContext>>;
-  fetched: Awaited<ReturnType<typeof getContextFiles>>;
-  fetchedAgain: Awaited<ReturnType<typeof getContextFiles>>;
-  fullContext: Awaited<ReturnType<typeof getContextFiles>>;
-  status: ApplicationContextStatus;
-  selectedFiles: string[];
-  rejectedFiles: string[];
-  events: Array<{ status: string; evidenceRefs: string[]; currentWorkingTree: boolean }>;
-  topK: number;
-}): ContextExplainabilitySampleMetrics {
-  const expected = new Set(input.definition.relevantFiles);
-  const expectedRejected = new Set(input.definition.rejectedFiles);
-  const selected = new Set(input.selectedFiles);
-  const rejected = new Set(input.rejectedFiles);
-  const verified = input.events.filter((event) => event.status === "verified");
-  const validVerified = verified.filter((event) => event.evidenceRefs.includes("benchmark-command") && event.currentWorkingTree);
-  return {
-    precisionAtK: input.topK ? [...selected].filter((file) => expected.has(file)).length / input.topK : 0,
-    recallAtK: expected.size ? [...selected].filter((file) => expected.has(file)).length / expected.size : 1,
-    selectedFilesAccuracy: selected.size ? [...selected].filter((file) => expected.has(file)).length / selected.size : 1,
-    rejectedFilesAccuracy: rejected.size ? [...rejected].filter((file) => expectedRejected.has(file)).length / rejected.size : 1,
-    contextCacheHitRate: input.fetchedAgain.cache.status === "hit" ? 1 : 0,
-    contextFetchDurationMs: input.fetchedAgain.durationMs,
-    staleContextDetectionRate: ["stale-context", "success-then-edit"].includes(input.definition.scenario) && input.status.freshness.status === "stale" ? 1 : 0,
-    interventionDetectionAccuracy: input.events.length > 0 ? 1 : 0,
-    verifiedFixPrecision: verified.length ? validVerified.length / verified.length : 1,
-    falseFixedRate: verified.length ? (verified.length - validVerified.length) / verified.length : 0,
-    unresolvedBlockerRecall: ["stale-context", "success-then-edit", "wrong-command", "wrong-annotation"].includes(input.definition.scenario)
-      ? input.events.some((event) => ["prevented", "human-review", "unresolved"].includes(event.status))
-        ? 1
-        : 0
-      : 1,
-    humanReviewRate: input.events.some((event) => event.status === "human-review") ? 1 : 0,
-    tokenSavings: tokenSavings(input.fetched, input.fullContext)
-  };
-}
-
 function expectedDecisionFor(scenario: ExplainabilityScenario): ContextExplainabilitySample["finalDecision"] {
   return scenario === "positive" ? "finalize" : scenario === "wrong-command" || scenario === "similar-unrelated" ? "block" : "human-review";
 }
@@ -459,17 +394,6 @@ function decisionFromInterventions(events: Array<{ status: string }>): ContextEx
   if (events.some((event) => event.status === "verified") && !events.some((event) => event.status === "stale")) return "finalize";
   if (events.some((event) => event.status === "prevented")) return "block";
   return "human-review";
-}
-
-function tokenSavings(fetched: Awaited<ReturnType<typeof getContextFiles>>, fetchedAgain: Awaited<ReturnType<typeof getContextFiles>>): number {
-  const fullTokens = (fetchedAgain.files ?? []).reduce((total, file) => total + approximateTokens(file.content), 0);
-  const selectedTokens = (fetched.files ?? []).reduce((total, file) => total + approximateTokens(file.content), 0);
-  if (fullTokens <= 0) return 0;
-  return Math.max(0, (fullTokens - selectedTokens) / fullTokens);
-}
-
-function approximateTokens(content: string): number {
-  return Math.max(1, Math.ceil(content.length / 4));
 }
 
 function problemFor(scenario: ExplainabilityScenario): string {
