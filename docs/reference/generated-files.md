@@ -36,6 +36,10 @@ Default rule:
 | `.agent-context/memory/candidates/*.json`                                                                | Yes                                | No until reviewed                                                         | Medium                                                             | `opencode-plusplus memory learn-from-pr .`                           |
 | `.agent-context/cache/*`                                                                                 | Yes                                | No                                                                        | Low to medium                                                      | `opencode-plusplus build .`                                          |
 | `.agent-context/delta/*`                                                                                 | Yes                                | No by default                                                             | Medium; local change guidance                                      | `opencode-plusplus delta .` or `opencode-plusplus evolve .`          |
+| `.agent-context/context-registry/usage/*`                                                                | Yes                                | No                                                                        | Medium; selected Context identifiers, files, and provenance        | Desktop or application Context retrieval                            |
+| `.agent-context/context-registry/feedback/*`                                                             | Yes                                | No                                                                        | Low; fixed quality labels and relative Context identifiers only    | `opencode_plusplus_context_feedback`                                 |
+| `.agent-context/knowledge/annotations/*`                                                                 | User-owned runtime knowledge       | No by default                                                             | Medium to high; user-written project notes                         | Explicit annotation operations                                      |
+| `.agent-context/interventions/*`                                                                         | Yes                                | No                                                                        | Medium; findings, actions, evidence references, and status         | Desktop Harness prepare/evaluate                                    |
 | User OpenCode plugin `%USERPROFILE%/.config/opencode/plugins/opencode-plusplus.js`                       | User-owned                         | No; installed by the Windows EXE                                          | High; global guard and evidence runtime                            | `opencode-plusplus-setup-win-x64.exe`                                |
 | User primary mode `%USERPROFILE%/.config/opencode/agents/opencode-plusplus.md`                           | User-owned                         | No; installed by the Windows EXE                                          | Medium; model-facing Harness workflow                              | `opencode-plusplus-setup-win-x64.exe`                                |
 | `.opencode/agents/opencode-plusplus.md`                                                                  | Yes                                | Usually yes                                                               | Low                                                                | `opencode-plusplus opencode init .` or `opencode-plusplus oc init .` |
@@ -62,6 +66,10 @@ For most repositories, commit the stable context and OpenCode integration files,
 .agent-context/worktrees/
 .agent-context/delta/
 .agent-context/memory/candidates/
+.agent-context/context-registry/usage/
+.agent-context/context-registry/feedback/
+.agent-context/knowledge/annotations/
+.agent-context/interventions/
 opencode-plusplus.local.yml
 ```
 
@@ -82,6 +90,7 @@ Use this split:
 
 - **Commit:** stable guidance, contracts, and reviewed generated summaries when the team intentionally uses the developer context surface.
 - **Do not commit:** traces, sidecar latest reports, tool evidence, caches, local config, and transient task iterations.
+- **Keep separate:** Context usage records what was fetched; feedback records fixed quality labels; annotations contain user-written local knowledge; interventions record Harness actions. None of these artifacts is verification evidence by itself.
 
 ## Sensitive Evidence Notes
 

@@ -18,6 +18,10 @@
 - tool evidence、hallucination report、memory candidates；
 - opencode-plusplus.local.yml；
 - 用户配置目录中的全局插件、state.json 和 `agents/opencode-plusplus.md` 模式文件。
+- `.agent-context/context-registry/usage`、`.agent-context/context-registry/feedback`；
+- `.agent-context/knowledge/annotations`、`.agent-context/interventions`。
+
+四类文件边界不同：usage 记录获取了哪些 Context；feedback 只记录固定质量标签；annotation 保存用户编写的本地知识；intervention 记录 Harness 介入。它们都不能单独作为验证 evidence。
 
 ## Desktop 发布输出
 
@@ -37,6 +41,10 @@ Windows 构建在 `release/` 下生成 EXE、SHA256 文件和 `opencode-plusplus
 .agent-context/worktrees/
 .agent-context/delta/
 .agent-context/memory/candidates/
+.agent-context/context-registry/usage/
+.agent-context/context-registry/feedback/
+.agent-context/knowledge/annotations/
+.agent-context/interventions/
 opencode-plusplus.local.yml
 ```
 
