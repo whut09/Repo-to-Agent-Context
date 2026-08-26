@@ -6,6 +6,7 @@ import type {
   AgentTarget,
   AgentsMode,
   AgentsSection,
+  ContextFeedbackConfig,
   ContextRegistryConfig,
   EvidencePolicyMode,
   OpenCodePlusplusConfig,
@@ -40,6 +41,12 @@ export function loadConfig(repoRoot: string, overrides: Partial<OpenCodePlusplus
         localConfig.contextRegistry?.sources ??
         fileConfig.contextRegistry?.sources ??
         DEFAULT_CONFIG.contextRegistry.sources
+    },
+    feedback: {
+      ...DEFAULT_CONFIG.feedback,
+      ...fileConfig.feedback,
+      ...localConfig.feedback,
+      ...overrides.feedback
     },
     llm: {
       ...DEFAULT_CONFIG.llm,
@@ -104,6 +111,7 @@ function normalizeConfig(input: Record<string, unknown> | null | undefined): Par
       typeof input.contextRegistry === "object" && input.contextRegistry
         ? normalizeContextRegistryConfig(input.contextRegistry as Record<string, unknown>)
         : undefined,
+    feedback: typeof input.feedback === "object" && input.feedback ? normalizeFeedbackConfig(input.feedback as Record<string, unknown>) : undefined,
     tokenBudget: typeof input.tokenBudget === "number" ? input.tokenBudget : undefined,
     include: toStringArray(input.include),
     exclude: toStringArray(input.exclude),
@@ -120,6 +128,16 @@ function normalizeContextRegistryConfig(input: Record<string, unknown>): Partial
     enabled: typeof input.enabled === "boolean" ? input.enabled : undefined,
     offline: typeof input.offline === "boolean" ? input.offline : undefined,
     sources: Array.isArray(input.sources) ? input.sources.map(normalizeContextSourceConfig) : undefined
+  });
+}
+
+function normalizeFeedbackConfig(input: Record<string, unknown>): Partial<ContextFeedbackConfig> {
+  return stripUndefined({
+    enabled: typeof input.enabled === "boolean" ? input.enabled : undefined,
+    telemetry: typeof input.telemetry === "boolean" ? input.telemetry : undefined,
+    network: typeof input.network === "boolean" ? input.network : undefined,
+    useLocalQualitySignals: typeof input.useLocalQualitySignals === "boolean" ? input.useLocalQualitySignals : undefined,
+    endpoint: typeof input.endpoint === "string" ? input.endpoint : undefined
   });
 }
 
@@ -145,6 +163,7 @@ export function validateConfig(config: OpenCodePlusplusConfig): void {
   if (!["advisory", "balanced", "strict"].includes(config.evidencePolicy)) {
     throw new Error(`Invalid evidencePolicy "${config.evidencePolicy}". Expected one of: advisory, balanced, strict.`);
   }
+  validateFeedbackConfig(config.feedback);
   if (!Number.isFinite(config.tokenBudget) || config.tokenBudget <= 0) {
     throw new Error("tokenBudget must be a positive number.");
   }
@@ -211,6 +230,7 @@ function validateRawConfig(input: Record<string, unknown> | null | undefined, so
       if (new Set(names).size !== names.length) throw new Error("contextRegistry.sources names must be unique.");
     }
   }
+  if (input.feedback !== undefined) validateRawFeedbackConfig(input.feedback);
   if (input.tokenBudget !== undefined && (typeof input.tokenBudget !== "number" || input.tokenBudget <= 0)) {
     throw new Error("tokenBudget must be a positive number.");
   }
@@ -271,6 +291,42 @@ function validateRawConfig(input: Record<string, unknown> | null | undefined, so
     }
   }
   void source;
+}
+
+function validateFeedbackConfig(config: ContextFeedbackConfig): void {
+  if (
+    typeof config.enabled !== "boolean" ||
+    typeof config.telemetry !== "boolean" ||
+    typeof config.network !== "boolean" ||
+    typeof config.useLocalQualitySignals !== "boolean"
+  ) {
+    throw new Error("feedback switches must be boolean.");
+  }
+  if (config.endpoint !== undefined) validateFeedbackEndpoint(config.endpoint);
+  if (config.network && !config.endpoint) throw new Error("feedback.endpoint is required when feedback.network is true.");
+}
+
+function validateRawFeedbackConfig(input: unknown): void {
+  const feedback = objectValue(input, "feedback");
+  for (const field of ["enabled", "telemetry", "network", "useLocalQualitySignals"]) {
+    if (feedback[field] !== undefined && typeof feedback[field] !== "boolean") throw new Error("feedback." + field + " must be boolean.");
+  }
+  if (feedback.endpoint !== undefined) {
+    if (typeof feedback.endpoint !== "string" || !feedback.endpoint.trim()) throw new Error("feedback.endpoint must be a non-empty URL.");
+    validateFeedbackEndpoint(feedback.endpoint);
+  }
+  const allowed = new Set(["enabled", "telemetry", "network", "useLocalQualitySignals", "endpoint"]);
+  for (const key of Object.keys(feedback)) if (!allowed.has(key)) throw new Error("Unknown feedback option: " + key + ".");
+  if (feedback.network === true && feedback.endpoint === undefined) throw new Error("feedback.endpoint is required when feedback.network is true.");
+}
+
+function validateFeedbackEndpoint(value: string): void {
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("must use an HTTP(S) URL without credentials");
+  } catch (error) {
+    throw new Error("feedback.endpoint " + (error instanceof Error ? error.message : "must be a valid URL") + ".");
+  }
 }
 
 function validateContextSourceConfig(input: unknown, index: number): void {

@@ -39,6 +39,37 @@ test("legacy config keeps the context registry disabled and offline", () => {
   }
 });
 
+test("feedback configuration supports offline defaults and explicit network validation", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-feedback-config-"));
+  try {
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "target: opencode\n", "utf8");
+    assert.deepEqual(loadConfig(root).feedback, {
+      enabled: true,
+      telemetry: false,
+      network: false,
+      useLocalQualitySignals: false
+    });
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "feedback:\n  enabled: false\n  telemetry: true\n  network: true\n  endpoint: https://feedback.example.test/v1\n",
+      "utf8"
+    );
+    assert.deepEqual(loadConfig(root).feedback, {
+      enabled: false,
+      telemetry: true,
+      network: true,
+      useLocalQualitySignals: false,
+      endpoint: "https://feedback.example.test/v1"
+    });
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "feedback:\n  network: true\n", "utf8");
+    assert.throws(() => loadConfig(root), /endpoint is required/);
+    writeFileSync(path.join(root, "opencode-plusplus.config.yml"), "feedback:\n  endpoint: https://user:password@example.test\n", "utf8");
+    assert.throws(() => loadConfig(root), /without credentials/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("context registry source configuration is normalized and validated", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-config-"));
   try {
