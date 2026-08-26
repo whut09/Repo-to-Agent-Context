@@ -4,6 +4,7 @@ export const OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES = [
   "opencode_plusplus_status",
   "opencode_plusplus_prepare",
   "opencode_plusplus_retrieve",
+  "opencode_plusplus_context_feedback",
   "opencode_plusplus_evaluate",
   "opencode_plusplus_next"
 ] as const;
@@ -29,6 +30,18 @@ export interface PluginRetrieveArgs {
   annotationId?: string;
   includeStaleAnnotation?: boolean;
   sessionId?: string | null;
+}
+
+export interface PluginFeedbackArgs {
+  entryId: string;
+  source: string;
+  version?: string;
+  revision: number;
+  target: "entry" | "file" | "retrieval-result" | "intervention";
+  file?: string;
+  retrievalId?: string;
+  interventionId?: string;
+  label: "useful" | "not-useful" | "outdated" | "inaccurate" | "incomplete" | "wrong-version" | "wrong-example" | "irrelevant";
 }
 
 export interface PluginEvaluateArgs {
@@ -67,7 +80,7 @@ export interface PluginWorkflowState {
   updatedAt: string;
 }
 
-export type PluginHarnessToolKind = "prepare" | "retrieve" | "evaluate" | "next";
+export type PluginHarnessToolKind = "prepare" | "retrieve" | "evaluate" | "next" | "feedback";
 export type PluginTaskIdSource = "argument" | "session" | "created" | "none";
 
 export type PluginPerformanceStatus = "completed" | "timeout";

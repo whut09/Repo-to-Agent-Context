@@ -3,7 +3,7 @@ import { recordOpencodeSidecarTool } from "../sidecar.js";
 import { runCommandGuard } from "./command-guard.js";
 import { createSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
 import { exitCodeFromOutput, outputText, toolKey } from "./evidence.js";
-import { executeEvaluateTool, executeNextTool, executePrepareTool, executeRetrieveTool } from "./harness/index.js";
+import { executeEvaluateTool, executeFeedbackTool, executeNextTool, executePrepareTool, executeRetrieveTool } from "./harness/index.js";
 import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
@@ -141,6 +141,21 @@ export async function createOpenCodePlusPlusSidecar(
           sessionId: { type: "string" }
         },
         (args) => executeRetrieveTool(context.directory, args, context, recorder)
+      ),
+      opencode_plusplus_context_feedback: harnessTool(
+        "Record local Context quality feedback. Feedback is metadata only and cannot satisfy evidence or change a decision.",
+        {
+          entryId: { type: "string" },
+          source: { type: "string" },
+          version: { type: "string" },
+          revision: { type: "number" },
+          target: { type: "string" },
+          file: { type: "string" },
+          retrievalId: { type: "string" },
+          interventionId: { type: "string" },
+          label: { type: "string" }
+        },
+        (args) => executeFeedbackTool(context.directory, args)
       ),
       opencode_plusplus_evaluate: harnessTool(
         "Call after edits or before claiming done. Returns blocking, findings, decision, and missing evidence.",

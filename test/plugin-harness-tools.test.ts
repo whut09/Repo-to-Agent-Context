@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -12,6 +12,7 @@ import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plug
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
 import { addContextAnnotation } from "../src/context-registry/annotations.js";
 import { readContextUsage } from "../src/context-registry/usage-ledger.js";
+import { contextFeedbackStorePath } from "../src/context-registry/feedback-store.js";
 
 interface PluginHarnessTool {
   description: string;
@@ -31,6 +32,32 @@ test("OpenCode plugin exposes in-process harness tools without spawning a CLI", 
     assert.match(tools.opencode_plusplus_prepare.description, /before editing/i);
     assert.match(tools.opencode_plusplus_evaluate.description, /after edits/i);
     assert.match(tools.opencode_plusplus_next.description, /do not claim/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Desktop feedback tool stores metadata locally without task or source content", async () => {
+  const root = createPluginHarnessRepo();
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "state.json") });
+    const tools = plugin.tool as Record<string, PluginHarnessTool>;
+    const feedback = JSON.parse(
+      await tools.opencode_plusplus_context_feedback.execute({
+        entryId: "official/auth",
+        source: "official",
+        version: "2.0.0",
+        revision: 2,
+        target: "entry",
+        label: "useful"
+      })
+    ) as { ok: boolean; transport: { status: string }; stats: { total: number } };
+    assert.equal(feedback.ok, true);
+    assert.equal(feedback.transport.status, "disabled");
+    assert.equal(feedback.stats.total, 1);
+    const stored = readFileSync(contextFeedbackStorePath(root), "utf8");
+    assert.equal(stored.includes("fix login timeout bug"), false);
+    assert.equal(stored.includes("source code"), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

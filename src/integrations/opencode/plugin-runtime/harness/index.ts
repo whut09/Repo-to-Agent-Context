@@ -1,10 +1,12 @@
-import { parseEvaluateArgs, parseNextArgs, parsePrepareArgs, parseRetrieveArgs } from "./args.js";
+import { parseEvaluateArgs, parseFeedbackArgs, parseNextArgs, parsePrepareArgs, parseRetrieveArgs } from "./args.js";
 import { harnessFailureMessage } from "./error.js";
 import { evaluatePluginHarness } from "./evaluate.js";
 import { renderEvaluateText, renderHarnessError, renderNextText, renderPrepareText, renderRetrieveText } from "./format.js";
 import { nextPluginHarnessAction } from "./next.js";
 import { preparePluginHarnessTask } from "./prepare.js";
 import { retrievePluginHarnessContext } from "./retrieve.js";
+import { submitApplicationContextFeedback } from "../../../../application/context-feedback-service.js";
+import type { PluginFeedbackArgs } from "./types.js";
 import { notifyPluginInterventionSignals, type OpenCodeSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "../events.js";
 
 export { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "./types.js";
@@ -49,6 +51,25 @@ export async function executeRetrieveTool(
     context,
     recorder
   );
+}
+
+export async function executeFeedbackTool(root: string, args: unknown): Promise<string> {
+  try {
+    const parsed = parseFeedbackArgs(args);
+    if (typeof parsed === "string") return JSON.stringify({ ok: false, error: parsed });
+    const result = await submitApplicationContextFeedback({ repo: root, ...(parsed as PluginFeedbackArgs) });
+    return JSON.stringify({
+      ok: true,
+      tool: "feedback",
+      enabled: result.enabled,
+      feedback: result.feedback,
+      stats: result.stats,
+      transport: result.transport,
+      note: "Feedback is separate from annotations and cannot satisfy evidence or change a decision."
+    }, null, 2) + "\n";
+  } catch (error) {
+    return JSON.stringify({ ok: false, tool: "feedback", error: { code: "FEEDBACK_ERROR", message: error instanceof Error ? error.message : String(error) } }, null, 2) + "\n";
+  }
 }
 
 export async function executeEvaluateTool(

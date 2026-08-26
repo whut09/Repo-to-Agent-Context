@@ -1,4 +1,25 @@
-import type { PluginEvaluateArgs, PluginHarnessTaskType, PluginNextArgs, PluginPrepareArgs, PluginRetrieveArgs } from "./types.js";
+import type { PluginEvaluateArgs, PluginFeedbackArgs, PluginHarnessTaskType, PluginNextArgs, PluginPrepareArgs, PluginRetrieveArgs } from "./types.js";
+
+export function parseFeedbackArgs(args: unknown): PluginFeedbackArgs | string {
+  const record = asRecord(args);
+  const entryId = readNonEmptyString(record.entryId);
+  const source = readNonEmptyString(record.source);
+  const revision = readNonNegativeInteger(record.revision);
+  const target = readFeedbackTarget(record.target);
+  const label = readFeedbackLabel(record.label);
+  if (!entryId || !source) return "context feedback requires entryId and source.";
+  if (revision === undefined) return "context feedback revision must be a non-negative integer.";
+  if (!target) return "context feedback target is invalid.";
+  if (!label) return "context feedback label is invalid.";
+  const file = readOptionalString(record.file);
+  const retrievalId = readOptionalString(record.retrievalId);
+  const interventionId = readOptionalString(record.interventionId);
+  if (target === "file" && !file) return "file feedback requires file.";
+  if (target === "retrieval-result" && !retrievalId) return "retrieval feedback requires retrievalId.";
+  if (target === "intervention" && !interventionId) return "intervention feedback requires interventionId.";
+  const version = readOptionalString(record.version);
+  return { entryId, source, revision, target, label, ...(version ? { version } : {}), ...(file ? { file } : {}), ...(retrievalId ? { retrievalId } : {}), ...(interventionId ? { interventionId } : {}) };
+}
 
 export function parsePrepareArgs(args: unknown): PluginPrepareArgs | string {
   const record = asRecord(args);
@@ -96,4 +117,17 @@ function readPositiveInteger(value: unknown): number | undefined {
     if (parsed > 0) return parsed;
   }
   return undefined;
+}
+
+function readNonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
+function readFeedbackTarget(value: unknown): PluginFeedbackArgs["target"] | undefined {
+  return value === "entry" || value === "file" || value === "retrieval-result" || value === "intervention" ? value : undefined;
+}
+
+function readFeedbackLabel(value: unknown): PluginFeedbackArgs["label"] | undefined {
+  const labels = ["useful", "not-useful", "outdated", "inaccurate", "incomplete", "wrong-version", "wrong-example", "irrelevant"];
+  return typeof value === "string" && labels.includes(value) ? (value as PluginFeedbackArgs["label"]) : undefined;
 }
