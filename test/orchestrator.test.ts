@@ -27,6 +27,8 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.equal(report.decision.action, "finalize");
     assert.equal(report.decision.blocking, false);
     assert.equal(report.decision.arbitration?.selectedCandidate.id, "fallback.finalize");
+    assert.equal(report.contextPolicy?.authority.finalizeAuthority, false);
+    assert.deepEqual(report.contextPolicy?.provenance, []);
     assert.equal(report.iterations[0]?.contextRefresh?.mode, "rebuilt");
     assert.ok((report.iterations[0]?.contextRefresh?.buildCount ?? 0) >= 1);
     assert.ok((report.iterations[0]?.contextRefresh?.durationMs ?? -1) >= 0);
@@ -36,6 +38,10 @@ test("harness orchestrator runs plan-pack-execute-evaluate-decision with mock ex
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "iteration.json")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "guard.findings.json")));
     assert.ok(existsSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "guard.gates.json")));
+    const iterationArtifact = JSON.parse(
+      readFileSync(path.join(root, ".agent-context", "runs", "fix-login-timeout-bug", "iterations", "001", "iteration.json"), "utf8")
+    ) as { contextPolicy?: { authority?: { evidenceAuthority?: boolean } } };
+    assert.equal(iterationArtifact.contextPolicy?.authority?.evidenceAuthority, false);
     assert.match(rendered, /# Harness Orchestrator/);
     assert.match(rendered, /## Evidence Summary/);
     assert.match(rendered, /## Guard Gates/);
