@@ -8,6 +8,7 @@ import { runGit } from "../core/git.js";
 import { appendInterventionEvent, createInterventionEvent, listInterventionEvents } from "../harness/observability/intervention-ledger.js";
 import { recordContextUsage } from "../context-registry/usage-ledger.js";
 import { getContextFiles } from "../application/context-service.js";
+import { runContextStatusTool, type ApplicationContextStatus } from "../application/context-tools-service.js";
 import { retrieveApplicationContext } from "../application/retrieval-service.js";
 import type { RetrievalScoreBreakdown } from "../retrievers/types.js";
 import { summarizeDistribution, type DistributionSummary } from "./statistics.js";
@@ -225,6 +226,8 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
         "utf8"
       );
     }
+    const status = await runContextStatusTool({ repo: root, taskId: definition.taskId });
+    if (!status.ok) throw new Error(`Context status failed in benchmark: ${status.error.message}`);
     const events = createScenarioInterventions(root, definition, currentWorkingTreeFingerprint(root));
     const selectedFiles = retrieval.hits
       .slice(0, topK)
@@ -252,7 +255,7 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       interventionEvents: events,
       finalDecision: expectedDecision,
       expectedDecision,
-      metrics: buildSampleMetrics({ definition, retrieval, fetched, fetchedAgain, selectedFiles, rejectedFiles, events, topK })
+      metrics: buildSampleMetrics({ definition, retrieval, fetched, fetchedAgain, status: status.data, selectedFiles, rejectedFiles, events, topK })
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -412,6 +415,7 @@ function buildSampleMetrics(input: {
   retrieval: Awaited<ReturnType<typeof retrieveApplicationContext>>;
   fetched: Awaited<ReturnType<typeof getContextFiles>>;
   fetchedAgain: Awaited<ReturnType<typeof getContextFiles>>;
+  status: ApplicationContextStatus;
   selectedFiles: string[];
   rejectedFiles: string[];
   events: Array<{ status: string; evidenceRefs: string[] }>;
@@ -430,7 +434,7 @@ function buildSampleMetrics(input: {
     rejectedFilesAccuracy: expectedRejected.size ? [...rejected].filter((file) => expectedRejected.has(file)).length / expectedRejected.size : 1,
     contextCacheHitRate: input.fetchedAgain.cache.status === "hit" ? 1 : 0,
     contextFetchDurationMs: input.fetchedAgain.durationMs,
-    staleContextDetectionRate: ["stale-context", "success-then-edit"].includes(input.definition.scenario) ? 1 : 0,
+    staleContextDetectionRate: ["stale-context", "success-then-edit"].includes(input.definition.scenario) && input.status.freshness.status === "stale" ? 1 : 0,
     interventionDetectionAccuracy: input.events.length > 0 ? 1 : 0,
     verifiedFixPrecision: verified.length ? validVerified.length / verified.length : 1,
     falseFixedRate: verified.length ? (verified.length - validVerified.length) / verified.length : 0,
