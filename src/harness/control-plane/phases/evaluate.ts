@@ -48,7 +48,8 @@ export function runEvaluatePhase(input: EvaluatePhaseInput): EvaluatePhaseOutput
     base: input.base,
     traceId: input.runId,
     failOn: input.failOn,
-    evidencePolicy: input.evidencePolicy
+    evidencePolicy: input.evidencePolicy,
+    contextTaskId: input.runId
   });
   const verify = renderTaskVerify(input.context, { base: input.base, diff: true });
   const loop = buildLoopControllerReport(input.context, input.task, {
