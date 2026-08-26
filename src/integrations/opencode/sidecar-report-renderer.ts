@@ -148,6 +148,9 @@ interface InterventionReport {
   verifiedFixes: Array<{ problem: string; action: string; targetFiles: string[] }>;
   remainingProblems: Array<{ problem: string; action: string; status: string; targetFiles: string[] }>;
   humanReview: Array<{ problem: string; action: string; targetFiles: string[] }>;
+  contextHelp?: string[];
+  adoptedContextAdvice?: Array<{ summary: string; reason: string }>;
+  rejectedContextAdvice?: Array<{ summary: string; reason: string }>;
 }
 
 function renderInterventionSections(interventions: InterventionReport | undefined): string[] {
@@ -163,6 +166,15 @@ function renderInterventionSections(interventions: InterventionReport | undefine
       "- none recorded",
       "",
       "## Human Review",
+      "- none recorded",
+      "",
+      "## Context Help",
+      "- none recorded",
+      "",
+      "## Context Advice Adopted",
+      "- none recorded",
+      "",
+      "## Context Advice Rejected",
       "- none recorded"
     ];
   }
@@ -178,7 +190,20 @@ function renderInterventionSections(interventions: InterventionReport | undefine
     ...formatInterventions(interventions.remainingProblems, true),
     "",
     "## Human Review",
-    ...formatInterventions(interventions.humanReview)
+    ...formatInterventions(interventions.humanReview),
+    "",
+    "## Context Help",
+    ...(interventions.contextHelp?.length ? interventions.contextHelp.map((item) => `- ${item}`) : ["- none recorded"]),
+    "",
+    "## Context Advice Adopted",
+    ...(interventions.adoptedContextAdvice?.length
+      ? interventions.adoptedContextAdvice.map((item) => `- ${item.summary} (${item.reason})`)
+      : ["- none recorded"]),
+    "",
+    "## Context Advice Rejected",
+    ...(interventions.rejectedContextAdvice?.length
+      ? interventions.rejectedContextAdvice.map((item) => `- ${item.summary} (${item.reason})`)
+      : ["- none recorded"])
   ];
 }
 

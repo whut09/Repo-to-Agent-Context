@@ -101,6 +101,16 @@ export interface PluginInterventionRecord {
   decisionRefs?: string[];
 }
 
+export interface PluginContextAdvice {
+  id: string;
+  kind: string;
+  disposition: "adopted" | "available" | "rejected";
+  summary: string;
+  reason: string;
+  sourceFile?: string;
+  suggestedCommand?: string;
+}
+
 export interface PluginInterventionSnapshot {
   ledgerPath: string;
   eventCount: number;
@@ -112,6 +122,9 @@ export interface PluginInterventionSnapshot {
   verifiedFixes: PluginInterventionRecord[];
   remainingProblems: PluginInterventionRecord[];
   humanReview: PluginInterventionRecord[];
+  contextHelp?: string[];
+  adoptedContextAdvice?: PluginContextAdvice[];
+  rejectedContextAdvice?: PluginContextAdvice[];
 }
 
 export interface PluginHarnessResult {
@@ -182,6 +195,9 @@ export function emptyPluginInterventions(ledgerPath = ""): PluginInterventionSna
     actions: [],
     verifiedFixes: [],
     remainingProblems: [],
-    humanReview: []
+    humanReview: [],
+    contextHelp: [],
+    adoptedContextAdvice: [],
+    rejectedContextAdvice: []
   };
 }

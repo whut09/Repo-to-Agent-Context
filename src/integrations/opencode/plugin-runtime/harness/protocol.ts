@@ -87,6 +87,11 @@ function humanReadableSummary(result: PluginHarnessResult): string {
     lines.push(`Excluded files: ${result.interventions.excludedFiles.map((file) => `${file.path} (${file.reason})`).join(", ")}`);
   }
   if (result.interventions?.verifiedFixes.length) lines.push(`Verified fixes: ${result.interventions.verifiedFixes.map((event) => event.problem).join("; ")}`);
+  if (result.interventions?.contextHelp?.length) lines.push(`Context help: ${result.interventions.contextHelp.join("; ")}`);
+  if (result.interventions?.adoptedContextAdvice?.length)
+    lines.push(`Context advice adopted: ${result.interventions.adoptedContextAdvice.map((item) => item.summary).join("; ")}`);
+  if (result.interventions?.rejectedContextAdvice?.length)
+    lines.push(`Context advice rejected: ${result.interventions.rejectedContextAdvice.map((item) => `${item.summary} (${item.reason})`).join("; ")}`);
   if (result.interventions?.remainingProblems.length)
     lines.push(`Remaining problems: ${result.interventions.remainingProblems.map((event) => event.problem).join("; ")}`);
   if (result.interventions?.humanReview.length) lines.push(`Human review: ${result.interventions.humanReview.map((event) => event.problem).join("; ")}`);

@@ -13,6 +13,7 @@ import type { OpenCodeSidecarGuardStackSummary } from "../../sidecar.js";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { readExecutionTrace, type ExecutionTrace } from "../../../../harness/observability/execution-trace.js";
 import { emptyPluginInterventions, type PluginInterventionRecord, type PluginInterventionSnapshot } from "./types.js";
+import { readContextUsage } from "../../../../context-registry/usage-ledger.js";
 
 export function pluginInterventionSnapshot(
   root: string,
@@ -26,6 +27,7 @@ export function pluginInterventionSnapshot(
   const summary = summarizeInterventions(events);
   const interventions = events.map(toPluginIntervention);
   const latest = [...summary.active, ...summary.verified];
+  const context = contextAdviceForTask(root, taskId);
   return {
     ledgerPath: path.relative(root, interventionLedgerJsonlPath(root, taskId)).replaceAll("\\", "/"),
     eventCount: events.length,
@@ -36,8 +38,34 @@ export function pluginInterventionSnapshot(
     actions: uniqueSorted(latest.map((event) => event.action)),
     verifiedFixes: summary.verified.map(toPluginIntervention),
     remainingProblems: summary.active.filter((event) => !["observed", "repaired"].includes(event.status)).map(toPluginIntervention),
-    humanReview: summary.active.filter((event) => event.status === "human-review").map(toPluginIntervention)
+    humanReview: summary.active.filter((event) => event.status === "human-review").map(toPluginIntervention),
+    contextHelp: context.help,
+    adoptedContextAdvice: context.adopted,
+    rejectedContextAdvice: context.rejected
   };
+}
+
+function contextAdviceForTask(
+  root: string,
+  taskId: string
+): {
+  help: string[];
+  adopted: NonNullable<PluginInterventionSnapshot["adoptedContextAdvice"]>;
+  rejected: NonNullable<PluginInterventionSnapshot["rejectedContextAdvice"]>;
+} {
+  try {
+    const records = readContextUsage(root, taskId);
+    const advice = records.flatMap((record) => record.advice);
+    return {
+      help: [...new Set(records.flatMap((record) => record.selectedFiles.map((file) => `${record.entryId} located ${file}.`)))].sort((a, b) =>
+        a.localeCompare(b)
+      ),
+      adopted: advice.filter((item) => item.disposition === "adopted"),
+      rejected: advice.filter((item) => item.disposition === "rejected")
+    };
+  } catch {
+    return { help: [], adopted: [], rejected: [] };
+  }
 }
 
 export function recordPluginContextSelection(input: {
