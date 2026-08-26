@@ -1,17 +1,44 @@
-import { parseEvaluateArgs, parseFeedbackArgs, parseNextArgs, parsePrepareArgs, parseRetrieveArgs } from "./args.js";
+import {
+  parseContextGetArgs,
+  parseContextSearchArgs,
+  parseContextStatusArgs,
+  parseEvaluateArgs,
+  parseFeedbackArgs,
+  parseInterventionsArgs,
+  parseNextArgs,
+  parsePrepareArgs,
+  parseRetrieveArgs
+} from "./args.js";
 import { harnessFailureMessage } from "./error.js";
 import { evaluatePluginHarness } from "./evaluate.js";
 import { renderEvaluateText, renderHarnessError, renderNextText, renderPrepareText, renderRetrieveText } from "./format.js";
 import { nextPluginHarnessAction } from "./next.js";
 import { preparePluginHarnessTask } from "./prepare.js";
 import { retrievePluginHarnessContext } from "./retrieve.js";
-import { submitApplicationContextFeedback } from "../../../../application/context-feedback-service.js";
-import type { PluginFeedbackArgs } from "./types.js";
+import {
+  runContextFeedbackTool,
+  runContextGetTool,
+  runContextSearchTool,
+  runContextStatusTool,
+  runInterventionsTool
+} from "../../../../application/context-tools-service.js";
+import { contextToolFailure } from "../../../../application/context-tools-protocol.js";
+import { invalidArguments } from "../../../../application/context-tool-errors.js";
+import { resolvePluginTaskId } from "./session.js";
 import { notifyPluginInterventionSignals, type OpenCodeSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "../events.js";
 
 export { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "./types.js";
 export type { OpenCodePlusPlusPluginToolName } from "./types.js";
-export { parseEvaluateArgs, parseNextArgs, parsePrepareArgs, parseRetrieveArgs } from "./args.js";
+export {
+  parseContextGetArgs,
+  parseContextSearchArgs,
+  parseContextStatusArgs,
+  parseEvaluateArgs,
+  parseInterventionsArgs,
+  parseNextArgs,
+  parsePrepareArgs,
+  parseRetrieveArgs
+} from "./args.js";
 export { renderEvaluateText, renderHarnessError, renderNextText, renderPrepareText, renderRetrieveText } from "./format.js";
 export { completionRuleFor, isFinalizeAction } from "./completion.js";
 
@@ -54,34 +81,47 @@ export async function executeRetrieveTool(
 }
 
 export async function executeFeedbackTool(root: string, args: unknown): Promise<string> {
-  try {
-    const parsed = parseFeedbackArgs(args);
-    if (typeof parsed === "string") return JSON.stringify({ ok: false, error: parsed });
-    const result = await submitApplicationContextFeedback({ repo: root, ...(parsed as PluginFeedbackArgs) });
-    return (
-      JSON.stringify(
-        {
-          ok: true,
-          tool: "feedback",
-          enabled: result.enabled,
-          feedback: result.feedback,
-          stats: result.stats,
-          transport: result.transport,
-          note: "Feedback is separate from annotations and cannot satisfy evidence or change a decision."
-        },
-        null,
-        2
-      ) + "\n"
-    );
-  } catch (error) {
-    return (
-      JSON.stringify(
-        { ok: false, tool: "feedback", error: { code: "FEEDBACK_ERROR", message: error instanceof Error ? error.message : String(error) } },
-        null,
-        2
-      ) + "\n"
-    );
-  }
+  const parsed = parseFeedbackArgs(args);
+  if (typeof parsed === "string") return structuredJson(contextToolFailure("context-feedback", invalidArguments(parsed)));
+  return structuredJson(await runContextFeedbackTool({ repo: root, ...parsed }));
+}
+
+export async function executeContextSearchTool(root: string, args: unknown): Promise<string> {
+  const parsed = parseContextSearchArgs(args);
+  if (typeof parsed === "string") return structuredJson(contextToolFailure("context-search", invalidArguments(parsed)));
+  return structuredJson(await runContextSearchTool({ repo: root, ...parsed }));
+}
+
+export async function executeContextGetTool(root: string, args: unknown): Promise<string> {
+  const parsed = parseContextGetArgs(args);
+  if (typeof parsed === "string") return structuredJson(contextToolFailure("context-get", invalidArguments(parsed)));
+  return structuredJson(
+    await runContextGetTool({
+      repo: root,
+      id: parsed.entryId,
+      language: parsed.language,
+      packageVersion: parsed.packageVersion,
+      source: parsed.source,
+      file: parsed.file,
+      full: parsed.full,
+      withAnnotations: parsed.withAnnotations
+    })
+  );
+}
+
+export async function executeContextStatusTool(root: string, args: unknown): Promise<string> {
+  const parsed = parseContextStatusArgs(args);
+  if (typeof parsed === "string") return structuredJson(contextToolFailure("context-status", invalidArguments(parsed)));
+  const taskId = resolvePluginTaskId(root, parsed.taskId, parsed.sessionId);
+  return structuredJson(await runContextStatusTool({ repo: root, ...(taskId ? { taskId } : {}) }));
+}
+
+export async function executeInterventionsTool(root: string, args: unknown): Promise<string> {
+  const parsed = parseInterventionsArgs(args);
+  if (typeof parsed === "string") return structuredJson(contextToolFailure("interventions", invalidArguments(parsed)));
+  const taskId = resolvePluginTaskId(root, parsed.taskId, parsed.sessionId);
+  if (!taskId) return structuredJson(contextToolFailure("interventions", invalidArguments("interventions requires taskId or a prepared Desktop session.")));
+  return structuredJson(await runInterventionsTool({ repo: root, taskId }));
 }
 
 export async function executeEvaluateTool(
@@ -154,4 +194,8 @@ function notifyFromToolResult(
   } catch (error) {
     recorder?.log("debug", "plugin intervention result notification skipped", { message: error instanceof Error ? error.message : String(error) });
   }
+}
+
+function structuredJson(value: unknown): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
