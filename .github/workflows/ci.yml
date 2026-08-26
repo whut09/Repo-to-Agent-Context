@@ -42,6 +42,9 @@ jobs:
       - name: Benchmarks
         if: runner.os == 'Linux'
         run: npm run benchmark && npm run benchmark:agent
+      - name: Deterministic Context explainability benchmark
+        if: runner.os == 'Linux'
+        run: npm run benchmark:explainability
       - name: Deterministic Desktop plugin benchmark
         if: runner.os == 'Windows'
         run: npm run benchmark:desktop
