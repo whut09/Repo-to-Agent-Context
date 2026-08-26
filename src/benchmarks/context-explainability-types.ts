@@ -27,11 +27,11 @@ export interface ContextExplainabilitySampleMetrics {
   rejectedFilesAccuracy: number;
   contextCacheHitRate: number;
   contextFetchDurationMs: number;
-  staleContextDetectionRate: number;
+  staleContextDetectionRate: number | null;
   interventionDetectionAccuracy: number;
-  verifiedFixPrecision: number;
-  falseFixedRate: number;
-  unresolvedBlockerRecall: number;
+  verifiedFixPrecision: number | null;
+  falseFixedRate: number | null;
+  unresolvedBlockerRecall: number | null;
   humanReviewRate: number;
   tokenSavings: number;
 }

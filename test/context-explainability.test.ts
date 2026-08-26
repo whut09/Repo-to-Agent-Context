@@ -29,7 +29,22 @@ test("deterministic Context explainability benchmark records provenance and nega
   assert.ok(result.samples.every((sample) => sample.interventionEvents.length > 0));
   assert.equal(result.metrics.precisionAtK.value.samples, 6);
   assert.equal(result.metrics.contextFetchDurationMs.value.samples, 6);
-  assert.ok(result.metrics.falseFixedRate.value.mean !== null);
+  assert.deepEqual(
+    {
+      stale: result.metrics.staleContextDetectionRate.value.samples,
+      verified: result.metrics.verifiedFixPrecision.value.samples,
+      falseFixed: result.metrics.falseFixedRate.value.samples,
+      unresolved: result.metrics.unresolvedBlockerRecall.value.samples
+    },
+    { stale: 2, verified: 1, falseFixed: 1, unresolved: 5 }
+  );
+  assert.equal(result.metrics.staleContextDetectionRate.value.mean, 1);
+  assert.equal(result.metrics.verifiedFixPrecision.value.mean, 1);
+  assert.equal(result.metrics.falseFixedRate.value.mean, 0);
+  assert.equal(result.metrics.unresolvedBlockerRecall.value.mean, 1);
+  const successThenEdit = result.samples.find((sample) => sample.scenario === "success-then-edit");
+  assert.equal(successThenEdit?.metrics.verifiedFixPrecision, null);
+  assert.equal(successThenEdit?.metrics.falseFixedRate, null);
   const markdown = renderContextExplainabilityBenchmark(result);
   assert.match(markdown, /# Deterministic Context Explainability Benchmark/);
   assert.match(markdown, /Metric Distributions/);
