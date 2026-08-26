@@ -4,8 +4,7 @@ import {
   appendInterventionEvent,
   interventionIdFor,
   interventionLedgerJsonlPath,
-  listInterventionEvents,
-  summarizeInterventions
+  listInterventionEvents
 } from "../../../../harness/observability/intervention-ledger.js";
 import type { PolicyEngineReport } from "../../../../harness/verification-plane/policy-engine.js";
 import type { InterventionStatus } from "../../../../harness/types.js";
@@ -13,10 +12,7 @@ import type { OpenCodeSidecarGuardStackSummary } from "../../sidecar.js";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { readExecutionTrace, type ExecutionTrace } from "../../../../harness/observability/execution-trace.js";
 import { emptyPluginInterventions, type PluginInterventionRecord, type PluginInterventionSnapshot } from "./types.js";
-import { readContextUsage } from "../../../../context-registry/usage-ledger.js";
-import { readContextFeedback } from "../../../../context-registry/feedback-store.js";
-import { buildContextFeedbackStats } from "../../../../context-registry/feedback-stats.js";
-import { loadConfig } from "../../../../config/load-config.js";
+import { getApplicationInterventions } from "../../../../application/intervention-service.js";
 
 export function pluginInterventionSnapshot(
   root: string,
@@ -25,12 +21,12 @@ export function pluginInterventionSnapshot(
   excludedFiles: Array<{ path: string; reason: string }> = []
 ): PluginInterventionSnapshot {
   if (!taskId) return { ...emptyPluginInterventions(), selectedFiles: uniqueSorted(selectedFiles), excludedFiles: normalizeExcluded(excludedFiles) };
-  const events = listInterventionEvents(root, taskId);
+  const application = getApplicationInterventions(root, taskId);
+  const events = application.events;
   syncJsonlLedger(root, taskId, events);
-  const summary = summarizeInterventions(events);
+  const summary = application.summary;
   const interventions = events.map(toPluginIntervention);
   const latest = [...summary.active, ...summary.verified];
-  const context = contextAdviceForTask(root, taskId);
   return {
     ledgerPath: path.relative(root, interventionLedgerJsonlPath(root, taskId)).replaceAll("\\", "/"),
     eventCount: events.length,
@@ -42,52 +38,19 @@ export function pluginInterventionSnapshot(
     verifiedFixes: summary.verified.map(toPluginIntervention),
     remainingProblems: summary.active.filter((event) => !["observed", "repaired"].includes(event.status)).map(toPluginIntervention),
     humanReview: summary.active.filter((event) => event.status === "human-review").map(toPluginIntervention),
-    contextHelp: context.help,
-    adoptedContextAdvice: context.adopted,
-    rejectedContextAdvice: context.rejected,
-    feedback: feedbackSummary(root)
-  };
-}
-
-function feedbackSummary(root: string): NonNullable<PluginInterventionSnapshot["feedback"]> {
-  try {
-    const stats = buildContextFeedbackStats(readContextFeedback(root));
-    const config = loadConfig(root).feedback;
-    return {
+    contextHelp: application.context.help,
+    adoptedContextAdvice: application.context.adoptedAdvice,
+    rejectedContextAdvice: application.context.rejectedAdvice,
+    feedback: {
       kind: "maintainer-feedback",
-      localOnly: !config.network || !config.telemetry,
-      networkEnabled: config.network && config.telemetry,
-      total: stats.total,
-      labels: stats.labels.filter((item) => item.count > 0),
+      localOnly: application.feedback.localOnly,
+      networkEnabled: application.feedback.networkEnabled,
+      total: application.feedback.stats.total,
+      labels: application.feedback.stats.labels.filter((item) => item.count > 0),
       annotationSeparate: true,
       evidenceAuthority: false
-    };
-  } catch {
-    return { kind: "maintainer-feedback", localOnly: true, networkEnabled: false, total: 0, labels: [], annotationSeparate: true, evidenceAuthority: false };
-  }
-}
-
-function contextAdviceForTask(
-  root: string,
-  taskId: string
-): {
-  help: string[];
-  adopted: NonNullable<PluginInterventionSnapshot["adoptedContextAdvice"]>;
-  rejected: NonNullable<PluginInterventionSnapshot["rejectedContextAdvice"]>;
-} {
-  try {
-    const records = readContextUsage(root, taskId);
-    const advice = records.flatMap((record) => record.advice);
-    return {
-      help: [...new Set(records.flatMap((record) => record.selectedFiles.map((file) => `${record.entryId} located ${file}.`)))].sort((a, b) =>
-        a.localeCompare(b)
-      ),
-      adopted: advice.filter((item) => item.disposition === "adopted"),
-      rejected: advice.filter((item) => item.disposition === "rejected")
-    };
-  } catch {
-    return { help: [], adopted: [], rejected: [] };
-  }
+    }
+  };
 }
 
 export function recordPluginContextSelection(input: {
