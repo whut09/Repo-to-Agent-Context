@@ -21,6 +21,11 @@ Do not commit `opencode-plusplus.local.yml`.
 ```yaml
 target: opencode
 evidencePolicy: advisory
+feedback:
+  enabled: true
+  telemetry: false
+  network: false
+  useLocalQualitySignals: false
 tokenBudget: 60000
 
 include:
@@ -83,6 +88,16 @@ Config files use `tokenizer.mode: chars_approx`; the CLI option `--tokenizer cha
 - `strict` requires current-working-tree command or CI evidence for both tests and contract validation. Manual evidence remains visible as supporting context but cannot close a blocking requirement.
 
 The default remains `advisory` so existing configuration files keep their previous behavior. CLI commands that evaluate evidence accept `--evidence-policy advisory|balanced|strict`; MCP runtime tools accept the equivalent `evidencePolicy` field.
+
+## Context Feedback
+
+`feedback.enabled` controls local Context quality feedback. It defaults to `true`; records contain only entry/source/version/revision/file identifiers and a fixed label. Task text, source content, absolute repository paths, and secrets are not stored.
+
+`feedback.telemetry` and `feedback.network` both default to `false`. Network submission occurs only when both are explicitly enabled and `feedback.endpoint` is an HTTP(S) URL without embedded credentials. A network failure never removes the local record.
+
+`feedback.useLocalQualitySignals` defaults to `false`. When enabled, local useful/not-useful statistics add a bounded, explainable ranking signal. The signal cannot override an exact Context ID match and never affects evidence, Guard, Policy, or finalize decisions.
+
+Local annotations and maintainer feedback are separate: annotations are repository knowledge that may be explicitly injected as untrusted Context; feedback is quality metadata and is never injected into model context.
 
 ## LLM Credentials
 
