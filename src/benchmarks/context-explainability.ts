@@ -11,16 +11,11 @@ import { getContextFiles } from "../application/context-service.js";
 import { retrieveApplicationContext } from "../application/retrieval-service.js";
 import type { RetrievalScoreBreakdown } from "../retrievers/types.js";
 import { summarizeDistribution, type DistributionSummary } from "./statistics.js";
+import { code, heading, table } from "../outputs/renderers/markdown.js";
 
 export const CONTEXT_EXPLAINABILITY_SCHEMA_VERSION = "opencode-plusplus.context-explainability.v1" as const;
 
-export type ExplainabilityScenario =
-  | "positive"
-  | "similar-unrelated"
-  | "stale-context"
-  | "wrong-annotation"
-  | "wrong-command"
-  | "success-then-edit";
+export type ExplainabilityScenario = "positive" | "similar-unrelated" | "stale-context" | "wrong-annotation" | "wrong-command" | "success-then-edit";
 
 export interface ContextExplainabilityScenarioDefinition {
   id: string;
@@ -107,9 +102,7 @@ export interface ContextExplainabilityOptions {
   scenarios?: ContextExplainabilityScenarioDefinition[];
 }
 
-export async function runContextExplainabilityBenchmark(
-  options: ContextExplainabilityOptions = {}
-): Promise<ContextExplainabilityBenchmarkResult> {
+export async function runContextExplainabilityBenchmark(options: ContextExplainabilityOptions = {}): Promise<ContextExplainabilityBenchmarkResult> {
   const benchmarkDir = path.resolve(options.benchmarkDir ?? "benchmarks");
   const scenarios = options.scenarios ?? readScenarioDefinitions(benchmarkDir);
   const samples = [] as ContextExplainabilitySample[];
@@ -154,6 +147,50 @@ export function summarizeExplainabilityMetrics(samples: ContextExplainabilitySam
   ) as ContextExplainabilityBenchmarkResult["metrics"];
 }
 
+export function renderContextExplainabilityBenchmark(result: ContextExplainabilityBenchmarkResult): string {
+  const metricRows = Object.entries(result.metrics).map(([name, metric]) => [
+    name,
+    metric.unit,
+    String(metric.value.samples),
+    formatMetric(metric.value.mean),
+    formatMetric(metric.value.median),
+    formatMetric(metric.value.standardDeviation),
+    metric.value.confidence95 ? `${formatMetric(metric.value.confidence95.low)} - ${formatMetric(metric.value.confidence95.high)}` : "n/a"
+  ]);
+  const sampleRows = result.samples.map((sample) => [
+    sample.sampleId,
+    sample.scenario,
+    sample.taskType,
+    sample.finalDecision,
+    sample.selectedFiles.join(", ") || "none",
+    sample.rejectedFiles.join(", ") || "none",
+    formatMetric(sample.metrics.precisionAtK),
+    formatMetric(sample.metrics.recallAtK),
+    String(sample.interventionEvents.length)
+  ]);
+  return [
+    heading(1, "Deterministic Context Explainability Benchmark"),
+    "",
+    `Source: ${result.source}`,
+    `Benchmark dir: ${code(result.benchmarkDir)}`,
+    `Samples: ${result.sampleCount}`,
+    "Metric class: mock fixture proxy; real executor metrics are excluded.",
+    "Verified fixes require current command or CI evidence; prevention is not repair success.",
+    "",
+    heading(2, "Metric Distributions"),
+    table(["Metric", "Unit", "N", "Mean", "Median", "Std dev", "95% CI"], metricRows),
+    "",
+    heading(2, "Samples"),
+    table(["Sample", "Scenario", "Type", "Decision", "Selected", "Rejected", "P@K", "R@K", "Interventions"], sampleRows),
+    "",
+    heading(2, "Interpretation"),
+    "- `selectedFiles` and `rejectedFiles` are evaluated separately; a rejected file is not silently treated as a retrieval miss.",
+    "- `verifiedFixPrecision` counts only verified events with valid current-working-tree command evidence.",
+    "- `falseFixedRate` counts verified claims without valid current evidence.",
+    "- stale Context, wrong annotations, wrong commands, and success-then-edit are explicit negative scenarios."
+  ].join("\n");
+}
+
 function readScenarioDefinitions(benchmarkDir: string): ContextExplainabilityScenarioDefinition[] {
   const filePath = path.join(benchmarkDir, "context-explainability", "scenarios.json");
   if (!existsSync(filePath)) throw new Error(`Context explainability scenarios are missing: ${filePath}`);
@@ -182,10 +219,17 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
     recordContextUsage(root, definition.taskId, fetched);
     const fetchedAgain = await getContextFiles({ repo: root, id: `${definition.source}/${definition.id}`, mode: "entry" });
     if (definition.scenario === "stale-context" || definition.scenario === "success-then-edit") {
-      writeFileSync(path.join(root, definition.relevantFiles[0] ?? "package.json"), `${readFileSync(path.join(root, definition.relevantFiles[0] ?? "package.json"), "utf8")}\n`, "utf8");
+      writeFileSync(
+        path.join(root, definition.relevantFiles[0] ?? "package.json"),
+        `${readFileSync(path.join(root, definition.relevantFiles[0] ?? "package.json"), "utf8")}\n`,
+        "utf8"
+      );
     }
     const events = createScenarioInterventions(root, definition, currentWorkingTreeFingerprint(root));
-    const selectedFiles = retrieval.hits.slice(0, topK).map((hit) => hit.path).sort((left, right) => left.localeCompare(right));
+    const selectedFiles = retrieval.hits
+      .slice(0, topK)
+      .map((hit) => hit.path)
+      .sort((left, right) => left.localeCompare(right));
     const rejectedFiles = retrieval.rejectedFiles.slice(0, topK).sort((left, right) => left.localeCompare(right));
     const expectedDecision = expectedDecisionFor(definition.scenario);
     return {
@@ -201,7 +245,10 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       scenario: definition.scenario,
       selectedFiles,
       rejectedFiles,
-      scoreBreakdown: retrieval.hits.slice(0, topK).map((hit) => hit.metadata.scoreBreakdown).filter(isScoreBreakdown),
+      scoreBreakdown: retrieval.hits
+        .slice(0, topK)
+        .map((hit) => hit.metadata.scoreBreakdown)
+        .filter(isScoreBreakdown),
       interventionEvents: events,
       finalDecision: expectedDecision,
       expectedDecision,
@@ -267,31 +314,96 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
   const interventionId = `explainability-${definition.id}`;
   const problem = problemFor(definition.scenario);
   if (definition.scenario === "positive") {
-    appendInterventionEvent(root, createInterventionEvent({
-      interventionId, taskId: definition.taskId, sessionId: "benchmark", timestamp: "2026-01-01T00:00:00.000Z", phase: "evaluate", category: "evidence",
-      problem, targetFiles: definition.relevantFiles, action: "verify current command evidence", beforeState: {}, afterState: { workingTreeHash }, evidenceRefs: ["benchmark-command"],
-      status: "requested", confidence: 1, source: "system"
-    }));
-    appendInterventionEvent(root, createInterventionEvent({
-      interventionId, taskId: definition.taskId, sessionId: "benchmark", timestamp: "2026-01-01T00:00:01.000Z", phase: "evaluate", category: "evidence",
-      problem, targetFiles: definition.relevantFiles, action: "verify current command evidence", beforeState: { status: "requested" }, afterState: { workingTreeHash }, evidenceRefs: ["benchmark-command"],
-      status: "repaired", confidence: 1, source: "system"
-    }));
-    appendInterventionEvent(root, createInterventionEvent({
-      interventionId, taskId: definition.taskId, sessionId: "benchmark", timestamp: "2026-01-01T00:00:02.000Z", phase: "evaluate", category: "evidence",
-      problem, targetFiles: definition.relevantFiles, action: "verify current command evidence", beforeState: { status: "repaired" }, afterState: { workingTreeHash }, evidenceRefs: ["benchmark-command"],
-      resolutionEvidence: [{ kind: "command", ref: "benchmark-command", workingTreeHash, currentWorkingTree: true, valid: true, details: ["npm test"] }],
-      status: "verified", confidence: 1, source: "system"
-    }));
+    appendInterventionEvent(
+      root,
+      createInterventionEvent({
+        interventionId,
+        taskId: definition.taskId,
+        sessionId: "benchmark",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        phase: "evaluate",
+        category: "evidence",
+        problem,
+        targetFiles: definition.relevantFiles,
+        action: "verify current command evidence",
+        beforeState: {},
+        afterState: { workingTreeHash },
+        evidenceRefs: ["benchmark-command"],
+        status: "requested",
+        confidence: 1,
+        source: "system"
+      })
+    );
+    appendInterventionEvent(
+      root,
+      createInterventionEvent({
+        interventionId,
+        taskId: definition.taskId,
+        sessionId: "benchmark",
+        timestamp: "2026-01-01T00:00:01.000Z",
+        phase: "evaluate",
+        category: "evidence",
+        problem,
+        targetFiles: definition.relevantFiles,
+        action: "verify current command evidence",
+        beforeState: { status: "requested" },
+        afterState: { workingTreeHash },
+        evidenceRefs: ["benchmark-command"],
+        status: "repaired",
+        confidence: 1,
+        source: "system"
+      })
+    );
+    appendInterventionEvent(
+      root,
+      createInterventionEvent({
+        interventionId,
+        taskId: definition.taskId,
+        sessionId: "benchmark",
+        timestamp: "2026-01-01T00:00:02.000Z",
+        phase: "evaluate",
+        category: "evidence",
+        problem,
+        targetFiles: definition.relevantFiles,
+        action: "verify current command evidence",
+        beforeState: { status: "repaired" },
+        afterState: { workingTreeHash },
+        evidenceRefs: ["benchmark-command"],
+        resolutionEvidence: [{ kind: "command", ref: "benchmark-command", workingTreeHash, currentWorkingTree: true, valid: true, details: ["npm test"] }],
+        status: "verified",
+        confidence: 1,
+        source: "system"
+      })
+    );
   } else {
-    appendInterventionEvent(root, createInterventionEvent({
-      interventionId, taskId: definition.taskId, sessionId: "benchmark", timestamp: "2026-01-01T00:00:00.000Z", phase: "evaluate", category: "context",
-      problem, targetFiles: definition.relevantFiles, action: definition.scenario === "wrong-command" ? "reject external command suggestion" : "request human review",
-      beforeState: {}, afterState: { workingTreeHash }, evidenceRefs: [definition.scenario], status: expectedDecisionFor(definition.scenario) === "human-review" ? "human-review" : "prevented", confidence: 1, source: "system"
-    }));
+    appendInterventionEvent(
+      root,
+      createInterventionEvent({
+        interventionId,
+        taskId: definition.taskId,
+        sessionId: "benchmark",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        phase: "evaluate",
+        category: "context",
+        problem,
+        targetFiles: definition.relevantFiles,
+        action: definition.scenario === "wrong-command" ? "reject external command suggestion" : "request human review",
+        beforeState: {},
+        afterState: { workingTreeHash },
+        evidenceRefs: [definition.scenario],
+        status: expectedDecisionFor(definition.scenario) === "human-review" ? "human-review" : "prevented",
+        confidence: 1,
+        source: "system"
+      })
+    );
   }
   return listInterventionEvents(root, definition.taskId).map((event) => ({
-    eventId: event.eventId, interventionId: event.interventionId, status: event.status, category: event.category, problem: event.problem, evidenceRefs: event.evidenceRefs
+    eventId: event.eventId,
+    interventionId: event.interventionId,
+    status: event.status,
+    category: event.category,
+    problem: event.problem,
+    evidenceRefs: event.evidenceRefs
   }));
 }
 
@@ -358,4 +470,8 @@ function hashText(value: string): string {
 
 function isScoreBreakdown(value: unknown): value is RetrievalScoreBreakdown {
   return typeof value === "object" && value !== null && typeof (value as { total?: unknown }).total === "number";
+}
+
+function formatMetric(value: number | null): string {
+  return value === null ? "n/a" : Number.isInteger(value) ? String(value) : value.toFixed(4);
 }

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { runContextExplainabilityBenchmark, summarizeExplainabilityMetrics } from "../src/benchmarks/context-explainability.js";
+import {
+  renderContextExplainabilityBenchmark,
+  runContextExplainabilityBenchmark,
+  summarizeExplainabilityMetrics
+} from "../src/benchmarks/context-explainability.js";
 
 test("deterministic Context explainability benchmark records provenance and negative cases", async () => {
   const result = await runContextExplainabilityBenchmark({ benchmarkDir: path.resolve("benchmarks") });
@@ -21,6 +25,11 @@ test("deterministic Context explainability benchmark records provenance and nega
   assert.equal(result.metrics.precisionAtK.value.samples, 6);
   assert.equal(result.metrics.contextFetchDurationMs.value.samples, 6);
   assert.ok(result.metrics.falseFixedRate.value.mean !== null);
+  const markdown = renderContextExplainabilityBenchmark(result);
+  assert.match(markdown, /# Deterministic Context Explainability Benchmark/);
+  assert.match(markdown, /Metric Distributions/);
+  assert.match(markdown, /falseFixedRate/);
+  assert.match(markdown, /mock fixture proxy/);
 });
 
 test("explainability metric summaries retain distribution statistics", () => {
