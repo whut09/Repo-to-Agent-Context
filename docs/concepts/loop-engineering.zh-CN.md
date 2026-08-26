@@ -27,6 +27,23 @@ Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 
 手工声明可以作为上下文显示，但不能产生 `verified`。报告会显示当前介入 ID、问题、动作、状态和证据引用，用户可以准确检查修改了什么以及循环为什么停止。
 
+### Context、权限与解释
+
+Context Registry 位于 loop 上游，但刻意不在权限链中：
+
+```text
+Context Pack / annotation -> Retrieval -> 建议检查或动作
+Guard / Policy            -> 允许的动作和阻塞条件
+Evidence                  -> 当前工作树上的验证
+Intervention Ledger       -> 结果和剩余工作的解释
+```
+
+外部 Context 可以提高文件优先级、说明 API 或提出 workaround，但不能发出命令、放松 Guard、满足 contract、让 Context 变新鲜或关闭 finalize 要求。Annotation 是仓库本地、用户编写、未受信任的记忆，不是 policy。只有满足当前 evidence policy 的 command 或 CI 结果，才能把 repair 变成 `verified`。后续源代码编辑会使该结果失效并记录为 `stale`，而不是 fixed。
+
+这一区分决定了 Desktop 的展示：报告可以说明选中了哪些文件、阻止了哪个路径或命令、建议或报告了什么修复、哪个新鲜测试验证了修复，以及哪些事项仍需人工审核。它不得把 prevention 写成 repair，也不得把建议写成 verified fix。
+
+扩展 Harness 时，可以用 Context Pack 保存辅助领域知识，再把可执行的团队要求编码为带测试的 Guard 或 Policy 规则。自定义 Context fetcher 默认保持离线、验证 provenance 和路径，并保持相同的 Evidence 与 Intervention 状态迁移，确保自定义指导不会绕过验证。
+
 当前实现不会直接调用 Codex、Claude Code、Cursor、OpenCode 或 MiMoCode 去改代码。它提供的是控制面：让 Agent 知道先读什么、不要改什么、改完影响谁、该跑什么、是否能结束，以及下一轮应该补上下文、补测试、修 contract 还是进入 review。
 
 当前边界也要说清楚：它现在是 Context / Policy / Trace 报告系统 + 显式 runtime 状态机 + 有边界的 harness-led loop，不是完整自主 coding agent。Harness-led 模式可以调用 Codex / Claude Code / Cursor / OpenCode / MiMoCode 作为外部 executor，但真实代码修改仍发生在那个 executor 里；OpenCode++ 生成可验证、可排序、带证据的状态迁移、gate 结果和 decision report，由外部 Agent、用户或 CI 工作流执行后续动作。
@@ -337,6 +354,8 @@ trace 记录 task、agent、steps、files、reason、command、test、result、o
 - `ci evidence`：来自 CI artifact 或 GitHub Action 的外部验证记录，可通过 trace step 导入。
 
 trace step 只有通过验证后才会成为决策证据。`evidenceSatisfies()` 会检查 requirement 类型、evidence policy、required command 是否匹配、exit code 是否通过、working tree hash 是否仍等于当前可执行 diff，以及证据是否发生在最后一次编辑之后。结果会分别标记 `claimed` 与 `verified`，避免把用户或 Agent 的声明表达成系统已经验证。这样可以避免一种假闭环：Agent 先跑测试，再继续改代码，但仍复用旧的 passed test evidence。
+
+运行时持久化用于解释和恢复，不授予能力。Context cache、source snapshot、usage、annotation、feedback、trace、report 和 intervention event 都通过带 revision 的 atomic write 保存到 `.agent-context/`。cache reuse 不会跳过 freshness、drift、policy 或 Guard 检查。状态损坏、stale lock、远程 source 不可用、Windows 权限错误和杀毒软件短暂锁定文件都会返回诊断或安全的 human-review，不会静默产生 pass。
 
 Loop Controller、Policy Engine、Regression Guard、Guard Gate 输入和 Orchestrator 使用同一套 evidence policy：
 

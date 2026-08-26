@@ -25,6 +25,23 @@ The status model is deliberately conservative:
 
 Manual claims can remain visible as context, but cannot create `verified`. Reports show the active intervention IDs, problem, action, status, and evidence references so a user can inspect exactly what changed and why the loop stopped.
 
+### Context, Authority, And Explanation
+
+Context Registry is upstream of the loop, but deliberately outside its authority chain:
+
+```text
+Context Pack / annotation -> Retrieval -> suggested inspection or action
+Guard / Policy            -> allowed action and blocking conditions
+Evidence                  -> current-working-tree verification
+Intervention Ledger       -> explanation of outcome and remaining work
+```
+
+External Context can prioritize files, describe an API, or propose a workaround. It cannot issue a command, relax a Guard, satisfy a contract, make Context fresh, or close a finalization requirement. Annotation is repository-local, user-written, untrusted memory; it is not policy. Only a current command or CI result that satisfies the active evidence policy can transition a repair to `verified`. A later source edit supersedes that result and records `stale`, not fixed.
+
+This distinction controls the Desktop experience. A report can say a file was selected, a path or command was prevented, a repair was suggested or reported, a fresh test verified a repair, or an item still needs human review. It must not call prevention a repair or call a suggestion a verified fix.
+
+To extend the Harness, add Context Packs for advisory domain knowledge, then encode enforceable team requirements as tested Guard or Policy rules. Keep custom Context fetchers offline by default, validate provenance and paths, and preserve the same Evidence and Intervention state transitions so custom guidance cannot bypass verification.
+
 Current boundary: the project is a Context / Policy / Trace reporting system plus an explicit runtime state machine and bounded harness-led loop, not a fully autonomous coding agent. In harness-led mode it can invoke Codex, Claude Code, Cursor, OpenCode, or MiMoCode as an external executor, but real code edits still happen inside that executor. OpenCode++ produces evidence-linked state transitions, gate results, and decision reports that an external agent, user, or CI workflow can act on.
 
 The project does not directly ask Codex, Claude Code, Cursor, OpenCode, or MiMoCode to edit code. Instead, it provides the control plane those agents need: what to read first, what not to edit, who is affected by a change, which tests to run, whether a run can close, and whether the next turn should rebuild context, repair contracts, add tests, expand context, or move to review.
@@ -179,6 +196,8 @@ Trace evidence is split into three levels:
 - `ci evidence`: external verification from CI artifacts or GitHub Actions imported into a trace step.
 
 Trace steps are validated before they satisfy a loop requirement. `evidenceSatisfies()` checks the requirement type, evidence policy, required command match, exit code, current actionable working-tree hash, and whether the evidence was recorded after the last edit step. It also reports `claimed` separately from `verified`, so a user or agent statement is not presented as system verification. This prevents a false loop close where an agent runs tests, edits code again, and reuses the old passing test evidence.
+
+Runtime persistence is explanatory and recoverable, not a capability grant. Context cache, source snapshots, usage, annotations, feedback, traces, reports, and intervention events are stored below `.agent-context/` with atomic writes and revisions. Cache reuse never skips freshness, drift, policy, or Guard evaluation. Corrupt state, stale locks, unavailable remote sources, Windows permission errors, and transient antivirus file locks return diagnostics or a safe human-review outcome rather than silently producing a pass.
 
 The shared evidence policy is used by the Loop Controller, Policy Engine, regression Guard, Guard Gate inputs, and Orchestrator:
 
