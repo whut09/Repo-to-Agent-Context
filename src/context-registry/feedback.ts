@@ -1,4 +1,3 @@
-import path from "node:path";
 import { hashContextText } from "./hash.js";
 import type { ContextFeedback, ContextFeedbackLabel, ContextFeedbackTarget } from "./types.js";
 
@@ -31,7 +30,7 @@ export interface CreateContextFeedbackInput {
 }
 
 export function createContextFeedback(input: CreateContextFeedbackInput): ContextFeedback {
-  const repository = path.resolve(requireNonEmpty(input.repository, "repository"));
+  requireNonEmpty(input.repository, "repository");
   const entryId = safeMetadata(input.entryId, "entryId");
   const source = safeMetadata(input.source, "source");
   const version = input.version === undefined ? undefined : safeMetadata(input.version, "version");
@@ -101,7 +100,9 @@ function safeIdentifier(value: string, field: string): string {
 function safeMetadata(value: string, field: string): string {
   const result = requireNonEmpty(value, field);
   if (result.length > 500) throw new Error(`Feedback ${field} is too long.`);
-  if (/[\u0000-\u001f\u007f]/.test(result)) throw new Error(`Feedback ${field} contains control characters.`);
+  if ([...result].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) {
+    throw new Error(`Feedback ${field} contains control characters.`);
+  }
   if (/(?:api[_-]?key|authorization|password|secret|token)\s*[:=]/i.test(result) || /(?:sk|ghp|github_pat)_[A-Za-z0-9_-]{12,}/i.test(result)) {
     throw new Error(`Feedback ${field} looks like a secret and was rejected.`);
   }
