@@ -35,7 +35,16 @@ const SOURCE_KINDS = new Set(["local", "remote", "bundled"]);
 const TRUST_LEVELS = new Set<ContextTrustLevel>(["official", "maintainer", "community", "private", "untrusted"]);
 const ENTRY_KINDS = new Set<ContextEntryKind>(["doc", "skill", "reference", "task-pack", "repository"]);
 const ANNOTATION_KINDS = new Set<ContextAnnotationKind>(["environment", "version-difference", "failure-cause", "convention", "workaround"]);
-const FEEDBACK_LABELS = new Set<ContextFeedbackLabel>(["useful", "not-useful", "outdated", "inaccurate", "incomplete", "wrong-version", "wrong-example", "irrelevant"]);
+const FEEDBACK_LABELS = new Set<ContextFeedbackLabel>([
+  "useful",
+  "not-useful",
+  "outdated",
+  "inaccurate",
+  "incomplete",
+  "wrong-version",
+  "wrong-example",
+  "irrelevant"
+]);
 const FEEDBACK_TARGETS = new Set<ContextFeedbackTarget>(["entry", "file", "retrieval-result", "intervention"]);
 
 export function validateContextFeedback(input: unknown, path = "$"): ContextValidationResult<ContextFeedback> {
@@ -51,12 +60,16 @@ export function validateContextFeedback(input: unknown, path = "$"): ContextVali
   const file = optionalString(input, "file", path, issues);
   const retrievalId = optionalString(input, "retrievalId", path, issues);
   const interventionId = optionalString(input, "interventionId", path, issues);
-  if (target && !FEEDBACK_TARGETS.has(target as ContextFeedbackTarget)) issues.push({ path: `${path}.target`, code: "value", message: `unsupported feedback target ${target}` });
-  if (label && !FEEDBACK_LABELS.has(label as ContextFeedbackLabel)) issues.push({ path: `${path}.label`, code: "value", message: `unsupported feedback label ${label}` });
+  if (target && !FEEDBACK_TARGETS.has(target as ContextFeedbackTarget))
+    issues.push({ path: `${path}.target`, code: "value", message: `unsupported feedback target ${target}` });
+  if (label && !FEEDBACK_LABELS.has(label as ContextFeedbackLabel))
+    issues.push({ path: `${path}.label`, code: "value", message: `unsupported feedback label ${label}` });
   if (file && !normalizeContextFilePath(file)) issues.push({ path: `${path}.file`, code: "path", message: "must be a normalized relative path" });
   if (target === "file" && !file) issues.push({ path: `${path}.file`, code: "required", message: "file feedback requires file" });
-  if (target === "retrieval-result" && !retrievalId) issues.push({ path: `${path}.retrievalId`, code: "required", message: "retrieval feedback requires retrievalId" });
-  if (target === "intervention" && !interventionId) issues.push({ path: `${path}.interventionId`, code: "required", message: "intervention feedback requires interventionId" });
+  if (target === "retrieval-result" && !retrievalId)
+    issues.push({ path: `${path}.retrievalId`, code: "required", message: "retrieval feedback requires retrievalId" });
+  if (target === "intervention" && !interventionId)
+    issues.push({ path: `${path}.interventionId`, code: "required", message: "intervention feedback requires interventionId" });
   return issues.length ? invalidResult(issues) : validResult(input as unknown as ContextFeedback);
 }
 
@@ -70,7 +83,8 @@ export function validateContextFeedbackStore(input: unknown, path = "$"): Contex
     const result = validateContextFeedback(item, `${path}.feedback[${index}]`);
     issues.push(...result.issues);
     if (result.value) {
-      if (ids.has(result.value.feedbackId)) issues.push({ path: `${path}.feedback[${index}].feedbackId`, code: "value", message: "feedback IDs must be unique" });
+      if (ids.has(result.value.feedbackId))
+        issues.push({ path: `${path}.feedback[${index}].feedbackId`, code: "value", message: "feedback IDs must be unique" });
       ids.add(result.value.feedbackId);
     }
   }

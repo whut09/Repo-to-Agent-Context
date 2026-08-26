@@ -62,9 +62,23 @@ export function createContextFeedback(input: CreateContextFeedbackInput): Contex
   };
 }
 
-export function feedbackIdFor(input: Pick<CreateContextFeedbackInput, "entryId" | "source" | "version" | "revision" | "target" | "file" | "retrievalId" | "interventionId" | "label"> & { repository?: string }): string {
+export function feedbackIdFor(
+  input: Pick<CreateContextFeedbackInput, "entryId" | "source" | "version" | "revision" | "target" | "file" | "retrievalId" | "interventionId" | "label"> & {
+    repository?: string;
+  }
+): string {
   return `feedback-${hashContextText(
-    [input.entryId, input.source, input.version ?? "", String(input.revision), input.target, input.file ?? "", input.retrievalId ?? "", input.interventionId ?? "", input.label].join("\n")
+    [
+      input.entryId,
+      input.source,
+      input.version ?? "",
+      String(input.revision),
+      input.target,
+      input.file ?? "",
+      input.retrievalId ?? "",
+      input.interventionId ?? "",
+      input.label
+    ].join("\n")
   ).slice(0, 24)}`;
 }
 

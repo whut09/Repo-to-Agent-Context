@@ -281,15 +281,7 @@ export interface ContextUsageStore {
   records: ContextUsageRecord[];
 }
 
-export type ContextFeedbackLabel =
-  | "useful"
-  | "not-useful"
-  | "outdated"
-  | "inaccurate"
-  | "incomplete"
-  | "wrong-version"
-  | "wrong-example"
-  | "irrelevant";
+export type ContextFeedbackLabel = "useful" | "not-useful" | "outdated" | "inaccurate" | "incomplete" | "wrong-version" | "wrong-example" | "irrelevant";
 
 export type ContextFeedbackTarget = "entry" | "file" | "retrieval-result" | "intervention";
 

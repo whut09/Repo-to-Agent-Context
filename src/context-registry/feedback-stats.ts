@@ -31,8 +31,6 @@ export function buildContextFeedbackStatsByEntry(feedback: readonly ContextFeedb
 export function localQualitySignal(stats: ContextFeedbackStats): number {
   if (!stats.total) return 0;
   const positive = stats.labels.find((item) => item.label === "useful")?.count ?? 0;
-  const negative = stats.labels
-    .filter((item) => item.label !== "useful")
-    .reduce((sum, item) => sum + item.count, 0);
+  const negative = stats.labels.filter((item) => item.label !== "useful").reduce((sum, item) => sum + item.count, 0);
   return (positive - negative) / stats.total;
 }

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseEvaluateArgs, parseFeedbackArgs, parseNextArgs, parsePrepareArgs, parseRetrieveArgs } from "../src/integrations/opencode/plugin-runtime/harness/args.js";
+import {
+  parseEvaluateArgs,
+  parseFeedbackArgs,
+  parseNextArgs,
+  parsePrepareArgs,
+  parseRetrieveArgs
+} from "../src/integrations/opencode/plugin-runtime/harness/args.js";
 
 test("plugin harness arg parsers reject empty tasks and accept optional fields", () => {
   assert.equal(parsePrepareArgs({}), "prepare requires a non-empty task.");
@@ -28,5 +34,8 @@ test("plugin harness arg parsers reject empty tasks and accept optional fields",
     target: "entry",
     label: "useful"
   });
-  assert.equal(parseFeedbackArgs({ entryId: "official/auth", source: "official", revision: 2, target: "file", label: "useful" }), "file feedback requires file.");
+  assert.equal(
+    parseFeedbackArgs({ entryId: "official/auth", source: "official", revision: 2, target: "file", label: "useful" }),
+    "file feedback requires file."
+  );
 });

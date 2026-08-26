@@ -18,7 +18,12 @@ test("feedback transport is offline by default and does not call fetch", async (
   const result = await submitContextFeedback(
     feedback,
     { enabled: true, telemetry: false, network: false, useLocalQualitySignals: false },
-    { fetcher: async () => { calls += 1; throw new Error("must not call"); } }
+    {
+      fetcher: async () => {
+        calls += 1;
+        throw new Error("must not call");
+      }
+    }
   );
   assert.equal(result.status, "disabled");
   assert.equal(calls, 0);
@@ -48,7 +53,11 @@ test("network failure is returned without throwing", async () => {
   const result = await submitContextFeedback(
     feedback,
     { enabled: true, telemetry: true, network: true, useLocalQualitySignals: false, endpoint: "https://feedback.example.test/v1" },
-    { fetcher: async () => { throw new Error("offline"); } }
+    {
+      fetcher: async () => {
+        throw new Error("offline");
+      }
+    }
   );
   assert.equal(result.status, "failed");
   assert.match(result.error ?? "", /offline/);

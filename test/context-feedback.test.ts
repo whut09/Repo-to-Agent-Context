@@ -58,7 +58,15 @@ test("feedback identifiers are deterministic for the same metadata", () => {
 });
 
 test("feedback schema diagnostics identify unsafe paths and duplicate IDs", () => {
-  const item = createContextFeedback({ repository: "C:/work/project", entryId: "entry", source: "local", revision: 1, target: "file", file: "docs/file.md", label: "useful" });
+  const item = createContextFeedback({
+    repository: "C:/work/project",
+    entryId: "entry",
+    source: "local",
+    revision: 1,
+    target: "file",
+    file: "docs/file.md",
+    label: "useful"
+  });
   const unsafe = validateContextFeedback({ ...item, file: "../secret.md" });
   assert.equal(unsafe.valid, false);
   assert.ok(unsafe.issues.some((issue) => issue.path === "$.file"));

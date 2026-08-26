@@ -18,7 +18,17 @@ export function parseFeedbackArgs(args: unknown): PluginFeedbackArgs | string {
   if (target === "retrieval-result" && !retrievalId) return "retrieval feedback requires retrievalId.";
   if (target === "intervention" && !interventionId) return "intervention feedback requires interventionId.";
   const version = readOptionalString(record.version);
-  return { entryId, source, revision, target, label, ...(version ? { version } : {}), ...(file ? { file } : {}), ...(retrievalId ? { retrievalId } : {}), ...(interventionId ? { interventionId } : {}) };
+  return {
+    entryId,
+    source,
+    revision,
+    target,
+    label,
+    ...(version ? { version } : {}),
+    ...(file ? { file } : {}),
+    ...(retrievalId ? { retrievalId } : {}),
+    ...(interventionId ? { interventionId } : {})
+  };
 }
 
 export function parsePrepareArgs(args: unknown): PluginPrepareArgs | string {

@@ -58,17 +58,29 @@ export async function executeFeedbackTool(root: string, args: unknown): Promise<
     const parsed = parseFeedbackArgs(args);
     if (typeof parsed === "string") return JSON.stringify({ ok: false, error: parsed });
     const result = await submitApplicationContextFeedback({ repo: root, ...(parsed as PluginFeedbackArgs) });
-    return JSON.stringify({
-      ok: true,
-      tool: "feedback",
-      enabled: result.enabled,
-      feedback: result.feedback,
-      stats: result.stats,
-      transport: result.transport,
-      note: "Feedback is separate from annotations and cannot satisfy evidence or change a decision."
-    }, null, 2) + "\n";
+    return (
+      JSON.stringify(
+        {
+          ok: true,
+          tool: "feedback",
+          enabled: result.enabled,
+          feedback: result.feedback,
+          stats: result.stats,
+          transport: result.transport,
+          note: "Feedback is separate from annotations and cannot satisfy evidence or change a decision."
+        },
+        null,
+        2
+      ) + "\n"
+    );
   } catch (error) {
-    return JSON.stringify({ ok: false, tool: "feedback", error: { code: "FEEDBACK_ERROR", message: error instanceof Error ? error.message : String(error) } }, null, 2) + "\n";
+    return (
+      JSON.stringify(
+        { ok: false, tool: "feedback", error: { code: "FEEDBACK_ERROR", message: error instanceof Error ? error.message : String(error) } },
+        null,
+        2
+      ) + "\n"
+    );
   }
 }
 
