@@ -92,6 +92,9 @@ test("context application services search entries and fetch entry, file, and ful
 
     const search = await searchContextEntries({ repo: root, query: "payments", topK: 1 });
     assert.equal(search.entries[0]?.id, "official/payments");
+    assert.equal(search.hits[0]?.entry.id, "official/payments");
+    assert.ok((search.hits[0]?.score ?? 0) > 0);
+    assert.equal(typeof search.hits[0]?.scoreBreakdown.lexical, "number");
     const entry = await getContextEntry({ repo: root, id: "official/payments" });
     assert.equal(entry.entry.contentRevision, 2);
 

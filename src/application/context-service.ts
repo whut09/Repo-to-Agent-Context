@@ -45,6 +45,12 @@ export interface SearchContextEntriesInput {
 export interface ContextEntrySearchResult {
   query: string;
   entries: ContextEntry[];
+  hits: Array<{
+    entry: ContextEntry;
+    score: number;
+    exactId: boolean;
+    scoreBreakdown: import("../retrievers/types.js").RetrievalScoreBreakdown;
+  }>;
   cache: ContextFetchResult["cache"][];
   conflicts: Array<{ canonicalId: string; sourceNames: string[]; entryIds: string[] }>;
   issues: Array<{ path: string; code: string; message: string }>;
@@ -95,9 +101,11 @@ export async function searchContextEntries(input: SearchContextEntriesInput): Pr
     localQualitySignals: loaded.config.feedback.useLocalQualitySignals ? readApplicationContextQualitySignals(root) : undefined
   });
   const limit = adaptiveTopK(input.taskType ?? "auto", input.topK);
+  const hits = ranked.slice(0, limit);
   return {
     query,
-    entries: ranked.slice(0, limit).map((item) => item.entry),
+    entries: hits.map((item) => item.entry),
+    hits,
     cache: loaded.snapshot?.cache ?? [],
     conflicts: loaded.snapshot?.conflicts ?? [],
     issues: loaded.issues
