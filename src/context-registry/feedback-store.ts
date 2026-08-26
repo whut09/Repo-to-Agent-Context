@@ -3,6 +3,7 @@ import path from "node:path";
 import { hashContextText } from "./hash.js";
 import { createContextFeedback, type CreateContextFeedbackInput } from "./feedback.js";
 import type { ContextFeedback, ContextFeedbackStore } from "./types.js";
+import { validateContextFeedbackStore } from "./validators.js";
 
 const FEEDBACK_DIRECTORY = path.join(".agent-context", "context-registry", "feedback");
 
@@ -55,16 +56,9 @@ function emptyStore(repository: string): ContextFeedbackStore {
 }
 
 function validateFeedbackStore(store: ContextFeedbackStore, repository: string): void {
-  if (store.schemaVersion !== 1) throw new Error(`Unsupported Context feedback schemaVersion ${String(store.schemaVersion)}.`);
-  if (!Number.isInteger(store.revision) || store.revision < 0) throw new Error("Context feedback store revision must be non-negative.");
+  const result = validateContextFeedbackStore(store);
+  if (!result.valid) throw new Error(`Invalid Context feedback store: ${result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ")}`);
   if (path.resolve(store.repository) !== repository) throw new Error("Context feedback store repository does not match the current repository.");
-  if (!Array.isArray(store.feedback)) throw new Error("Context feedback store feedback must be an array.");
-  const ids = new Set<string>();
-  for (const item of store.feedback) {
-    if (!item || item.schemaVersion !== 1 || typeof item.feedbackId !== "string") throw new Error("Context feedback store contains an invalid feedback record.");
-    if (ids.has(item.feedbackId)) throw new Error(`Context feedback store contains duplicate feedbackId ${item.feedbackId}.`);
-    ids.add(item.feedbackId);
-  }
 }
 
 function compareFeedback(left: ContextFeedback, right: ContextFeedback): number {

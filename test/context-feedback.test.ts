@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContextFeedback, CONTEXT_FEEDBACK_LABELS, CONTEXT_FEEDBACK_TARGETS } from "../src/context-registry/feedback.js";
+import { validateContextFeedback, validateContextFeedbackStore } from "../src/context-registry/validators.js";
 
 test("feedback supports every label and target without task or content fields", () => {
   for (const label of CONTEXT_FEEDBACK_LABELS) {
@@ -53,4 +54,14 @@ test("feedback identifiers are deterministic for the same metadata", () => {
     label: "useful" as const
   };
   assert.equal(createContextFeedback(input).feedbackId, createContextFeedback(input).feedbackId);
+});
+
+test("feedback schema diagnostics identify unsafe paths and duplicate IDs", () => {
+  const item = createContextFeedback({ repository: "C:/work/project", entryId: "entry", source: "local", revision: 1, target: "file", file: "docs/file.md", label: "useful" });
+  const unsafe = validateContextFeedback({ ...item, file: "../secret.md" });
+  assert.equal(unsafe.valid, false);
+  assert.ok(unsafe.issues.some((issue) => issue.path === "$.file"));
+  const store = validateContextFeedbackStore({ schemaVersion: 1, revision: 1, repository: "C:/work/project", feedback: [item, item] });
+  assert.equal(store.valid, false);
+  assert.ok(store.issues.some((issue) => /unique/.test(issue.message)));
 });

@@ -18,6 +18,10 @@ import type {
   ContextEntry,
   ContextEntryKind,
   ContextFetchResult,
+  ContextFeedback,
+  ContextFeedbackLabel,
+  ContextFeedbackStore,
+  ContextFeedbackTarget,
   ContextFile,
   ContextFileRole,
   ContextPack,
@@ -31,6 +35,47 @@ const SOURCE_KINDS = new Set(["local", "remote", "bundled"]);
 const TRUST_LEVELS = new Set<ContextTrustLevel>(["official", "maintainer", "community", "private", "untrusted"]);
 const ENTRY_KINDS = new Set<ContextEntryKind>(["doc", "skill", "reference", "task-pack", "repository"]);
 const ANNOTATION_KINDS = new Set<ContextAnnotationKind>(["environment", "version-difference", "failure-cause", "convention", "workaround"]);
+const FEEDBACK_LABELS = new Set<ContextFeedbackLabel>(["useful", "not-useful", "outdated", "inaccurate", "incomplete", "wrong-version", "wrong-example", "irrelevant"]);
+const FEEDBACK_TARGETS = new Set<ContextFeedbackTarget>(["entry", "file", "retrieval-result", "intervention"]);
+
+export function validateContextFeedback(input: unknown, path = "$"): ContextValidationResult<ContextFeedback> {
+  const issues = validateSchemaEnvelope(input, path);
+  if (!isRecord(input)) return invalidResult(issues);
+  requiredString(input, "feedbackId", path, issues);
+  requiredTimestamp(input, "createdAt", path, issues);
+  const target = requiredString(input, "target", path, issues);
+  const label = requiredString(input, "label", path, issues);
+  requiredString(input, "entryId", path, issues);
+  requiredString(input, "source", path, issues);
+  optionalString(input, "version", path, issues);
+  const file = optionalString(input, "file", path, issues);
+  const retrievalId = optionalString(input, "retrievalId", path, issues);
+  const interventionId = optionalString(input, "interventionId", path, issues);
+  if (target && !FEEDBACK_TARGETS.has(target as ContextFeedbackTarget)) issues.push({ path: `${path}.target`, code: "value", message: `unsupported feedback target ${target}` });
+  if (label && !FEEDBACK_LABELS.has(label as ContextFeedbackLabel)) issues.push({ path: `${path}.label`, code: "value", message: `unsupported feedback label ${label}` });
+  if (file && !normalizeContextFilePath(file)) issues.push({ path: `${path}.file`, code: "path", message: "must be a normalized relative path" });
+  if (target === "file" && !file) issues.push({ path: `${path}.file`, code: "required", message: "file feedback requires file" });
+  if (target === "retrieval-result" && !retrievalId) issues.push({ path: `${path}.retrievalId`, code: "required", message: "retrieval feedback requires retrievalId" });
+  if (target === "intervention" && !interventionId) issues.push({ path: `${path}.interventionId`, code: "required", message: "intervention feedback requires interventionId" });
+  return issues.length ? invalidResult(issues) : validResult(input as unknown as ContextFeedback);
+}
+
+export function validateContextFeedbackStore(input: unknown, path = "$"): ContextValidationResult<ContextFeedbackStore> {
+  const issues = validateSchemaEnvelope(input, path);
+  if (!isRecord(input)) return invalidResult(issues);
+  requiredString(input, "repository", path, issues);
+  if (!Array.isArray(input.feedback)) issues.push({ path: `${path}.feedback`, code: "type", message: "expected an array" });
+  const ids = new Set<string>();
+  for (const [index, item] of (Array.isArray(input.feedback) ? input.feedback : []).entries()) {
+    const result = validateContextFeedback(item, `${path}.feedback[${index}]`);
+    issues.push(...result.issues);
+    if (result.value) {
+      if (ids.has(result.value.feedbackId)) issues.push({ path: `${path}.feedback[${index}].feedbackId`, code: "value", message: "feedback IDs must be unique" });
+      ids.add(result.value.feedbackId);
+    }
+  }
+  return issues.length ? invalidResult(issues) : validResult(input as unknown as ContextFeedbackStore);
+}
 
 export function validateContextFile(input: unknown, path = "$"): ContextValidationResult<ContextFile> {
   const issues = validateSchemaEnvelope(input, path);
