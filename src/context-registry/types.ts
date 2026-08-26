@@ -280,3 +280,50 @@ export interface ContextUsageStore {
   taskId: string;
   records: ContextUsageRecord[];
 }
+
+export type ContextFeedbackLabel =
+  | "useful"
+  | "not-useful"
+  | "outdated"
+  | "inaccurate"
+  | "incomplete"
+  | "wrong-version"
+  | "wrong-example"
+  | "irrelevant";
+
+export type ContextFeedbackTarget = "entry" | "file" | "retrieval-result" | "intervention";
+
+export interface ContextFeedback {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  feedbackId: string;
+  createdAt: string;
+  target: ContextFeedbackTarget;
+  entryId: string;
+  source: string;
+  version?: string;
+  revision: number;
+  file?: string;
+  retrievalId?: string;
+  interventionId?: string;
+  label: ContextFeedbackLabel;
+}
+
+export interface ContextFeedbackStore {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  repository: string;
+  feedback: ContextFeedback[];
+}
+
+export interface ContextFeedbackLabelCount {
+  label: ContextFeedbackLabel;
+  count: number;
+}
+
+export interface ContextFeedbackStats {
+  entryId?: string;
+  source?: string;
+  total: number;
+  labels: ContextFeedbackLabelCount[];
+  latestAt?: string;
+}
