@@ -44,7 +44,7 @@ jobs:
       - run: npm run build
       - run: npm run benchmark:desktop
       - run: npm run build:installer:windows
-      - run: npm run release:verify
+      - run: npm run release:verify:desktop
       - name: Install official OpenCode Desktop
         run: winget install --id SST.OpenCodeDesktop --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
       - name: Verify real OpenCode Desktop launch

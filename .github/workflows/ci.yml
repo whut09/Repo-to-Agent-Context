@@ -38,7 +38,7 @@ jobs:
         run: npm run build:installer:windows
       - name: Verify Windows Desktop release
         if: runner.os == 'Windows'
-        run: npm run release:verify
+        run: npm run release:verify:desktop
       - name: Benchmarks
         if: runner.os == 'Linux'
         run: npm run benchmark && npm run benchmark:agent

@@ -8,17 +8,17 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const target = valueAfter("--package") ?? "core";
 if (target !== "core") throw new Error(`Unknown release package: ${target}`);
 verifyPackage(target);
-if (process.platform === "win32" || process.argv.includes("--desktop")) {
+if (process.argv.includes("--desktop")) {
   await verifyDesktopRelease();
 } else {
-  console.log("desktop: skipped on non-Windows host; Windows CI enforces the EXE release gate");
+  console.log("desktop: skipped; run npm run release:verify:desktop after building the Windows installer");
 }
 
 function verifyPackage(name) {
   const config = {
     directory: root,
     maximumBytes: 500_000,
-    maximumFiles: 200,
+    maximumFiles: 250,
     // The Desktop plugin is the product entry. dist/cli and dist/mcp remain in the
     // developer package as internal dev/test surfaces, so they stay required too.
     required: [

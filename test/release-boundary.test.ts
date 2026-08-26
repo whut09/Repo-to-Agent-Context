@@ -52,7 +52,11 @@ test("release boundary: npm package files whitelist excludes release and build a
 });
 
 test("release boundary: Desktop verification covers executable integrity and plugin loading", () => {
+  const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   const verifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
+  assert.match(pkg.scripts["release:verify:desktop"], /verify-release\.mjs --desktop/);
+  assert.doesNotMatch(pkg.scripts.prepublishOnly, /release:verify:desktop/);
+  assert.doesNotMatch(verifier, /process\.platform === "win32"/);
   assert.match(verifier, /opencode-plusplus-release\.json/);
   assert.match(verifier, /createHash\("sha256"\)/);
   assert.match(verifier, /manifest\.installer\.maximumBytes/);
@@ -77,6 +81,7 @@ test("release boundary: PR CI uses Windows Desktop gates without paid executors"
   const desktopRelease = readFileSync(path.join(root, ".github", "workflows", "desktop-release.yml"), "utf8");
   assert.match(desktopRelease, /SST\.OpenCodeDesktop/);
   assert.match(desktopRelease, /npm run test:desktop:real/);
+  assert.match(desktopRelease, /npm run release:verify:desktop/);
   assert.match(desktopRelease, /Release tag \$env:RELEASE_TAG must match package\.json version v\$version/);
   assert.match(desktopRelease, /docs\/releases\/\$\{env:RELEASE_TAG\}\.zh-CN\.md/);
   assert.match(desktopRelease, /docs\/releases\/\$\{env:RELEASE_TAG\}\.md/);

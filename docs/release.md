@@ -29,6 +29,7 @@ npm run build
 npm run build:installer:windows
 npm run test:installer:windows
 npm run release:verify
+npm run release:verify:desktop
 ```
 
 ## npm Package
@@ -55,7 +56,7 @@ Smoke test with an isolated --config-dir:
 5. load or syntax-check the installed plugin;
 6. uninstall and confirm only owned files are removed;
 7. run `npm run test:installer:windows` and enforce the 12 MiB installer size budget;
-8. run `npm run release:verify` to verify the EXE, SHA256, release manifest, standalone plugin load, mode path, legacy cleanup, and uninstall restoration;
+8. run `npm run release:verify:desktop` to verify the EXE, SHA256, release manifest, standalone plugin load, mode path, legacy cleanup, and uninstall restoration;
 9. run `npm run benchmark:desktop`; it is a deterministic in-process plugin benchmark with zero paid model calls;
 10. use the manual `Desktop smoke` workflow to install the official `SST.OpenCodeDesktop` winget package and run `npm run test:desktop:real` against it.
 
@@ -65,6 +66,6 @@ The default release path is offline. No remote Context Registry source or feedba
 
 ## Publish Verification
 
-After publishing, verify npm version, GitHub tag, Release assets, EXE digest, asset size, manifest version, and origin/main commit. A clean checkout must reproduce both npm package checks and the installer build without relying on local dist or release files. The root `package.json` remains the single version source; generated package info and the Desktop release manifest must match it.
+After publishing, verify npm version, GitHub tag, Release assets, EXE digest, asset size, manifest version, and origin/main commit. `npm run release:verify` checks the npm developer package without requiring installer output; `npm run release:verify:desktop` adds the Windows EXE gates after the installer is built. A clean checkout must reproduce both checks without relying on local dist or release files. The root `package.json` remains the single version source; generated package info and the Desktop release manifest must match it.
 
 Runtime files under `.agent-context/`, `benchmarks/results/`, `dist/`, `release/`, `.installer-build/`, local configuration, and secrets are build outputs or user data. They must not be committed or uploaded as source assets. Registry cache, usage, feedback, annotations, interventions, traces, and sidecar reports remain repository-local runtime state and are excluded from the npm package.
