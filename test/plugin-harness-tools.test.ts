@@ -11,6 +11,7 @@ import { readExecutionTrace } from "../src/harness/observability/execution-trace
 import { createOpenCodePlusPlusSidecar } from "../src/integrations/opencode/plugin-runtime/index.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
 import { addContextAnnotation } from "../src/context-registry/annotations.js";
+import { readContextUsage } from "../src/context-registry/usage-ledger.js";
 
 interface PluginHarnessTool {
   description: string;
@@ -229,6 +230,8 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
     assert.equal(main.context?.files?.[0]?.content, "Entry content.\n");
     assert.equal(main.context?.annotationAvailability?.annotationAvailable, true);
     assert.equal(main.context?.annotationInjection, undefined);
+    assert.equal(readContextUsage(root, main.context!.entry.id).length, 1);
+    assert.ok(main.artifacts.some((artifact) => artifact.includes("context-registry/usage")));
     const annotated = result(
       await tools.opencode_plusplus_retrieve.execute({ task: "fetch payments", contextId: "private/payments", annotationId: annotation.id })
     );
