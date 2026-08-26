@@ -37,6 +37,7 @@ test("mcp server exposes repo context tools", async () => {
     "opencode_plusplus_plan",
     "opencode_plusplus_pack",
     "opencode_plusplus_retrieve",
+    "opencode_plusplus_context_feedback",
     "opencode_plusplus_tests",
     "opencode_plusplus_impact",
     "opencode_plusplus_verify",
@@ -47,6 +48,26 @@ test("mcp server exposes repo context tools", async () => {
     "opencode_plusplus_repair",
     "opencode_plusplus_finalize"
   ]);
+});
+
+test("MCP context feedback returns local stats and stays offline", async () => {
+  const root = createMcpRepo();
+  try {
+    const result = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_feedback", {
+      repo: root,
+      entryId: "official/payments",
+      source: "official",
+      revision: 1,
+      target: "entry",
+      label: "useful"
+    });
+    assert.equal(result.enabled, true);
+    assert.equal((result.stats as { total: number }).total, 1);
+    assert.equal((result.transport as { status: string }).status, "disabled");
+    assert.match(String(result.note), /cannot satisfy evidence/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("opencode_plusplus_retrieve returns hits and suggested commands", async () => {

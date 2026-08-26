@@ -34,12 +34,15 @@ import { packApplicationTask, planApplicationTask } from "../application/task-se
 import { inspectApplicationImpact, testApplicationChanges, verifyApplicationChanges } from "../application/verification-service.js";
 import { explainApplicationPath, retrieveApplicationContext } from "../application/retrieval-service.js";
 import { getContextFiles } from "../application/context-service.js";
+import { submitApplicationContextFeedback } from "../application/context-feedback-service.js";
+import type { ContextFeedbackLabel, ContextFeedbackTarget } from "../context-registry/types.js";
 
 export const opencodePlusplusMcpToolNames = [
   "opencode_plusplus_build",
   "opencode_plusplus_plan",
   "opencode_plusplus_pack",
   "opencode_plusplus_retrieve",
+  "opencode_plusplus_context_feedback",
   "opencode_plusplus_tests",
   "opencode_plusplus_impact",
   "opencode_plusplus_verify",
@@ -82,6 +85,19 @@ interface RetrieveArguments {
   full?: boolean;
   annotationId?: string;
   includeStaleAnnotation?: boolean;
+}
+
+interface ContextFeedbackInput {
+  repo?: string;
+  entryId: string;
+  source: string;
+  version?: string;
+  revision: number;
+  target: ContextFeedbackTarget;
+  file?: string;
+  retrievalId?: string;
+  interventionId?: string;
+  label: ContextFeedbackLabel;
 }
 
 export function createOpenCodePlusplusMcpServer(): McpServer {
@@ -157,6 +173,26 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
       })
     },
     async (args) => jsonToolResult(await runRetrieve(args))
+  );
+
+  server.registerTool(
+    "opencode_plusplus_context_feedback",
+    {
+      description: "Record local quality feedback for a Context entry without storing task or source content.",
+      inputSchema: z.object({
+        repo: z.string().optional().default("."),
+        entryId: z.string(),
+        source: z.string(),
+        version: z.string().optional(),
+        revision: z.number().int().nonnegative(),
+        target: z.enum(["entry", "file", "retrieval-result", "intervention"]),
+        file: z.string().optional(),
+        retrievalId: z.string().optional(),
+        interventionId: z.string().optional(),
+        label: z.enum(["useful", "not-useful", "outdated", "inaccurate", "incomplete", "wrong-version", "wrong-example", "irrelevant"])
+      })
+    },
+    async (args) => jsonToolResult(await runContextFeedback(args))
   );
 
   server.registerTool(
@@ -320,6 +356,8 @@ export async function executeOpenCodePlusplusMcpTool(name: OpenCodePlusplusMcpTo
       return runTaskPack(args as PackInput);
     case "opencode_plusplus_retrieve":
       return runRetrieve(args as RetrieveArguments);
+    case "opencode_plusplus_context_feedback":
+      return runContextFeedback(args as ContextFeedbackInput);
     case "opencode_plusplus_tests":
       return runTests(args as TestsInput);
     case "opencode_plusplus_impact":
@@ -480,6 +518,17 @@ async function runRetrieve(args: RetrieveArguments): Promise<OpenCodePlusplusMcp
     };
   }
   return retrieveApplicationContext({ repo: args.repo ?? ".", ...args });
+}
+
+async function runContextFeedback(args: ContextFeedbackInput): Promise<OpenCodePlusplusMcpResult> {
+  const result = await submitApplicationContextFeedback({ ...args, repo: args.repo ?? "." });
+  return {
+    enabled: result.enabled,
+    feedback: result.feedback,
+    stats: result.stats,
+    transport: result.transport,
+    note: "Feedback is separate from local annotations and cannot satisfy evidence or change a decision."
+  };
 }
 
 async function runTests(args: TestsInput): Promise<OpenCodePlusplusMcpResult> {
