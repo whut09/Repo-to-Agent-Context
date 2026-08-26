@@ -127,6 +127,81 @@ test("opencode_plusplus_retrieve fetches a Context Registry entry through the ap
   }
 });
 
+test("MCP Context tools reuse structured application service results", async () => {
+  const root = createMcpRepo();
+  try {
+    const entryRoot = path.join(root, "packs", "docs", "payments");
+    mkdirSync(path.join(entryRoot, "references"), { recursive: true });
+    writeFileSync(
+      path.join(entryRoot, "DOC.md"),
+      "---\nname: payments\ndescription: Payments API\nmetadata:\n  tags: api, payments\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nEntry.\n",
+      "utf8"
+    );
+    writeFileSync(path.join(entryRoot, "references", "errors.md"), "Errors.\n", "utf8");
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: private\n      kind: local\n      location: packs\n      trustLevel: private\n",
+      "utf8"
+    );
+    const search = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_search", {
+      repo: root,
+      query: "payments",
+      tags: ["api"]
+    });
+    assert.equal(search.ok, true);
+    assert.equal(search.tool, "context-search");
+    assert.equal(((search.data as { hits: Array<{ entry: { id: string } }> }).hits[0]?.entry.id), "private/payments");
+
+    const get = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_get", {
+      repo: root,
+      entryId: "private/payments",
+      file: "docs/payments/references/errors.md"
+    });
+    assert.equal(get.ok, true);
+    assert.equal(((get.data as { files: Array<{ content: string }> }).files[0]?.content), "Errors.\n");
+
+    const status = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_status", { repo: root });
+    assert.equal(status.ok, true);
+    assert.equal((status.data as { freshness: { status: string } }).freshness.status, "unused");
+
+    const interventions = await executeOpenCodePlusplusMcpTool("opencode_plusplus_interventions", { repo: root, taskId: "payments-task" });
+    assert.equal(interventions.ok, true);
+    assert.deepEqual((interventions.data as { events: unknown[] }).events, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("MCP Context get returns stable errors for traversal and unknown entries", async () => {
+  const root = createMcpRepo();
+  try {
+    const entryRoot = path.join(root, "packs", "docs", "payments");
+    mkdirSync(entryRoot, { recursive: true });
+    writeFileSync(
+      path.join(entryRoot, "DOC.md"),
+      "---\nname: payments\ndescription: Payments API\nmetadata:\n  languages: typescript\n  versions: 1.0.0\n  revision: 1\n  updated-on: 2026-01-01\n  source: private\n---\nEntry.\n",
+      "utf8"
+    );
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: true\n  sources:\n    - name: private\n      kind: local\n      location: packs\n      trustLevel: private\n",
+      "utf8"
+    );
+    const traversal = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_get", {
+      repo: root,
+      entryId: "private/payments",
+      file: "../secret.txt"
+    });
+    assert.equal(traversal.ok, false);
+    assert.equal((traversal.error as { code: string }).code, "INVALID_PATH", JSON.stringify(traversal));
+    const missing = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_get", { repo: root, entryId: "private/missing" });
+    assert.equal(missing.ok, false);
+    assert.equal((missing.error as { code: string }).code, "ENTRY_NOT_FOUND");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("opencode_plusplus_verify includes contract check output", async () => {
   const root = createMcpRepo();
   try {
