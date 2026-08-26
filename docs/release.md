@@ -9,6 +9,10 @@ OpenCode++ ships one product deliverable and one developer deliverable:
 
 Benchmark fixtures, agent runs, repository documentation, local runtime artifacts, and stale build output must not enter the npm package. The npm package must also exclude `release/`, `.installer-build/`, and `apps/desktop/`.
 
+The product boundary is intentionally narrow: the EXE installs one OpenCode Desktop plugin and one `OpenCode++` primary mode. It does not patch `app.asar`, add Slash Commands, install a second model, or turn the operating system into a sandbox. The plugin is a user-level control and evidence layer around the tools already provided by OpenCode Desktop.
+
+The release notes must describe the user-visible distinction between selected/rejected files, prevented risks, suggested repairs, verified fixes, and remaining human review. A `verified fix` requires fresh command or CI evidence matched to the current working tree; Context documents, annotations, manual claims, and earlier test results are not equivalent proof.
+
 ## Full Gate
 
 ```powershell
@@ -57,6 +61,10 @@ Smoke test with an isolated --config-dir:
 
 PR CI runs on Ubuntu and Windows. It never runs a paid executor. Linux verifies the npm developer package and deterministic proxy benchmarks; Windows builds the EXE, runs the installer/recovery gate, and runs the deterministic Desktop plugin benchmark. Real Desktop launch is manual only; the workflow installs the official Desktop package before launching it. The manual release workflow requires the same launch gate before assets are uploaded or published.
 
+The default release path is offline. No remote Context Registry source or feedback transport is required for build, installer smoke, or deterministic benchmarks. If a release test enables a remote source, record its URL, timeout, size limit, content hash, and offline fallback behavior. Network failure, invalid registry data, permission denial, read-only repositories, non-ASCII Windows paths, and transient file locks must produce a diagnosable failure or review result, never a false pass.
+
 ## Publish Verification
 
 After publishing, verify npm version, GitHub tag, Release assets, EXE digest, asset size, manifest version, and origin/main commit. A clean checkout must reproduce both npm package checks and the installer build without relying on local dist or release files. The root `package.json` remains the single version source; generated package info and the Desktop release manifest must match it.
+
+Runtime files under `.agent-context/`, `benchmarks/results/`, `dist/`, `release/`, `.installer-build/`, local configuration, and secrets are build outputs or user data. They must not be committed or uploaded as source assets. Registry cache, usage, feedback, annotations, interventions, traces, and sidecar reports remain repository-local runtime state and are excluded from the npm package.
