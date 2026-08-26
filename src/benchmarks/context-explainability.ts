@@ -152,7 +152,7 @@ export function summarizeExplainabilityMetrics(samples: ContextExplainabilitySam
       key,
       {
         value: summarizeDistribution(samples.map((sample) => sample.metrics[key])),
-        unit: key === "contextFetchDurationMs" ? "milliseconds" : key === "tokenSavings" ? "tokens" : "ratio"
+        unit: key === "contextFetchDurationMs" ? "milliseconds" : "ratio"
       }
     ])
   ) as ContextExplainabilityBenchmarkResult["metrics"];
@@ -251,6 +251,9 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       mode: contextFetchMode,
       full: contextFetchMode === "full"
     });
+    const evidenceHash = currentWorkingTreeFingerprint(root);
+    const fullContext =
+      contextFetchMode === "full" ? fetchedAgain : await getContextFiles({ repo: root, id: `${definition.source}/${definition.id}`, mode: "full", full: true });
     if (definition.scenario === "stale-context" || definition.scenario === "success-then-edit") {
       writeFileSync(
         path.join(root, definition.relevantFiles[0] ?? "package.json"),
@@ -260,7 +263,7 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
     }
     const status = await runContextStatusTool({ repo: root, taskId: definition.taskId });
     if (!status.ok) throw new Error(`Context status failed in benchmark: ${status.error.message}`);
-    const events = createScenarioInterventions(root, definition, currentWorkingTreeFingerprint(root));
+    const events = createScenarioInterventions(root, definition, evidenceHash, currentWorkingTreeFingerprint(root));
     const selectedFiles = retrieval.hits
       .slice(0, topK)
       .map((hit) => hit.path)
@@ -296,7 +299,18 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       interventionEvents: events,
       finalDecision,
       expectedDecision,
-      metrics: buildSampleMetrics({ definition, retrieval, fetched, fetchedAgain, status: status.data, selectedFiles, rejectedFiles, events, topK })
+      metrics: buildSampleMetrics({
+        definition,
+        retrieval,
+        fetched,
+        fetchedAgain,
+        fullContext,
+        status: status.data,
+        selectedFiles,
+        rejectedFiles,
+        events,
+        topK
+      })
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -355,7 +369,7 @@ function initializeFixtureRepo(root: string): void {
   runGit(root, ["commit", "-m", "benchmark baseline"]);
 }
 
-function createScenarioInterventions(root: string, definition: ContextExplainabilityScenarioDefinition, workingTreeHash: string) {
+function createScenarioInterventions(root: string, definition: ContextExplainabilityScenarioDefinition, evidenceHash: string, currentWorkingTreeHash: string) {
   const interventionId = `explainability-${definition.id}`;
   const problem = problemFor(definition.scenario);
   if (definition.scenario === "positive" || definition.scenario === "success-then-edit") {
@@ -372,7 +386,7 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
         targetFiles: definition.relevantFiles,
         action: "verify current command evidence",
         beforeState: {},
-        afterState: { workingTreeHash },
+        afterState: { workingTreeHash: evidenceHash },
         evidenceRefs: ["benchmark-command"],
         status: "requested",
         confidence: 1,
@@ -392,7 +406,7 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
         targetFiles: definition.relevantFiles,
         action: "verify current command evidence",
         beforeState: { status: "requested" },
-        afterState: { workingTreeHash },
+        afterState: { workingTreeHash: evidenceHash },
         evidenceRefs: ["benchmark-command"],
         status: "repaired",
         confidence: 1,
@@ -412,9 +426,18 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
         targetFiles: definition.relevantFiles,
         action: "verify current command evidence",
         beforeState: { status: "repaired" },
-        afterState: { workingTreeHash },
+        afterState: { workingTreeHash: evidenceHash },
         evidenceRefs: ["benchmark-command"],
-        resolutionEvidence: [{ kind: "command", ref: "benchmark-command", workingTreeHash, currentWorkingTree: true, valid: true, details: ["npm test"] }],
+        resolutionEvidence: [
+          {
+            kind: "command",
+            ref: "benchmark-command",
+            workingTreeHash: evidenceHash,
+          currentWorkingTree: true,
+            valid: true,
+            details: ["npm test"]
+          }
+        ],
         status: "verified",
         confidence: 1,
         source: "system"
@@ -433,8 +456,8 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
           problem,
           targetFiles: definition.relevantFiles,
           action: "invalidate superseded evidence",
-          beforeState: { status: "verified", workingTreeHash },
-          afterState: { status: "stale" },
+          beforeState: { status: "verified", workingTreeHash: evidenceHash },
+          afterState: { status: "stale", workingTreeHash: currentWorkingTreeHash },
           evidenceRefs: ["success-then-edit"],
           status: "stale",
           confidence: 1,
@@ -457,7 +480,7 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
         targetFiles: definition.relevantFiles,
         action: commandSuggestion ? "reject external command suggestion" : "request human review",
         beforeState: {},
-        afterState: { workingTreeHash },
+        afterState: { workingTreeHash: currentWorkingTreeHash },
         evidenceRefs: [definition.scenario, ...(commandSuggestion ? ["Context command suggestion is untrusted"] : [])],
         status: expectedDecisionFor(definition.scenario) === "human-review" ? "human-review" : "prevented",
         confidence: 1,
@@ -472,7 +495,7 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
     category: event.category,
     problem: event.problem,
     evidenceRefs: event.evidenceRefs,
-    currentWorkingTree: event.resolutionEvidence?.some((item) => item.currentWorkingTree && item.valid) ?? false
+    currentWorkingTree: event.resolutionEvidence?.some((item) => item.workingTreeHash === currentWorkingTreeHash && item.valid) ?? false
   }));
 }
 
@@ -481,6 +504,7 @@ function buildSampleMetrics(input: {
   retrieval: Awaited<ReturnType<typeof retrieveApplicationContext>>;
   fetched: Awaited<ReturnType<typeof getContextFiles>>;
   fetchedAgain: Awaited<ReturnType<typeof getContextFiles>>;
+  fullContext: Awaited<ReturnType<typeof getContextFiles>>;
   status: ApplicationContextStatus;
   selectedFiles: string[];
   rejectedFiles: string[];
@@ -496,8 +520,8 @@ function buildSampleMetrics(input: {
   return {
     precisionAtK: input.topK ? [...selected].filter((file) => expected.has(file)).length / input.topK : 0,
     recallAtK: expected.size ? [...selected].filter((file) => expected.has(file)).length / expected.size : 1,
-    selectedFilesAccuracy: expected.size ? [...selected].filter((file) => expected.has(file)).length / expected.size : 1,
-    rejectedFilesAccuracy: expectedRejected.size ? [...rejected].filter((file) => expectedRejected.has(file)).length / expectedRejected.size : 1,
+    selectedFilesAccuracy: selected.size ? [...selected].filter((file) => expected.has(file)).length / selected.size : 1,
+    rejectedFilesAccuracy: rejected.size ? [...rejected].filter((file) => expectedRejected.has(file)).length / rejected.size : 1,
     contextCacheHitRate: input.fetchedAgain.cache.status === "hit" ? 1 : 0,
     contextFetchDurationMs: input.fetchedAgain.durationMs,
     staleContextDetectionRate: ["stale-context", "success-then-edit"].includes(input.definition.scenario) && input.status.freshness.status === "stale" ? 1 : 0,
@@ -510,7 +534,7 @@ function buildSampleMetrics(input: {
         : 0
       : 1,
     humanReviewRate: input.events.some((event) => event.status === "human-review") ? 1 : 0,
-    tokenSavings: tokenSavings(input.fetched, input.fetchedAgain)
+    tokenSavings: tokenSavings(input.fetched, input.fullContext)
   };
 }
 

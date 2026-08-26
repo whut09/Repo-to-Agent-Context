@@ -41,5 +41,5 @@ test("explainability metric summaries retain distribution statistics", () => {
   const summary = summarizeExplainabilityMetrics([]);
   assert.equal(summary.precisionAtK.value.samples, 0);
   assert.equal(summary.contextFetchDurationMs.unit, "milliseconds");
-  assert.equal(summary.tokenSavings.unit, "tokens");
+  assert.equal(summary.tokenSavings.unit, "ratio");
 });
