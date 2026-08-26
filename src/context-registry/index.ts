@@ -16,3 +16,4 @@ export * from "./annotations.js";
 export * from "./feedback.js";
 export * from "./feedback-store.js";
 export * from "./feedback-stats.js";
+export * from "./feedback-transport.js";
