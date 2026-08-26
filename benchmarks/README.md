@@ -12,11 +12,20 @@ Run:
 ```bash
 npm run benchmark
 npm run benchmark:agent
+npm run benchmark:explainability
 # or
 opencode-plusplus benchmark benchmarks --top-k 8
 opencode-plusplus benchmark benchmarks --json
 opencode-plusplus benchmark-agent benchmarks --executor mock --dry-run
 ```
+
+The Context explainability benchmark is the deterministic registry/retrieval/ledger layer:
+
+```bash
+npm run benchmark:explainability
+```
+
+It writes JSON and Markdown under `benchmarks/results/context-explainability/`. It is a mock-fixture proxy and is intentionally separate from `benchmark-agent-real`. Its six negative scenarios cover similar unrelated files, stale Context, wrong annotations, wrong commands, and success followed by an edit. The sample schema preserves provenance, score breakdowns, selected/rejected files, Context cache/freshness, intervention events, and final decisions.
 
 Fixtures:
 
@@ -71,6 +80,8 @@ Detailed metrics:
 - `Test recommendation accuracy`: expected tests present in minimal or regression test recommendations.
 - `Agent success delta`: average score delta from `no-context` to `loop-enabled-harness` when `benchmarks/agent-runs/*.json` records exist.
 - `Agent success delta proxy`: deterministic fallback comparing task-pack coverage with non-task-aware key-file baseline coverage. It is not a live agent run; use it as a repeatable demo signal.
+
+Context explainability metrics are reported separately from agent success metrics. In particular, `verified-fix-precision` requires a valid command or CI evidence reference for the current working tree; `prevented`, `requested`, and `human-review` events are not fixes. `false-fixed-rate` measures claims that lack that evidence. Use `selectedFilesAccuracy` and `rejectedFilesAccuracy` to inspect retrieval behavior instead of inferring it from Precision@K alone.
 
 Agent run records:
 

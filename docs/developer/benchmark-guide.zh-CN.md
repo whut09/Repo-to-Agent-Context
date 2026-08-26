@@ -11,9 +11,25 @@ Benchmark 分为两层，不能把两层合并成一个成功率。
 ```powershell
 npm run benchmark
 npm run benchmark:agent
+npm run benchmark:explainability
 ```
 
 它验证 fixture 的 retrieval、边界、证据、regression memory、decision 和 loop wiring。benchmark:agent 使用 mock，并标记为 deterministic-proxy；它不能证明真实 Agent 的成功增量、成本、token 或收敛。
+
+### Context 可解释性 Benchmark
+
+`benchmark:explainability` 使用 6 个确定性 fixture 场景运行 Context Registry、retrieval service、Context fetch/cache、freshness status 和 Intervention Ledger：
+
+- 正常检索与当前 command evidence；
+- 相似但无关文件；
+- 工作树编辑后的 stale Context；
+- 错误的本地 annotation；
+- 外部 Context 中包含错误命令的建议；
+- 测试成功后再次编辑代码。
+
+通过 package script 运行时，报告写入 `benchmarks/results/context-explainability/result.json` 和 `result.md`。每个样本记录 task type、fixture、source、package version、content revision、prompt hash、fixture commit、selected/rejected 文件、Context selected/omitted 文件、缓存/freshness、retrieval score breakdown、intervention event、预期/最终 decision 和指标值。
+
+报告包括 Precision@K、Recall@K、selected/rejected 文件准确率、Context cache hit rate、fetch duration、stale 检测率、intervention 检测准确率、verified-fix precision、false-fixed rate、unresolved blocker recall、human-review rate 和 token savings。每个指标都包含样本数、均值、中位数、样本标准差和 95% 置信区间。阻止风险或 human review 绝不能计为 verified fix。
 
 ## B. 真实 executor 层
 

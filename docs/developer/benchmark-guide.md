@@ -11,11 +11,27 @@ The fast layer runs on every pull request and does not call a paid agent:
 ```bash
 npm run benchmark
 npm run benchmark:agent
+npm run benchmark:explainability
 ```
 
 `benchmark` measures fixture-based retrieval, boundaries, evidence, regression memory, and decision behavior. `benchmark:agent` runs `benchmark-agent --executor mock --dry-run` across `no-context`, `agents-md`, `context-pack`, and `loop-enabled-harness`.
 
 The mock result is labeled `deterministic-proxy`. It validates repeatability and harness wiring, but it is not a real-agent success delta, token measurement, cost measurement, or convergence claim.
+
+### Context Explainability Benchmark
+
+`benchmark:explainability` runs the Context Registry, retrieval service, Context fetch/cache, freshness status, and Intervention Ledger against six deterministic fixture scenarios:
+
+- positive retrieval and current command evidence;
+- similar but unrelated files;
+- stale Context after a working-tree edit;
+- an inaccurate local annotation;
+- an external Context suggestion containing a wrong command;
+- a successful test followed by another edit.
+
+It writes `benchmarks/results/context-explainability/result.json` and `result.md` when run through the package script. Each sample records task type, fixture, source, package version, content revision, prompt hash, fixture commit, selected/rejected files, Context selected/omitted files, cache/freshness, retrieval score breakdowns, intervention events, expected/final decision, and metric values.
+
+The report includes Precision@K, Recall@K, selected/rejected file accuracy, Context cache hit rate, fetch duration, stale detection, intervention detection, verified-fix precision, false-fixed rate, unresolved blocker recall, human-review rate, and token savings. Every metric includes sample count, mean, median, sample standard deviation, and 95% confidence interval. A prevention or human-review event is never counted as a verified fix.
 
 ## Layer B: Real Executor Benchmark
 
