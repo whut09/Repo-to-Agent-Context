@@ -34,7 +34,13 @@ import { packApplicationTask, planApplicationTask } from "../application/task-se
 import { inspectApplicationImpact, testApplicationChanges, verifyApplicationChanges } from "../application/verification-service.js";
 import { explainApplicationPath, retrieveApplicationContext } from "../application/retrieval-service.js";
 import { getContextFiles } from "../application/context-service.js";
-import { submitApplicationContextFeedback } from "../application/context-feedback-service.js";
+import {
+  runContextFeedbackTool,
+  runContextGetTool,
+  runContextSearchTool,
+  runContextStatusTool,
+  runInterventionsTool
+} from "../application/context-tools-service.js";
 import type { ContextFeedbackLabel, ContextFeedbackTarget } from "../context-registry/types.js";
 
 export const opencodePlusplusMcpToolNames = [
@@ -42,6 +48,10 @@ export const opencodePlusplusMcpToolNames = [
   "opencode_plusplus_plan",
   "opencode_plusplus_pack",
   "opencode_plusplus_retrieve",
+  "opencode_plusplus_context_search",
+  "opencode_plusplus_context_get",
+  "opencode_plusplus_context_status",
+  "opencode_plusplus_interventions",
   "opencode_plusplus_context_feedback",
   "opencode_plusplus_tests",
   "opencode_plusplus_impact",
@@ -98,6 +108,38 @@ interface ContextFeedbackInput {
   retrievalId?: string;
   interventionId?: string;
   label: ContextFeedbackLabel;
+}
+
+interface ContextSearchInput {
+  repo?: string;
+  query?: string;
+  topK?: number;
+  taskType?: "auto" | "bugfix" | "feature" | "refactor";
+  language?: string;
+  packageVersion?: string;
+  source?: string;
+  tags?: string[];
+}
+
+interface ContextGetInput {
+  repo?: string;
+  entryId: string;
+  language?: string;
+  packageVersion?: string;
+  source?: string;
+  file?: string;
+  full?: boolean;
+  withAnnotations?: boolean;
+}
+
+interface ContextStatusInput {
+  repo?: string;
+  taskId?: string;
+}
+
+interface InterventionsInput {
+  repo?: string;
+  taskId: string;
 }
 
 export function createOpenCodePlusplusMcpServer(): McpServer {
@@ -173,6 +215,60 @@ export function createOpenCodePlusplusMcpServer(): McpServer {
       })
     },
     async (args) => jsonToolResult(await runRetrieve(args))
+  );
+
+  server.registerTool(
+    "opencode_plusplus_context_search",
+    {
+      description: "Search configured Context Registry entries through the shared application service.",
+      inputSchema: z.object({
+        repo: z.string().optional().default("."),
+        query: z.string().optional(),
+        topK: z.number().int().positive().optional(),
+        taskType: z.enum(["auto", "bugfix", "feature", "refactor"]).optional(),
+        language: z.string().optional(),
+        packageVersion: z.string().optional(),
+        source: z.string().optional(),
+        tags: z.array(z.string()).optional()
+      })
+    },
+    async (args) => jsonToolResult(await runContextSearch(args))
+  );
+
+  server.registerTool(
+    "opencode_plusplus_context_get",
+    {
+      description: "Read a Context entry or companion file through the shared application service.",
+      inputSchema: z.object({
+        repo: z.string().optional().default("."),
+        entryId: z.string(),
+        language: z.string().optional(),
+        packageVersion: z.string().optional(),
+        source: z.string().optional(),
+        file: z.string().optional(),
+        full: z.boolean().optional(),
+        withAnnotations: z.boolean().optional()
+      })
+    },
+    async (args) => jsonToolResult(await runContextGet(args))
+  );
+
+  server.registerTool(
+    "opencode_plusplus_context_status",
+    {
+      description: "Return Context Registry, cache, freshness, selection, rejection, and intervention status.",
+      inputSchema: z.object({ repo: z.string().optional().default("."), taskId: z.string().optional() })
+    },
+    async (args) => jsonToolResult(await runContextStatus(args))
+  );
+
+  server.registerTool(
+    "opencode_plusplus_interventions",
+    {
+      description: "Return the application intervention ledger and summary for a task.",
+      inputSchema: z.object({ repo: z.string().optional().default("."), taskId: z.string() })
+    },
+    async (args) => jsonToolResult(await runInterventions(args))
   );
 
   server.registerTool(
@@ -356,6 +452,14 @@ export async function executeOpenCodePlusplusMcpTool(name: OpenCodePlusplusMcpTo
       return runTaskPack(args as PackInput);
     case "opencode_plusplus_retrieve":
       return runRetrieve(args as RetrieveArguments);
+    case "opencode_plusplus_context_search":
+      return runContextSearch(args as ContextSearchInput);
+    case "opencode_plusplus_context_get":
+      return runContextGet(args as ContextGetInput);
+    case "opencode_plusplus_context_status":
+      return runContextStatus(args as ContextStatusInput);
+    case "opencode_plusplus_interventions":
+      return runInterventions(args as InterventionsInput);
     case "opencode_plusplus_context_feedback":
       return runContextFeedback(args as ContextFeedbackInput);
     case "opencode_plusplus_tests":
@@ -521,14 +625,42 @@ async function runRetrieve(args: RetrieveArguments): Promise<OpenCodePlusplusMcp
 }
 
 async function runContextFeedback(args: ContextFeedbackInput): Promise<OpenCodePlusplusMcpResult> {
-  const result = await submitApplicationContextFeedback({ ...args, repo: args.repo ?? "." });
+  const result = await runContextFeedbackTool({ ...args, repo: args.repo ?? "." });
+  if (!result.ok) return { ...result };
   return {
-    enabled: result.enabled,
-    feedback: result.feedback,
-    stats: result.stats,
-    transport: result.transport,
+    enabled: result.data.enabled,
+    feedback: result.data.feedback,
+    stats: result.data.stats,
+    transport: result.data.transport,
     note: "Feedback is separate from local annotations and cannot satisfy evidence or change a decision."
   };
+}
+
+async function runContextSearch(args: ContextSearchInput): Promise<OpenCodePlusplusMcpResult> {
+  return { ...(await runContextSearchTool({ ...args, repo: args.repo ?? "." })) };
+}
+
+async function runContextGet(args: ContextGetInput): Promise<OpenCodePlusplusMcpResult> {
+  return {
+    ...(await runContextGetTool({
+    repo: args.repo ?? ".",
+    id: args.entryId,
+    language: args.language,
+    packageVersion: args.packageVersion,
+    source: args.source,
+    file: args.file,
+    full: args.full,
+      withAnnotations: args.withAnnotations
+    }))
+  };
+}
+
+async function runContextStatus(args: ContextStatusInput): Promise<OpenCodePlusplusMcpResult> {
+  return { ...(await runContextStatusTool({ repo: args.repo ?? ".", taskId: args.taskId })) };
+}
+
+async function runInterventions(args: InterventionsInput): Promise<OpenCodePlusplusMcpResult> {
+  return { ...(await runInterventionsTool({ repo: args.repo ?? ".", taskId: args.taskId })) };
 }
 
 async function runTests(args: TestsInput): Promise<OpenCodePlusplusMcpResult> {
