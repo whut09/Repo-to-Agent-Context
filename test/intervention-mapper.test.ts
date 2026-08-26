@@ -137,7 +137,16 @@ test("Context advice records adopted guidance and prevents untrusted commands", 
         providedHelp: ["located src/sdk.ts"],
         adoptedSuggestions: [{ id: "file", kind: "file-location", disposition: "adopted", summary: "Use src/sdk.ts", reason: "selected file" }],
         availableSuggestions: [],
-        rejectedSuggestions: [{ id: "cmd", kind: "command", disposition: "rejected", summary: "Run npm test", reason: "Context commands are suggestions only.", suggestedCommand: "npm test" }]
+        rejectedSuggestions: [
+          {
+            id: "cmd",
+            kind: "command",
+            disposition: "rejected",
+            summary: "Run npm test",
+            reason: "Context commands are suggestions only.",
+            suggestedCommand: "npm test"
+          }
+        ]
       }
     };
     const result = recordIterationInterventions({

@@ -102,7 +102,8 @@ function contextGates(policy: PolicyEngineReport, loop: LoopControllerReport): G
     });
   }
 
-  const versionWarnings = policy.contextPolicy?.findings.filter((finding) => finding.id.startsWith("context.version-mismatch") && finding.status === "warning") ?? [];
+  const versionWarnings =
+    policy.contextPolicy?.findings.filter((finding) => finding.id.startsWith("context.version-mismatch") && finding.status === "warning") ?? [];
   if (versionWarnings.length) {
     gates.push({
       id: "context.version-mismatch",

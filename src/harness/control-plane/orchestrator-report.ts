@@ -179,7 +179,8 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
     heading(2, "External Context Provenance"),
     bullet(
       (report.contextPolicy?.provenance ?? []).map(
-        (item) => `${item.entryId} from ${item.sourceName} (${item.sourceTrustLevel}), revision ${item.contentRevision}, verified=${item.verified ? "yes" : "no"}`
+        (item) =>
+          `${item.entryId} from ${item.sourceName} (${item.sourceTrustLevel}), revision ${item.contentRevision}, verified=${item.verified ? "yes" : "no"}`
       )
     ),
     "",

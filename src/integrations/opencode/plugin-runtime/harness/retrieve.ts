@@ -135,10 +135,7 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
     blocking: false,
     nextAction: session ? "evaluate" : "prepare",
     mustInspect: selected,
-    artifacts: [
-      ".agent-context/manifest.json",
-      path.relative(root, contextUsageStorePath(root, contextTaskId)).replaceAll("\\", "/")
-    ],
+    artifacts: [".agent-context/manifest.json", path.relative(root, contextUsageStorePath(root, contextTaskId)).replaceAll("\\", "/")],
     context,
     interventions: pluginInterventionSnapshot(root, session?.taskId ?? context.entry.id, selected, excludedFiles),
     performance: {

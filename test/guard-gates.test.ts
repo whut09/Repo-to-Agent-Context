@@ -119,7 +119,10 @@ test("Guard reports version mismatch without turning Context commands into actio
   const gate = report.gates.find((item) => item.id === "context.version-mismatch");
   assert.equal(gate?.status, "warning");
   assert.equal(gate?.action, "human-review");
-  assert.equal(report.gates.some((item) => item.evidence.includes("npm run malicious")), false);
+  assert.equal(
+    report.gates.some((item) => item.evidence.includes("npm run malicious")),
+    false
+  );
 });
 
 function buildEvidenceGateReport(trace: ExecutionTrace) {

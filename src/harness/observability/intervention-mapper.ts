@@ -72,7 +72,11 @@ export function recordIterationInterventions(input: RecordIterationInterventions
         findingId: suggestion.id,
         category: "context",
         problem: suggestion.summary,
-        action: rejected ? "do not execute or treat as verification" : suggestion.disposition === "adopted" ? "use as contextual guidance" : "keep available for review",
+        action: rejected
+          ? "do not execute or treat as verification"
+          : suggestion.disposition === "adopted"
+            ? "use as contextual guidance"
+            : "keep available for review",
         targetFiles: suggestion.sourceFile ? [suggestion.sourceFile] : input.changedFiles,
         evidenceRefs: [suggestion.reason, ...(input.policy.contextPolicy?.provenance.map((item) => `${item.sourceName}:${item.contentHash}`) ?? [])],
         status: rejected ? "prevented" : "observed",

@@ -9,7 +9,10 @@ test("latest fresh Context usage supersedes stale usage for the same entry", () 
   const assessment = assessExternalContextPolicy(".", { records: [stale, fresh], currentWorkingTreeHash: "tree-current" });
   assert.equal(assessment.records.length, 1);
   assert.equal(assessment.records[0]?.usageId, "new");
-  assert.equal(assessment.findings.some((finding) => finding.status === "blocked"), false);
+  assert.equal(
+    assessment.findings.some((finding) => finding.status === "blocked"),
+    false
+  );
 });
 
 test("stale Context blocks while trust remains non-authoritative", () => {

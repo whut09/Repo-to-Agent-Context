@@ -81,7 +81,13 @@ function contextAdvice(result: ContextFetchResult): ContextAdviceDecision[] {
   const decisions: ContextAdviceDecision[] = [];
   if (result.selectedFiles.length) {
     decisions.push(
-      decision(result, "file-location", "adopted", `Use ${result.selectedFiles.length} Context file(s) to locate relevant implementation details.`, "Files were explicitly selected for inspection.")
+      decision(
+        result,
+        "file-location",
+        "adopted",
+        `Use ${result.selectedFiles.length} Context file(s) to locate relevant implementation details.`,
+        "Files were explicitly selected for inspection."
+      )
     );
   }
   if (result.entry.apiVersion || result.entry.packageVersion) {
@@ -97,7 +103,16 @@ function contextAdvice(result: ContextFetchResult): ContextAdviceDecision[] {
   }
   for (const file of result.files ?? []) {
     if (file.role === "error" || /(^|\/)(errors?|troubleshooting)(\.|\/)/i.test(file.path)) {
-      decisions.push(decision(result, "error-handling", "available", `Error-handling guidance is available from ${file.path}.`, "Guidance may inform a repair but cannot prove it worked.", file.path));
+      decisions.push(
+        decision(
+          result,
+          "error-handling",
+          "available",
+          `Error-handling guidance is available from ${file.path}.`,
+          "Guidance may inform a repair but cannot prove it worked.",
+          file.path
+        )
+      );
     }
     for (const line of file.content.split(/\r?\n/)) {
       const command = suggestedCommand(line);
@@ -163,7 +178,10 @@ function decision(
 }
 
 function suggestedCommand(line: string): string | undefined {
-  const trimmed = line.trim().replace(/^[-*]\s+/, "").replace(/^\$\s*/, "");
+  const trimmed = line
+    .trim()
+    .replace(/^[-*]\s+/, "")
+    .replace(/^\$\s*/, "");
   if (!/^(npm|pnpm|yarn|bun|npx|node|deno|python|python3|pytest|cargo|go|git|opencode-plusplus)\b/i.test(trimmed)) return undefined;
   return trimmed.slice(0, 500);
 }
@@ -188,7 +206,11 @@ function contextVersionCompatibility(root: string, entry: ContextEntry): Context
       reason: matches ? "Context and repository package versions match." : "Context package version does not match the repository dependency version."
     };
   } catch (error) {
-    return { status: "unknown", contextVersion: entry.packageVersion, reason: `Unable to inspect repository package version: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      status: "unknown",
+      contextVersion: entry.packageVersion,
+      reason: `Unable to inspect repository package version: ${error instanceof Error ? error.message : String(error)}`
+    };
   }
 }
 
@@ -203,7 +225,12 @@ function dependencyVersion(manifest: Record<string, unknown>, name: string): str
 }
 
 function normalizedVersion(value: string): string {
-  return value.trim().replace(/^[~^=v\s]+/, "").split(/[\s|]/)[0] ?? value;
+  return (
+    value
+      .trim()
+      .replace(/^[~^=v\s]+/, "")
+      .split(/[\s|]/)[0] ?? value
+  );
 }
 
 function validateStore(store: ContextUsageStore, repository: string, taskId: string): void {
