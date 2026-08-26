@@ -5,7 +5,6 @@ import path from "node:path";
 import { buildContextPackage } from "../core/context-builder.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
 import { runGit } from "../core/git.js";
-import { appendInterventionEvent, createInterventionEvent, listInterventionEvents } from "../harness/observability/intervention-ledger.js";
 import { recordContextUsage } from "../context-registry/usage-ledger.js";
 import { addContextAnnotation } from "../context-registry/annotations.js";
 import { getContextFiles } from "../application/context-service.js";
@@ -17,11 +16,11 @@ import {
   type ContextExplainabilityBenchmarkResult,
   type ContextExplainabilityOptions,
   type ContextExplainabilitySample,
-  type ContextExplainabilityScenarioDefinition,
-  type ExplainabilityScenario
+  type ContextExplainabilityScenarioDefinition
 } from "./context-explainability-types.js";
 import { buildExplainabilitySampleMetrics, summarizeExplainabilityMetrics } from "./context-explainability-metrics.js";
 import { readContextExplainabilityScenarios } from "./context-explainability-scenarios.js";
+import { createScenarioInterventions, decisionFromInterventions, expectedDecisionFor } from "./context-explainability-interventions.js";
 
 export * from "./context-explainability-types.js";
 
@@ -205,158 +204,6 @@ function initializeFixtureRepo(root: string): void {
   runGit(root, ["config", "user.name", "OpenCode++ Benchmark"]);
   runGit(root, ["add", "."]);
   runGit(root, ["commit", "-m", "benchmark baseline"]);
-}
-
-function createScenarioInterventions(root: string, definition: ContextExplainabilityScenarioDefinition, evidenceHash: string, currentWorkingTreeHash: string) {
-  const interventionId = `explainability-${definition.id}`;
-  const problem = problemFor(definition.scenario);
-  if (definition.scenario === "positive" || definition.scenario === "success-then-edit") {
-    appendInterventionEvent(
-      root,
-      createInterventionEvent({
-        interventionId,
-        taskId: definition.taskId,
-        sessionId: "benchmark",
-        timestamp: "2026-01-01T00:00:00.000Z",
-        phase: "evaluate",
-        category: "evidence",
-        problem,
-        targetFiles: definition.relevantFiles,
-        action: "verify current command evidence",
-        beforeState: {},
-        afterState: { workingTreeHash: evidenceHash },
-        evidenceRefs: ["benchmark-command"],
-        status: "requested",
-        confidence: 1,
-        source: "system"
-      })
-    );
-    appendInterventionEvent(
-      root,
-      createInterventionEvent({
-        interventionId,
-        taskId: definition.taskId,
-        sessionId: "benchmark",
-        timestamp: "2026-01-01T00:00:01.000Z",
-        phase: "evaluate",
-        category: "evidence",
-        problem,
-        targetFiles: definition.relevantFiles,
-        action: "verify current command evidence",
-        beforeState: { status: "requested" },
-        afterState: { workingTreeHash: evidenceHash },
-        evidenceRefs: ["benchmark-command"],
-        status: "repaired",
-        confidence: 1,
-        source: "system"
-      })
-    );
-    appendInterventionEvent(
-      root,
-      createInterventionEvent({
-        interventionId,
-        taskId: definition.taskId,
-        sessionId: "benchmark",
-        timestamp: "2026-01-01T00:00:02.000Z",
-        phase: "evaluate",
-        category: "evidence",
-        problem,
-        targetFiles: definition.relevantFiles,
-        action: "verify current command evidence",
-        beforeState: { status: "repaired" },
-        afterState: { workingTreeHash: evidenceHash },
-        evidenceRefs: ["benchmark-command"],
-        resolutionEvidence: [
-          {
-            kind: "command",
-            ref: "benchmark-command",
-            workingTreeHash: evidenceHash,
-            currentWorkingTree: true,
-            valid: true,
-            details: ["npm test"]
-          }
-        ],
-        status: "verified",
-        confidence: 1,
-        source: "system"
-      })
-    );
-    if (definition.scenario === "success-then-edit") {
-      appendInterventionEvent(
-        root,
-        createInterventionEvent({
-          interventionId,
-          taskId: definition.taskId,
-          sessionId: "benchmark",
-          timestamp: "2026-01-01T00:00:03.000Z",
-          phase: "evaluate",
-          category: "evidence",
-          problem,
-          targetFiles: definition.relevantFiles,
-          action: "invalidate superseded evidence",
-          beforeState: { status: "verified", workingTreeHash: evidenceHash },
-          afterState: { status: "stale", workingTreeHash: currentWorkingTreeHash },
-          evidenceRefs: ["success-then-edit"],
-          status: "stale",
-          confidence: 1,
-          source: "system"
-        })
-      );
-    }
-  } else {
-    const commandSuggestion = definition.scenario === "wrong-command";
-    appendInterventionEvent(
-      root,
-      createInterventionEvent({
-        interventionId,
-        taskId: definition.taskId,
-        sessionId: "benchmark",
-        timestamp: "2026-01-01T00:00:00.000Z",
-        phase: "evaluate",
-        category: "context",
-        problem,
-        targetFiles: definition.relevantFiles,
-        action: commandSuggestion ? "reject external command suggestion" : "request human review",
-        beforeState: {},
-        afterState: { workingTreeHash: currentWorkingTreeHash },
-        evidenceRefs: [definition.scenario, ...(commandSuggestion ? ["Context command suggestion is untrusted"] : [])],
-        status: expectedDecisionFor(definition.scenario) === "human-review" ? "human-review" : "prevented",
-        confidence: 1,
-        source: "system"
-      })
-    );
-  }
-  return listInterventionEvents(root, definition.taskId).map((event) => ({
-    eventId: event.eventId,
-    interventionId: event.interventionId,
-    status: event.status,
-    category: event.category,
-    problem: event.problem,
-    evidenceRefs: event.evidenceRefs,
-    currentWorkingTree: event.resolutionEvidence?.some((item) => item.workingTreeHash === currentWorkingTreeHash && item.valid) ?? false
-  }));
-}
-
-function expectedDecisionFor(scenario: ExplainabilityScenario): ContextExplainabilitySample["finalDecision"] {
-  return scenario === "positive" ? "finalize" : scenario === "wrong-command" || scenario === "similar-unrelated" ? "block" : "human-review";
-}
-
-function decisionFromInterventions(events: Array<{ status: string }>): ContextExplainabilitySample["finalDecision"] {
-  if (events.some((event) => event.status === "verified") && !events.some((event) => event.status === "stale")) return "finalize";
-  if (events.some((event) => event.status === "prevented")) return "block";
-  return "human-review";
-}
-
-function problemFor(scenario: ExplainabilityScenario): string {
-  const problems: Record<ExplainabilityScenario, string> = {
-    positive: "Current command evidence verifies the selected Context.",
-    "similar-unrelated": "A similar file is unrelated to the task.",
-    "stale-context": "Context became stale after a working-tree change.",
-    "wrong-annotation": "Annotation contains inaccurate guidance.",
-    "wrong-command": "External Context suggested a command that must not be trusted.",
-    "success-then-edit": "A successful test was superseded by a later edit."
-  };
-  return problems[scenario];
 }
 
 function fixtureCommit(root: string): string {
