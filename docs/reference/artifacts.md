@@ -6,6 +6,10 @@ OpenCode++ writes human-readable Markdown and machine-readable JSON.
 
 For whether each generated file should be committed, see [Generated Files and Commit Policy](generated-files.md).
 
+## Runtime Boundary
+
+The repository `.agent-context/` directory is a local runtime boundary. It contains generated context, Context Registry state, cache entries, annotations, feedback, traces, interventions, and loop reports. These records explain what the plugin did; they do not grant authority and they are not automatically suitable for source control.
+
 ```txt
 AGENTS.md
 .agent-context/
@@ -60,3 +64,17 @@ AGENTS.md
 - `.agent-context/hallucination/*.json`
 - `.agent-context/regression/*.json`
 - `.agent-context/memory/candidates/*.json`
+
+## Context And Intervention Records
+
+| Location                                       | Meaning                                        | Authority                                  |
+| ---------------------------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| `.agent-context/registry/context-pack.json`    | Merged local Context Registry pack             | Advisory Context only                      |
+| `.agent-context/cache/context-registry/`       | Source snapshots and fetch cache               | Reusable bytes, freshness still required   |
+| `.agent-context/context-registry/usage/`       | Entries/files selected by tasks and provenance | Usage history, not evidence                |
+| `.agent-context/context-registry/feedback/`    | Local quality labels and aggregate signals     | Feedback only, no direct decision override |
+| `.agent-context/knowledge/annotations/`        | User-written repository notes                  | Untrusted, not policy or commands          |
+| `.agent-context/interventions/<task-id>.jsonl` | Intervention Ledger events                     | Explanation, not proof by itself           |
+| `.agent-context/sidecar/latest.md`             | Human-readable latest summary                  | Presentation of findings and evidence      |
+
+The plugin uses atomic stores for state, trace, report, registry, annotation, and feedback writes. A damaged JSON file, revision conflict, or locked Windows file is reported diagnostically; it is never silently treated as an empty successful state. Runtime artifacts may contain paths, hashes, task intent, command metadata, or redacted output and should be excluded from commits.
