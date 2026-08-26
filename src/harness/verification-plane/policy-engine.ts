@@ -11,6 +11,8 @@ import { buildRegressionReport } from "./guards/regression.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
 import type { GuardResult } from "../types.js";
 import { createGuardResult } from "../types.js";
+import { assessExternalContextPolicy, type ContextPolicyAssessment } from "../knowledge/context-policy.js";
+import type { ContextUsageRecord } from "../../context-registry/types.js";
 
 export type PolicyKind = "forbidden" | "risk" | "required";
 export type PolicyStatus = "failed" | "warning" | "missing" | "satisfied";
@@ -23,6 +25,8 @@ export interface PolicyEngineOptions {
   strict?: boolean;
   failOn?: PolicyFailOn;
   evidencePolicy?: EvidencePolicyMode;
+  contextTaskId?: string;
+  contextUsage?: ContextUsageRecord[];
 }
 
 export interface PolicyFinding extends Partial<
@@ -55,6 +59,7 @@ export interface PolicyEngineReport {
   };
   findings: PolicyFinding[];
   results: GuardResult[];
+  contextPolicy?: ContextPolicyAssessment;
 }
 
 export function buildPolicyReport(context: ContextPackage, options: PolicyEngineOptions = {}): PolicyEngineReport {
@@ -80,6 +85,11 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
     evidencePolicy
   });
   const currentRepoHash = currentWorkingTreeHash(context.scan.root);
+  const contextPolicy = assessExternalContextPolicy(context.scan.root, {
+    taskId: options.contextTaskId,
+    records: options.contextUsage,
+    currentWorkingTreeHash: currentRepoHash
+  });
   const testEvidence = evidenceSatisfies(
     {
       kind: "tests",
@@ -101,6 +111,18 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
     trace
   );
   const findings: PolicyFinding[] = [];
+
+  for (const finding of contextPolicy.findings.filter((item) => item.status !== "passed")) {
+    findings.push({
+      id: finding.status === "blocked" ? `policy.required.${finding.id}` : `policy.risk.${finding.id}`,
+      kind: finding.status === "blocked" ? "required" : "risk",
+      status: finding.status === "blocked" ? "missing" : "warning",
+      severity: finding.status === "blocked" ? "required" : "warning",
+      message: finding.message,
+      evidence: finding.evidence,
+      requiredAction: finding.requiredAction
+    });
+  }
 
   for (const file of changedIndexed.filter((item) => item.isGenerated || item.kind === "generated")) {
     if (isGeneratedContextState(file.path)) continue;
@@ -287,7 +309,8 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
     generatedContextFiles: changed.generatedContextFiles,
     summary,
     findings,
-    results
+    results,
+    contextPolicy
   };
 }
 
@@ -317,6 +340,21 @@ export function renderPolicyReport(report: PolicyEngineReport): string {
     "",
     heading(2, "Generated Context Changes"),
     bullet(report.generatedContextFiles.map(code)),
+    "",
+    heading(2, "External Context Provenance"),
+    bullet(
+      (report.contextPolicy?.provenance ?? []).map(
+        (item) => `${item.entryId} from ${item.sourceName} (${item.sourceTrustLevel}), revision ${item.contentRevision}, verified=${item.verified ? "yes" : "no"}`
+      )
+    ),
+    "",
+    heading(2, "External Context Intervention"),
+    bullet([
+      ...(report.contextPolicy?.intervention.providedHelp ?? []).map((item) => `Help: ${item}`),
+      ...(report.contextPolicy?.intervention.adoptedSuggestions ?? []).map((item) => `Adopted: ${item.summary} Reason: ${item.reason}`),
+      ...(report.contextPolicy?.intervention.availableSuggestions ?? []).map((item) => `Available: ${item.summary} Reason: ${item.reason}`),
+      ...(report.contextPolicy?.intervention.rejectedSuggestions ?? []).map((item) => `Rejected: ${item.summary} Reason: ${item.reason}`)
+    ]),
     "",
     heading(2, "Findings"),
     bullet(report.findings.map(formatPolicyFinding))
