@@ -44,6 +44,36 @@ export interface PluginFeedbackArgs {
   label: "useful" | "not-useful" | "outdated" | "inaccurate" | "incomplete" | "wrong-version" | "wrong-example" | "irrelevant";
 }
 
+export interface PluginContextSearchArgs {
+  query?: string;
+  topK?: number;
+  taskType?: "bugfix" | "feature" | "refactor" | "auto";
+  language?: string;
+  packageVersion?: string;
+  source?: string;
+  tags?: string[];
+}
+
+export interface PluginContextGetArgs {
+  entryId: string;
+  language?: string;
+  packageVersion?: string;
+  source?: string;
+  file?: string;
+  full?: boolean;
+  withAnnotations?: boolean;
+}
+
+export interface PluginContextStatusArgs {
+  taskId?: string;
+  sessionId?: string | null;
+}
+
+export interface PluginInterventionsArgs {
+  taskId?: string;
+  sessionId?: string | null;
+}
+
 export interface PluginEvaluateArgs {
   taskId?: string;
   sessionId?: string | null;

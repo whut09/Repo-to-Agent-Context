@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  parseContextGetArgs,
+  parseContextSearchArgs,
+  parseContextStatusArgs,
   parseEvaluateArgs,
   parseFeedbackArgs,
+  parseInterventionsArgs,
   parseNextArgs,
   parsePrepareArgs,
   parseRetrieveArgs
@@ -38,4 +42,23 @@ test("plugin harness arg parsers reject empty tasks and accept optional fields",
     parseFeedbackArgs({ entryId: "official/auth", source: "official", revision: 2, target: "file", label: "useful" }),
     "file feedback requires file."
   );
+});
+
+test("Context tool arg parsers normalize filters and reject malformed selectors", () => {
+  assert.deepEqual(
+    parseContextSearchArgs({ query: " payments ", topK: "4", taskType: "bugfix", tags: ["api", "api", "typescript"] }),
+    { query: "payments", topK: 4, taskType: "bugfix", tags: ["api", "typescript"] }
+  );
+  assert.deepEqual(parseContextSearchArgs({}), {});
+  assert.match(String(parseContextSearchArgs({ taskType: "docs" })), /taskType/);
+  assert.match(String(parseContextSearchArgs({ tags: "api" })), /tags/);
+  assert.deepEqual(
+    parseContextGetArgs({ entryId: "private/payments", language: "typescript", packageVersion: "1.0.0", file: "references/errors.md" }),
+    { entryId: "private/payments", language: "typescript", packageVersion: "1.0.0", file: "references/errors.md" }
+  );
+  assert.equal(parseContextGetArgs({}), "context get requires a non-empty entryId.");
+  assert.match(String(parseContextGetArgs({ entryId: "x", file: "x.md", full: true })), /cannot be combined/);
+  assert.match(String(parseContextGetArgs({ entryId: "x", withAnnotations: "yes" })), /withAnnotations/);
+  assert.deepEqual(parseContextStatusArgs({ sessionId: "desktop-1" }), { sessionId: "desktop-1" });
+  assert.deepEqual(parseInterventionsArgs({ taskId: "task-1" }), { taskId: "task-1" });
 });

@@ -1,4 +1,68 @@
-import type { PluginEvaluateArgs, PluginFeedbackArgs, PluginHarnessTaskType, PluginNextArgs, PluginPrepareArgs, PluginRetrieveArgs } from "./types.js";
+import type {
+  PluginContextGetArgs,
+  PluginContextSearchArgs,
+  PluginContextStatusArgs,
+  PluginEvaluateArgs,
+  PluginFeedbackArgs,
+  PluginHarnessTaskType,
+  PluginInterventionsArgs,
+  PluginNextArgs,
+  PluginPrepareArgs,
+  PluginRetrieveArgs
+} from "./types.js";
+
+export function parseContextSearchArgs(args: unknown): PluginContextSearchArgs | string {
+  const record = asRecord(args);
+  const query = readOptionalString(record.query);
+  const taskType = readSearchTaskType(record.taskType);
+  if (taskType === false) return 'context search taskType must be "auto", "bugfix", "feature", or "refactor".';
+  const topK = record.topK === undefined ? undefined : readPositiveInteger(record.topK);
+  if (record.topK !== undefined && topK === undefined) return "context search topK must be a positive integer.";
+  const tags = readOptionalStringArray(record.tags);
+  if (tags === false) return "context search tags must be an array of non-empty strings.";
+  const language = readOptionalString(record.language);
+  const packageVersion = readOptionalString(record.packageVersion);
+  const source = readOptionalString(record.source);
+  return {
+    ...(query ? { query } : {}),
+    ...(topK ? { topK } : {}),
+    ...(taskType ? { taskType } : {}),
+    ...(language ? { language } : {}),
+    ...(packageVersion ? { packageVersion } : {}),
+    ...(source ? { source } : {}),
+    ...(tags ? { tags } : {})
+  };
+}
+
+export function parseContextGetArgs(args: unknown): PluginContextGetArgs | string {
+  const record = asRecord(args);
+  const entryId = readNonEmptyString(record.entryId);
+  if (!entryId) return "context get requires a non-empty entryId.";
+  const file = readOptionalString(record.file);
+  if (record.full !== undefined && typeof record.full !== "boolean") return "context get full must be boolean.";
+  if (record.withAnnotations !== undefined && typeof record.withAnnotations !== "boolean") return "context get withAnnotations must be boolean.";
+  if (file && record.full === true) return "context get file cannot be combined with full.";
+  const language = readOptionalString(record.language);
+  const packageVersion = readOptionalString(record.packageVersion);
+  const source = readOptionalString(record.source);
+  return {
+    entryId,
+    ...(language ? { language } : {}),
+    ...(packageVersion ? { packageVersion } : {}),
+    ...(source ? { source } : {}),
+    ...(file ? { file } : {}),
+    ...(record.full === true ? { full: true } : {}),
+    ...(record.withAnnotations === true ? { withAnnotations: true } : {})
+  };
+}
+
+export function parseContextStatusArgs(args: unknown): PluginContextStatusArgs | string {
+  return parseOptionalTaskIdArgs(args, "context status");
+}
+
+export function parseInterventionsArgs(args: unknown): PluginInterventionsArgs | string {
+  return parseOptionalTaskIdArgs(args, "interventions");
+}
 
 export function parseFeedbackArgs(args: unknown): PluginFeedbackArgs | string {
   const record = asRecord(args);
@@ -90,7 +154,10 @@ export function parseNextArgs(args: unknown): PluginNextArgs | string {
   return parseOptionalTaskIdArgs(args, "next");
 }
 
-function parseOptionalTaskIdArgs(args: unknown, tool: "evaluate" | "next"): { taskId?: string; sessionId?: string | null } | string {
+function parseOptionalTaskIdArgs(
+  args: unknown,
+  tool: "evaluate" | "next" | "context status" | "interventions"
+): { taskId?: string; sessionId?: string | null } | string {
   const record = asRecord(args);
   const sessionId = readOptionalSessionId(record.sessionId);
   if (record.taskId === undefined) return sessionId ? { sessionId } : {};
@@ -118,6 +185,19 @@ function readOptionalString(value: unknown): string | undefined {
 function readTaskType(value: unknown): PluginHarnessTaskType | undefined | false {
   if (value === undefined) return undefined;
   return value === "bugfix" || value === "feature" || value === "refactor" ? value : false;
+}
+
+function readSearchTaskType(value: unknown): PluginContextSearchArgs["taskType"] | undefined | false {
+  if (value === undefined) return undefined;
+  return value === "auto" || value === "bugfix" || value === "feature" || value === "refactor" ? value : false;
+}
+
+function readOptionalStringArray(value: unknown): string[] | undefined | false {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return false;
+  const values = value.map(readNonEmptyString);
+  if (values.some((item) => item === undefined)) return false;
+  return [...new Set(values as string[])].sort((left, right) => left.localeCompare(right));
 }
 
 function readPositiveInteger(value: unknown): number | undefined {
