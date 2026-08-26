@@ -43,6 +43,24 @@ Select the mode, then describe the task normally. The mode instructs the active 
 
 The model still performs the actual reading, editing, and command execution. OpenCode++ provides the context, rules, evidence, and decision tools. It does not start a second model or invoke its CLI from the Desktop plugin.
 
+## Context Tools
+
+The OpenCode++ mode can call five deterministic Context tools in addition to the existing Harness workflow:
+
+| Tool                                 | Purpose                                                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `opencode_plusplus_context_search`   | Search configured Context Registry entries with filters and an explainable score breakdown.                                           |
+| `opencode_plusplus_context_get`      | Read an entry file, a selected companion file, or the complete Context Pack.                                                          |
+| `opencode_plusplus_context_status`   | Show registry sources, cache state, working-tree freshness, selected Context, rejected Context, and the current intervention summary. |
+| `opencode_plusplus_interventions`    | Show what the Harness observed, prevented, requested, repaired, verified, or left unresolved for the current task.                    |
+| `opencode_plusplus_context_feedback` | Store local quality feedback without storing the task text or source content.                                                         |
+
+`context_get` accepts `entryId`, `language`, `packageVersion`, `source`, `file`, `full`, and `withAnnotations`. The default response reads only the entry file and lists omitted companion files. `file` reads one companion file, while `full` reads the complete pack. Annotations are returned only when `withAnnotations` is explicitly enabled; they remain user-written, untrusted Context and cannot authorize commands or satisfy evidence.
+
+Every tool returns JSON with `schemaVersion`, `ok`, `tool`, and either `data` or `error`. Stable error codes include `INVALID_ARGUMENTS`, `INVALID_PATH`, `ENTRY_NOT_FOUND`, `SOURCE_NOT_FOUND`, `NETWORK_FAILURE`, `REGISTRY_INVALID`, and `STATE_CORRUPT`. A failed tool call is returned to OpenCode as data instead of crashing the Desktop hook.
+
+These tools run inside the plugin process and call shared application services directly. They do not launch an OpenCode++ CLI process and do not invoke another model. Registry content can help locate files and explain APIs, but only fresh command or CI evidence from the current working tree can verify a repair.
+
 ## State And Reports
 
 The plugin state is stored under the OpenCode config directory. Repository runtime artifacts are stored under `.agent-context/`:
