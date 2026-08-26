@@ -29,7 +29,9 @@ npm run benchmark:explainability
 
 通过 package script 运行时，报告写入 `benchmarks/results/context-explainability/result.json` 和 `result.md`。每个样本记录 task type、fixture、source、package version、content revision、prompt hash、fixture commit、selected/rejected 文件、Context selected/omitted 文件、缓存/freshness、retrieval score breakdown、intervention event、预期/最终 decision 和指标值。
 
-报告包括 Precision@K、Recall@K、selected/rejected 文件准确率、Context cache hit rate、fetch duration、stale 检测率、intervention 检测准确率、verified-fix precision、false-fixed rate、unresolved blocker recall、human-review rate 和 token savings。每个指标都包含样本数、均值、中位数、样本标准差和 95% 置信区间。阻止风险或 human review 绝不能计为 verified fix。
+报告包括 Precision@K、Recall@K、selected/rejected 文件准确率、Context cache hit rate、fetch duration、stale 检测率、intervention 检测准确率、verified-fix precision、false-fixed rate、unresolved blocker recall、human-review rate、最终决策准确率和 token savings。每个指标都包含样本数、均值、中位数、样本标准差和 95% 置信区间。阻止风险或 human review 绝不能计为 verified fix。
+
+具有适用条件的指标只统计符合条件的样本。stale 检测只统计 stale Context 和测试成功后再次编辑的场景。verified-fix precision 与 false-fixed rate 只统计终态仍声明为 `verified` 的介入；后续 `stale` 事件会取代旧验证。unresolved blocker recall 只统计负向阻塞场景。因此不同指标的 `N` 会不同，解释均值或置信区间时必须同时查看该列。
 
 ## B. 真实 executor 层
 

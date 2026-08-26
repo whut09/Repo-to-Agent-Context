@@ -31,7 +31,9 @@ The mock result is labeled `deterministic-proxy`. It validates repeatability and
 
 It writes `benchmarks/results/context-explainability/result.json` and `result.md` when run through the package script. Each sample records task type, fixture, source, package version, content revision, prompt hash, fixture commit, selected/rejected files, Context selected/omitted files, cache/freshness, retrieval score breakdowns, intervention events, expected/final decision, and metric values.
 
-The report includes Precision@K, Recall@K, selected/rejected file accuracy, Context cache hit rate, fetch duration, stale detection, intervention detection, verified-fix precision, false-fixed rate, unresolved blocker recall, human-review rate, and token savings. Every metric includes sample count, mean, median, sample standard deviation, and 95% confidence interval. A prevention or human-review event is never counted as a verified fix.
+The report includes Precision@K, Recall@K, selected/rejected file accuracy, Context cache hit rate, fetch duration, stale detection, intervention detection, verified-fix precision, false-fixed rate, unresolved blocker recall, human-review rate, final-decision accuracy, and token savings. Every metric includes sample count, mean, median, sample standard deviation, and 95% confidence interval. A prevention or human-review event is never counted as a verified fix.
+
+Applicability-sensitive metrics use only their eligible samples. Stale detection includes only stale-Context and success-then-edit scenarios. Verified-fix precision and false-fixed rate include only terminal interventions that still claim `verified`; a later `stale` event supersedes the old verification. Unresolved blocker recall includes only negative blocking scenarios. The report's `N` column therefore varies by metric and must be used when interpreting means or confidence intervals.
 
 ## Layer B: Real Executor Benchmark
 

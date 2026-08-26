@@ -81,7 +81,7 @@ Detailed metrics:
 - `Agent success delta`: average score delta from `no-context` to `loop-enabled-harness` when `benchmarks/agent-runs/*.json` records exist.
 - `Agent success delta proxy`: deterministic fallback comparing task-pack coverage with non-task-aware key-file baseline coverage. It is not a live agent run; use it as a repeatable demo signal.
 
-Context explainability metrics are reported separately from agent success metrics. In particular, `verified-fix-precision` requires a valid command or CI evidence reference for the current working tree; `prevented`, `requested`, and `human-review` events are not fixes. `false-fixed-rate` measures claims that lack that evidence. Use `selectedFilesAccuracy` and `rejectedFilesAccuracy` to inspect retrieval behavior instead of inferring it from Precision@K alone.
+Context explainability metrics are reported separately from agent success metrics. In particular, `verifiedFixPrecision` requires a valid command or CI evidence reference for the current working tree; `prevented`, `requested`, and `human-review` events are not fixes. `falseFixedRate` measures claims that lack that evidence. Applicability-sensitive metrics exclude unrelated scenarios, so inspect each metric's `N` alongside its distribution. Use `selectedFilesAccuracy` and `rejectedFilesAccuracy` to inspect retrieval behavior instead of inferring it from Precision@K alone.
 
 Agent run records:
 
