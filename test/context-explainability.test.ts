@@ -42,6 +42,8 @@ test("deterministic Context explainability benchmark records provenance and nega
   assert.equal(result.metrics.verifiedFixPrecision.value.mean, 1);
   assert.equal(result.metrics.falseFixedRate.value.mean, 0);
   assert.equal(result.metrics.unresolvedBlockerRecall.value.mean, 1);
+  assert.equal(result.metrics.finalDecisionAccuracy.value.samples, 6);
+  assert.equal(result.metrics.finalDecisionAccuracy.value.mean, 1);
   const successThenEdit = result.samples.find((sample) => sample.scenario === "success-then-edit");
   assert.equal(successThenEdit?.metrics.verifiedFixPrecision, null);
   assert.equal(successThenEdit?.metrics.falseFixedRate, null);

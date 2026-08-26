@@ -33,6 +33,7 @@ export interface ContextExplainabilitySampleMetrics {
   falseFixedRate: number | null;
   unresolvedBlockerRecall: number | null;
   humanReviewRate: number;
+  finalDecisionAccuracy: number;
   tokenSavings: number;
 }
 

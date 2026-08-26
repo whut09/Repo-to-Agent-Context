@@ -146,6 +146,8 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
         selectedFiles,
         rejectedFiles,
         events,
+        finalDecision,
+        expectedDecision,
         topK
       })
     };

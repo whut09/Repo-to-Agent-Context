@@ -20,6 +20,8 @@ export interface BuildExplainabilitySampleMetricsInput {
   selectedFiles: string[];
   rejectedFiles: string[];
   events: ContextExplainabilityInterventionEvent[];
+  finalDecision: ContextExplainabilitySample["finalDecision"];
+  expectedDecision: ContextExplainabilitySample["finalDecision"];
   topK: number;
 }
 
@@ -37,6 +39,7 @@ export function summarizeExplainabilityMetrics(samples: ContextExplainabilitySam
     "falseFixedRate",
     "unresolvedBlockerRecall",
     "humanReviewRate",
+    "finalDecisionAccuracy",
     "tokenSavings"
   ];
   return Object.fromEntries(
@@ -77,6 +80,7 @@ export function buildExplainabilitySampleMetrics(input: BuildExplainabilitySampl
         : 0
       : null,
     humanReviewRate: input.events.some((event) => event.status === "human-review") ? 1 : 0,
+    finalDecisionAccuracy: input.finalDecision === input.expectedDecision ? 1 : 0,
     tokenSavings: tokenSavings(input.fetched, input.fullContext)
   };
 }
