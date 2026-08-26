@@ -54,6 +54,7 @@ test("feedback identifiers are deterministic for the same metadata", () => {
     label: "useful" as const
   };
   assert.equal(createContextFeedback(input).feedbackId, createContextFeedback(input).feedbackId);
+  assert.equal(createContextFeedback(input).feedbackId, createContextFeedback({ ...input, repository: "D:/another/machine/project" }).feedbackId);
 });
 
 test("feedback schema diagnostics identify unsafe paths and duplicate IDs", () => {

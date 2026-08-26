@@ -45,7 +45,7 @@ export function createContextFeedback(input: CreateContextFeedbackInput): Contex
   if (input.target === "retrieval-result" && !retrievalId) throw new Error("Retrieval feedback requires retrievalId.");
   if (input.target === "intervention" && !interventionId) throw new Error("Intervention feedback requires interventionId.");
   const createdAt = (input.now ?? new Date()).toISOString();
-  const feedbackId = input.feedbackId ? safeIdentifier(input.feedbackId, "feedbackId") : feedbackIdFor({ ...input, repository, entryId, source, version, file });
+  const feedbackId = input.feedbackId ? safeIdentifier(input.feedbackId, "feedbackId") : feedbackIdFor({ ...input, entryId, source, version, file });
   return {
     schemaVersion: 1,
     feedbackId,
@@ -64,7 +64,7 @@ export function createContextFeedback(input: CreateContextFeedbackInput): Contex
 
 export function feedbackIdFor(input: Pick<CreateContextFeedbackInput, "entryId" | "source" | "version" | "revision" | "target" | "file" | "retrievalId" | "interventionId" | "label"> & { repository?: string }): string {
   return `feedback-${hashContextText(
-    [input.repository ?? "", input.entryId, input.source, input.version ?? "", String(input.revision), input.target, input.file ?? "", input.retrievalId ?? "", input.interventionId ?? "", input.label].join("\n")
+    [input.entryId, input.source, input.version ?? "", String(input.revision), input.target, input.file ?? "", input.retrievalId ?? "", input.interventionId ?? "", input.label].join("\n")
   ).slice(0, 24)}`;
 }
 
