@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildContextPackage } from "../core/context-builder.js";
@@ -22,12 +22,13 @@ import {
   type ExplainabilityScenario
 } from "./context-explainability-types.js";
 import { buildExplainabilitySampleMetrics, summarizeExplainabilityMetrics } from "./context-explainability-metrics.js";
+import { readContextExplainabilityScenarios } from "./context-explainability-scenarios.js";
 
 export * from "./context-explainability-types.js";
 
 export async function runContextExplainabilityBenchmark(options: ContextExplainabilityOptions = {}): Promise<ContextExplainabilityBenchmarkResult> {
   const benchmarkDir = path.resolve(options.benchmarkDir ?? "benchmarks");
-  const scenarios = options.scenarios ?? readScenarioDefinitions(benchmarkDir);
+  const scenarios = options.scenarios ?? readContextExplainabilityScenarios(benchmarkDir);
   const samples = [] as ContextExplainabilitySample[];
   for (const scenario of scenarios) samples.push(await runScenario(benchmarkDir, scenario, options.topK ?? 8));
   return {
@@ -87,12 +88,6 @@ export function renderContextExplainabilityBenchmark(result: ContextExplainabili
     "- `falseFixedRate` counts verified claims without valid current evidence.",
     "- stale Context, wrong annotations, wrong commands, and success-then-edit are explicit negative scenarios."
   ].join("\n");
-}
-
-function readScenarioDefinitions(benchmarkDir: string): ContextExplainabilityScenarioDefinition[] {
-  const filePath = path.join(benchmarkDir, "context-explainability", "scenarios.json");
-  if (!existsSync(filePath)) throw new Error(`Context explainability scenarios are missing: ${filePath}`);
-  return JSON.parse(readFileSync(filePath, "utf8")) as ContextExplainabilityScenarioDefinition[];
 }
 
 async function runScenario(benchmarkDir: string, definition: ContextExplainabilityScenarioDefinition, topK: number): Promise<ContextExplainabilitySample> {
