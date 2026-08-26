@@ -16,6 +16,7 @@ export interface RetrievalScoreBreakdown {
   dependency: number;
   source: number;
   quality: number;
+  localFeedback: number;
   regression: number;
   exactId: number;
   total: number;
@@ -32,6 +33,7 @@ export interface ContextRetrieverOptions {
   language?: string;
   source?: string;
   tags?: string[];
+  localQualitySignals?: Record<string, number>;
 }
 
 export function adaptiveTopK(taskType: RetrievalTaskType = "auto", requested?: number): number {

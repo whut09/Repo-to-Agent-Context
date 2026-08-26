@@ -205,6 +205,18 @@ test("registry retrieval is stable for equal scores and applies negative penalty
   assert.equal(penalized.at(-1)?.metadata.scoreBreakdown?.negativePenalty, 40);
 });
 
+test("local feedback quality is opt-in, bounded, and cannot override exact ID", async () => {
+  const retriever = new ContextRegistryRetriever([registryEntry("community", "alpha", { qualityScore: 0 }), registryEntry("community", "zeta", { qualityScore: 0 })]);
+  const baseline = await retriever.search("", { topK: 10 });
+  assert.deepEqual(baseline.map((hit) => hit.id), ["community/alpha", "community/zeta"]);
+  assert.equal(baseline[0]?.metadata.scoreBreakdown?.localFeedback, 0);
+  const weighted = await retriever.search("", { topK: 10, localQualitySignals: { "community\0community/zeta": 50 } });
+  assert.equal(weighted[0]?.id, "community/zeta");
+  assert.equal(weighted[0]?.metadata.scoreBreakdown?.localFeedback, 3);
+  const exact = await retriever.search("community/alpha", { topK: 10, localQualitySignals: { "community\0community/zeta": 50, "community\0community/alpha": -50 } });
+  assert.equal(exact[0]?.id, "community/alpha");
+});
+
 test("registry retrieval reports useful precision and recall at top K", async () => {
   const retriever = new ContextRegistryRetriever([
     registryEntry("official", "session-timeout"),

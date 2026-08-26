@@ -19,7 +19,8 @@ export class ContextRegistryRetriever implements ContextRetriever {
       language: options.language,
       source: options.source,
       tags: options.tags,
-      negativeExamples: options.negativeExamples
+      negativeExamples: options.negativeExamples,
+      localQualitySignals: options.localQualitySignals
     });
     return ranked.slice(0, Math.max(1, options.topK)).map(({ entry, score, scoreBreakdown, exactId }) => {
       const relatedFiles = entry.files.map((file) => `context://${entry.sourceName}/${file.path}`).sort();

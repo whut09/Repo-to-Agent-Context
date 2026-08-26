@@ -60,6 +60,7 @@ export class StaticContextRetriever implements ContextRetriever {
               dependency: chainBoost,
               source: 0,
               quality: 0,
+              localFeedback: 0,
               regression: regressionBoost,
               exactId: 0,
               total: score
@@ -207,6 +208,7 @@ export function mergeScoreBreakdowns(left: RetrievalScoreBreakdown | undefined, 
     dependency,
     source: value("source"),
     quality: value("quality"),
+    localFeedback: value("localFeedback"),
     regression,
     exactId: value("exactId"),
     total:
@@ -220,6 +222,7 @@ export function mergeScoreBreakdowns(left: RetrievalScoreBreakdown | undefined, 
       regression +
       value("source") +
       value("quality") +
+      value("localFeedback") +
       value("exactId") -
       negativePenalty
   };

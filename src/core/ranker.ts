@@ -147,6 +147,7 @@ export interface ContextRegistryRankOptions {
   source?: string;
   tags?: string[];
   negativeExamples?: string[];
+  localQualitySignals?: Record<string, number>;
 }
 
 export interface RankedContextEntry {
@@ -181,11 +182,12 @@ export function rankContextEntry(task: string, terms: string[], entry: ContextEn
   const dependency = fieldScore(terms, (entry.dependencyChain ?? []).join(" "), 10);
   const source = sourceWeight(entry.trustLevel);
   const quality = Math.min(10, entry.qualityScore ?? qualityScore(entry));
+  const localFeedback = Math.max(-3, Math.min(3, options.localQualitySignals?.[feedbackKey(entry)] ?? 0));
   const regression = regressionWeight(terms, entry);
   const negativePenalty = negativePenaltyForEntry(entry, options.negativeExamples ?? []);
   const exactBoost = exactId ? 1000 : 0;
   const taskType = taskTypeWeight(options.taskType, entry.kind);
-  const score = exactBoost + lexical + symbol + dependency + source + quality + regression + taskType - negativePenalty;
+  const score = exactBoost + lexical + symbol + dependency + source + quality + localFeedback + regression + taskType - negativePenalty;
   const scoreBreakdown: RetrievalScoreBreakdown = {
     lexical,
     path: 0,
@@ -200,11 +202,20 @@ export function rankContextEntry(task: string, terms: string[], entry: ContextEn
     dependency,
     source,
     quality,
+    localFeedback,
     regression,
     exactId: exactBoost,
     total: score
   };
   return { entry, score, scoreBreakdown, exactId };
+}
+
+export function contextEntryFeedbackKey(entry: Pick<ContextEntry, "sourceName" | "id">): string {
+  return `${entry.sourceName}\0${entry.id}`;
+}
+
+function feedbackKey(entry: ContextEntry): string {
+  return contextEntryFeedbackKey(entry);
 }
 
 export function matchesEntryFilters(entry: ContextEntry, options: ContextRegistryRankOptions): boolean {
