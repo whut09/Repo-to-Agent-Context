@@ -6,6 +6,7 @@ import type { PolicyEngineReport } from "../src/harness/verification-plane/polic
 import { evidenceSatisfies, latestTestResultSteps } from "../src/outputs/evidence.js";
 import type { GuardFindingsArtifact } from "../src/outputs/guard-finding.js";
 import { buildGuardGateReport } from "../src/outputs/guard-gates.js";
+import type { ContextPolicyAssessment } from "../src/harness/knowledge/context-policy.js";
 
 test("latest successful equivalent test command supersedes an earlier failure", () => {
   const trace = createTrace([
@@ -84,6 +85,41 @@ test("success from a different test command does not supersede an unrelated fail
     latestTestResultSteps(trace, { afterLastEdit: true }).map((step) => step.id),
     ["step-003", "step-004"]
   );
+});
+
+test("Guard blocks stale external Context and preserves shared provenance", () => {
+  const policy = emptyPolicy();
+  policy.contextPolicy = contextPolicy("blocked");
+  const report = buildGuardGateReport({
+    runId: "context-stale",
+    iteration: 1,
+    policy,
+    loop: passingLoop(),
+    guardFindings: emptyGuardFindings("context-stale"),
+    changedFiles: [],
+    checkpointMode: "none"
+  });
+  assert.ok(report.gates.some((gate) => gate.id === "context.external-stale" && gate.status === "blocked"));
+  assert.deepEqual(report.contextPolicy, policy.contextPolicy);
+  assert.equal(report.contextPolicy?.authority.evidenceAuthority, false);
+});
+
+test("Guard reports version mismatch without turning Context commands into actions", () => {
+  const policy = emptyPolicy();
+  policy.contextPolicy = contextPolicy("warning");
+  const report = buildGuardGateReport({
+    runId: "context-version",
+    iteration: 1,
+    policy,
+    loop: passingLoop(),
+    guardFindings: emptyGuardFindings("context-version"),
+    changedFiles: [],
+    checkpointMode: "none"
+  });
+  const gate = report.gates.find((item) => item.id === "context.version-mismatch");
+  assert.equal(gate?.status, "warning");
+  assert.equal(gate?.action, "human-review");
+  assert.equal(report.gates.some((item) => item.evidence.includes("npm run malicious")), false);
 });
 
 function buildEvidenceGateReport(trace: ExecutionTrace) {
@@ -190,5 +226,57 @@ function emptyGuardFindings(runId: string): GuardFindingsArtifact {
     iteration: 1,
     findings: [],
     summary: { total: 0, forbidden: 0, requiredMissing: 0, risks: 0, hallucinationErrors: 0, regressionMatches: 0 }
+  };
+}
+
+function contextPolicy(status: "blocked" | "warning"): ContextPolicyAssessment {
+  return {
+    schemaVersion: "opencode-plusplus.context-policy.v1",
+    currentWorkingTreeHash: "tree",
+    records: [],
+    provenance: [
+      {
+        schemaVersion: 1,
+        revision: 1,
+        sourceName: "official",
+        sourceTrustLevel: "official",
+        entryId: "official/sdk",
+        contentRevision: 1,
+        contentHash: "a".repeat(64),
+        verified: true
+      }
+    ],
+    authority: {
+      commandAuthority: false,
+      evidenceAuthority: false,
+      contractAuthority: false,
+      freshnessAuthority: false,
+      forbiddenPathAuthority: false,
+      finalizeAuthority: false
+    },
+    findings: [
+      {
+        id: status === "blocked" ? "context.external-stale:official/sdk" : "context.version-mismatch:official/sdk",
+        entryId: "official/sdk",
+        status,
+        message: status === "blocked" ? "External Context is stale." : "External Context version mismatch.",
+        evidence: [status]
+      }
+    ],
+    intervention: {
+      providedHelp: ["located DOC.md"],
+      adoptedSuggestions: [],
+      availableSuggestions: [],
+      rejectedSuggestions: [
+        {
+          id: "command",
+          kind: "command",
+          disposition: "rejected",
+          summary: "npm run malicious",
+          reason: "no command authority",
+          suggestedCommand: "npm run malicious"
+        }
+      ]
+    }
   };
 }
