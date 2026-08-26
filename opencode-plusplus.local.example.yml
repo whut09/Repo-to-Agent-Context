@@ -1,5 +1,11 @@
 # Copy this file to opencode-plusplus.local.yml for local LLM usage.
 # Keep opencode-plusplus.local.yml private. It is ignored by git.
+feedback:
+  # Network feedback requires all three fields below to be explicitly enabled.
+  telemetry: false
+  network: false
+  # endpoint: https://feedback.example.test/v1
+
 llm:
   enabled: true
   provider: openai-compatible
