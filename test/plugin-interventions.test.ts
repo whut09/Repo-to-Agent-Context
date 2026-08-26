@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { appendInterventionEvent, createInterventionEvent } from "../src/harness/observability/intervention-ledger.js";
 import { pluginInterventionSnapshot } from "../src/integrations/opencode/plugin-runtime/harness/interventions.js";
+import { recordContextFeedback } from "../src/context-registry/feedback-store.js";
 
 test("plugin intervention snapshot exposes selected, excluded, active, and verified work", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-interventions-"));
@@ -20,6 +21,7 @@ test("plugin intervention snapshot exposes selected, excluded, active, and verif
       status: "verified",
       resolutionEvidence: [{ kind: "command", ref: "trace-step-1", valid: true, currentWorkingTree: true }]
     });
+    recordContextFeedback({ repository: root, entryId: "official/auth", source: "official", revision: 1, target: "entry", label: "useful" });
     const snapshot = pluginInterventionSnapshot(root, "task-1", ["src/auth/session.ts"], [{ path: "src/auth/legacy.ts", reason: "not selected by top-k" }]);
 
     assert.equal(snapshot.ledgerPath, ".agent-context/interventions/task-1.jsonl");
@@ -28,6 +30,9 @@ test("plugin intervention snapshot exposes selected, excluded, active, and verif
     assert.equal(snapshot.excludedFiles[0]?.reason, "not selected by top-k");
     assert.ok(snapshot.verifiedFixes.some((event) => event.interventionId === "intervention-verified"));
     assert.ok(snapshot.remainingProblems.some((event) => event.interventionId === "intervention-requested"));
+    assert.equal(snapshot.feedback?.total, 1);
+    assert.equal(snapshot.feedback?.annotationSeparate, true);
+    assert.equal(snapshot.feedback?.evidenceAuthority, false);
     assert.equal(
       readFileSync(path.join(root, ".agent-context", "interventions", "task-1.jsonl"), "utf8")
         .trim()

@@ -138,6 +138,17 @@ export interface PluginInterventionSnapshot {
   contextHelp?: string[];
   adoptedContextAdvice?: PluginContextAdvice[];
   rejectedContextAdvice?: PluginContextAdvice[];
+  feedback?: PluginFeedbackSummary;
+}
+
+export interface PluginFeedbackSummary {
+  kind: "maintainer-feedback";
+  localOnly: boolean;
+  networkEnabled: boolean;
+  total: number;
+  labels: Array<{ label: string; count: number }>;
+  annotationSeparate: true;
+  evidenceAuthority: false;
 }
 
 export interface PluginHarnessResult {
@@ -211,6 +222,15 @@ export function emptyPluginInterventions(ledgerPath = ""): PluginInterventionSna
     humanReview: [],
     contextHelp: [],
     adoptedContextAdvice: [],
-    rejectedContextAdvice: []
+    rejectedContextAdvice: [],
+    feedback: {
+      kind: "maintainer-feedback",
+      localOnly: true,
+      networkEnabled: false,
+      total: 0,
+      labels: [],
+      annotationSeparate: true,
+      evidenceAuthority: false
+    }
   };
 }

@@ -151,6 +151,14 @@ interface InterventionReport {
   contextHelp?: string[];
   adoptedContextAdvice?: Array<{ summary: string; reason: string }>;
   rejectedContextAdvice?: Array<{ summary: string; reason: string }>;
+  feedback?: {
+    localOnly: boolean;
+    networkEnabled: boolean;
+    total: number;
+    labels: Array<{ label: string; count: number }>;
+    annotationSeparate: true;
+    evidenceAuthority: false;
+  };
 }
 
 function renderInterventionSections(interventions: InterventionReport | undefined): string[] {
@@ -175,7 +183,11 @@ function renderInterventionSections(interventions: InterventionReport | undefine
       "- none recorded",
       "",
       "## Context Advice Rejected",
-      "- none recorded"
+      "- none recorded",
+      "",
+      "## Context Feedback",
+      "- none recorded",
+      "- Maintainer feedback is separate from local annotations and verification evidence."
     ];
   }
   return [
@@ -203,7 +215,13 @@ function renderInterventionSections(interventions: InterventionReport | undefine
     "## Context Advice Rejected",
     ...(interventions.rejectedContextAdvice?.length
       ? interventions.rejectedContextAdvice.map((item) => `- ${item.summary} (${item.reason})`)
-      : ["- none recorded"])
+      : ["- none recorded"]),
+    "",
+    "## Context Feedback",
+    `- local feedback: ${interventions.feedback?.total ?? 0}`,
+    `- labels: ${interventions.feedback?.labels.length ? interventions.feedback.labels.map((item) => `${item.label}=${item.count}`).join(", ") : "none"}`,
+    `- network submission: ${interventions.feedback?.networkEnabled ? "enabled" : "disabled"}`,
+    "- Maintainer feedback is separate from local annotations and cannot satisfy verification evidence."
   ];
 }
 

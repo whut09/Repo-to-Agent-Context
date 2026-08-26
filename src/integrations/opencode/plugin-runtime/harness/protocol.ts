@@ -92,6 +92,9 @@ function humanReadableSummary(result: PluginHarnessResult): string {
     lines.push(`Context advice adopted: ${result.interventions.adoptedContextAdvice.map((item) => item.summary).join("; ")}`);
   if (result.interventions?.rejectedContextAdvice?.length)
     lines.push(`Context advice rejected: ${result.interventions.rejectedContextAdvice.map((item) => `${item.summary} (${item.reason})`).join("; ")}`);
+  if (result.interventions?.feedback?.total) {
+    lines.push(`Context feedback: ${result.interventions.feedback.total} local rating(s); network ${result.interventions.feedback.networkEnabled ? "enabled" : "disabled"}.`);
+  }
   if (result.interventions?.remainingProblems.length)
     lines.push(`Remaining problems: ${result.interventions.remainingProblems.map((event) => event.problem).join("; ")}`);
   if (result.interventions?.humanReview.length) lines.push(`Human review: ${result.interventions.humanReview.map((event) => event.problem).join("; ")}`);

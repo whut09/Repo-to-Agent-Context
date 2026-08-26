@@ -14,6 +14,9 @@ import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { readExecutionTrace, type ExecutionTrace } from "../../../../harness/observability/execution-trace.js";
 import { emptyPluginInterventions, type PluginInterventionRecord, type PluginInterventionSnapshot } from "./types.js";
 import { readContextUsage } from "../../../../context-registry/usage-ledger.js";
+import { readContextFeedback } from "../../../../context-registry/feedback-store.js";
+import { buildContextFeedbackStats } from "../../../../context-registry/feedback-stats.js";
+import { loadConfig } from "../../../../config/load-config.js";
 
 export function pluginInterventionSnapshot(
   root: string,
@@ -41,8 +44,27 @@ export function pluginInterventionSnapshot(
     humanReview: summary.active.filter((event) => event.status === "human-review").map(toPluginIntervention),
     contextHelp: context.help,
     adoptedContextAdvice: context.adopted,
-    rejectedContextAdvice: context.rejected
+    rejectedContextAdvice: context.rejected,
+    feedback: feedbackSummary(root)
   };
+}
+
+function feedbackSummary(root: string): NonNullable<PluginInterventionSnapshot["feedback"]> {
+  try {
+    const stats = buildContextFeedbackStats(readContextFeedback(root));
+    const config = loadConfig(root).feedback;
+    return {
+      kind: "maintainer-feedback",
+      localOnly: !config.network || !config.telemetry,
+      networkEnabled: config.network && config.telemetry,
+      total: stats.total,
+      labels: stats.labels.filter((item) => item.count > 0),
+      annotationSeparate: true,
+      evidenceAuthority: false
+    };
+  } catch {
+    return { kind: "maintainer-feedback", localOnly: true, networkEnabled: false, total: 0, labels: [], annotationSeparate: true, evidenceAuthority: false };
+  }
 }
 
 function contextAdviceForTask(
