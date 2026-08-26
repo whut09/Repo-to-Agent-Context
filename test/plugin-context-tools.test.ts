@@ -91,6 +91,57 @@ test("Desktop Context tools return deterministic structured data through applica
   }
 });
 
+test("Desktop Context tools return structured boundary errors without throwing", async () => {
+  const root = createContextToolRepo();
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "plugin-state.json") });
+    const tools = plugin.tool as Record<string, PluginTool>;
+    const malformed = parse<never>(await tools.opencode_plusplus_context_get.execute({ full: "yes" }));
+    assert.equal(malformed.ok, false);
+    if (malformed.ok) return;
+    assert.equal(malformed.error.code, "INVALID_ARGUMENTS");
+
+    const traversal = parse<never>(
+      await tools.opencode_plusplus_context_get.execute({ entryId: "private/payments", file: "../secret.txt" })
+    );
+    assert.equal(traversal.ok, false);
+    if (traversal.ok) return;
+    assert.equal(traversal.error.code, "INVALID_PATH");
+
+    const missing = parse<never>(await tools.opencode_plusplus_context_get.execute({ entryId: "private/missing" }));
+    assert.equal(missing.ok, false);
+    if (missing.ok) return;
+    assert.equal(missing.error.code, "ENTRY_NOT_FOUND");
+
+    const interventions = parse<never>(await tools.opencode_plusplus_interventions.execute({}));
+    assert.equal(interventions.ok, false);
+    if (interventions.ok) return;
+    assert.equal(interventions.error.code, "INVALID_ARGUMENTS");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Desktop Context search returns a structured network failure", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-desktop-context-network-"));
+  try {
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "fixture" }), "utf8");
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: false\n  sources:\n    - name: unavailable\n      kind: remote\n      location: http://127.0.0.1:1/registry.json\n      trustLevel: community\n      timeoutMs: 50\n      sha256: 0000000000000000000000000000000000000000000000000000000000000000\n",
+      "utf8"
+    );
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "plugin-state.json") });
+    const tools = plugin.tool as Record<string, PluginTool>;
+    const result = parse<never>(await tools.opencode_plusplus_context_search.execute({ query: "payments" }));
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "NETWORK_FAILURE");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function parse<T>(value: string): ToolEnvelope<T> {
   return JSON.parse(value) as ToolEnvelope<T>;
 }
