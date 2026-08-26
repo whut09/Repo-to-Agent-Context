@@ -48,7 +48,8 @@ export { renderContextExplainabilityBenchmark } from "./context-explainability-r
 async function runScenario(benchmarkDir: string, definition: ContextExplainabilityScenarioDefinition, topK: number): Promise<ContextExplainabilitySample> {
   const root = mkdtempSync(path.join(tmpdir(), `opencode-plusplus-explainability-${definition.id}-`));
   try {
-    cpSync(path.join(benchmarkDir, "fixtures", definition.fixture), root, { recursive: true });
+    const fixtureRoot = path.join(benchmarkDir, "fixtures", definition.fixture);
+    cpSync(fixtureRoot, root, { recursive: true, filter: (source) => !isRuntimeCachePath(fixtureRoot, source) });
     initializeFixtureRepo(root);
     createContextRegistry(root, definition);
     const context = await buildContextPackage(root);
@@ -154,6 +155,11 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function isRuntimeCachePath(fixtureRoot: string, candidate: string): boolean {
+  const cacheRoot = path.join(fixtureRoot, ".agent-context", "cache");
+  return candidate === cacheRoot || candidate.startsWith(`${cacheRoot}${path.sep}`);
 }
 
 function createContextRegistry(root: string, definition: ContextExplainabilityScenarioDefinition): void {

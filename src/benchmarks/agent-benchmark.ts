@@ -211,7 +211,8 @@ async function runAgentModeBenchmark(
 
   const workspace = mkdtempSync(path.join(tmpdir(), `opencode-plusplus-agent-benchmark-${task.id}-${mode}-`));
   const repo = path.join(workspace, task.fixture);
-  cpSync(path.join(benchmarkDir, "fixtures", task.fixture), repo, { recursive: true });
+  const fixtureRoot = path.join(benchmarkDir, "fixtures", task.fixture);
+  cpSync(fixtureRoot, repo, { recursive: true, filter: (source) => !isRuntimeCachePath(fixtureRoot, source) });
   mkdirSync(path.join(repo, ".agent-context", "agent-benchmark"), { recursive: true });
 
   if (mode !== "no-context") {
@@ -228,6 +229,11 @@ async function runAgentModeBenchmark(
 
   if (!options.keepWorkdirs) rmSync(workspace, { recursive: true, force: true });
   return finalizeRunTelemetry(result, options, Date.now() - startedAtMs);
+}
+
+function isRuntimeCachePath(fixtureRoot: string, candidate: string): boolean {
+  const cacheRoot = path.join(fixtureRoot, ".agent-context", "cache");
+  return candidate === cacheRoot || candidate.startsWith(`${cacheRoot}${path.sep}`);
 }
 
 function mockDryRunAgentModeBenchmark(

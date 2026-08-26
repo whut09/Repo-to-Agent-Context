@@ -168,7 +168,7 @@ export async function runBenchmark(options: BenchmarkOptions = {}): Promise<Benc
 
   for (const task of tasks) {
     const fixtureRoot = path.join(benchmarkDir, "fixtures", task.fixture);
-    const context = await buildContextPackage(fixtureRoot);
+    const context = await buildContextPackage(fixtureRoot, { cache: false });
     const caseTopK = task.topK ?? topK;
     const pack = buildTaskPack(context, task.task, { type: task.type ?? "auto", tokenBudget: task.tokenBudget });
     const selectedFiles = pack.files.map((file) => file.path);
