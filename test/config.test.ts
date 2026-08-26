@@ -121,6 +121,12 @@ test("starter config is valid and contains all output switches", () => {
     writeFileSync(path.join(root, "opencode-plusplus.config.yml"), content, "utf8");
     const config = loadConfig(root);
     assert.equal(config.target, "opencode");
+    assert.deepEqual(config.feedback, {
+      enabled: true,
+      telemetry: false,
+      network: false,
+      useLocalQualitySignals: false
+    });
     assert.deepEqual(config.agents, {
       mode: "minimal",
       maxTokens: 1200,

@@ -29,6 +29,12 @@ export const DEFAULT_CONFIG: OpenCodePlusplusConfig = {
     offline: true,
     sources: []
   },
+  feedback: {
+    enabled: true,
+    telemetry: false,
+    network: false,
+    useLocalQualitySignals: false
+  },
   tokenBudget: 60000,
   include: ["**/*"],
   exclude: DEFAULT_EXCLUDES,

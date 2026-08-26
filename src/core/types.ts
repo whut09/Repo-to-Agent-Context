@@ -12,6 +12,7 @@ export interface OpenCodePlusplusConfig {
   target: AgentTarget;
   evidencePolicy: EvidencePolicyMode;
   contextRegistry: ContextRegistryConfig;
+  feedback: ContextFeedbackConfig;
   tokenBudget: number;
   include: string[];
   exclude: string[];
@@ -27,6 +28,14 @@ export interface OpenCodePlusplusConfig {
     readiness: boolean;
     rag: boolean;
   };
+}
+
+export interface ContextFeedbackConfig {
+  enabled: boolean;
+  telemetry: boolean;
+  network: boolean;
+  useLocalQualitySignals: boolean;
+  endpoint?: string;
 }
 
 export interface ContextRegistryConfig {

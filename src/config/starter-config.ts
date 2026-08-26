@@ -1,6 +1,11 @@
 export function starterConfig(): string {
   return `target: opencode
 evidencePolicy: advisory
+feedback:
+  enabled: true
+  telemetry: false
+  network: false
+  useLocalQualitySignals: false
 tokenBudget: 60000
 
 include:
