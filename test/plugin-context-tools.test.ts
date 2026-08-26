@@ -101,9 +101,7 @@ test("Desktop Context tools return structured boundary errors without throwing",
     if (malformed.ok) return;
     assert.equal(malformed.error.code, "INVALID_ARGUMENTS");
 
-    const traversal = parse<never>(
-      await tools.opencode_plusplus_context_get.execute({ entryId: "private/payments", file: "../secret.txt" })
-    );
+    const traversal = parse<never>(await tools.opencode_plusplus_context_get.execute({ entryId: "private/payments", file: "../secret.txt" }));
     assert.equal(traversal.ok, false);
     if (traversal.ok) return;
     assert.equal(traversal.error.code, "INVALID_PATH");

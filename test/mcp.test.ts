@@ -150,7 +150,7 @@ test("MCP Context tools reuse structured application service results", async () 
     });
     assert.equal(search.ok, true);
     assert.equal(search.tool, "context-search");
-    assert.equal(((search.data as { hits: Array<{ entry: { id: string } }> }).hits[0]?.entry.id), "private/payments");
+    assert.equal((search.data as { hits: Array<{ entry: { id: string } }> }).hits[0]?.entry.id, "private/payments");
 
     const get = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_get", {
       repo: root,
@@ -158,7 +158,7 @@ test("MCP Context tools reuse structured application service results", async () 
       file: "docs/payments/references/errors.md"
     });
     assert.equal(get.ok, true);
-    assert.equal(((get.data as { files: Array<{ content: string }> }).files[0]?.content), "Errors.\n");
+    assert.equal((get.data as { files: Array<{ content: string }> }).files[0]?.content, "Errors.\n");
 
     const status = await executeOpenCodePlusplusMcpTool("opencode_plusplus_context_status", { repo: root });
     assert.equal(status.ok, true);

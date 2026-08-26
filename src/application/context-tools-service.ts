@@ -6,13 +6,12 @@ import type { ContextUsageRecord } from "../context-registry/types.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
 import { contextToolError } from "./context-tool-errors.js";
 import { contextToolFailure, contextToolSuccess, type ContextToolResult } from "./context-tools-protocol.js";
-import { submitApplicationContextFeedback, type ApplicationContextFeedbackResult, type SubmitApplicationContextFeedbackInput } from "./context-feedback-service.js";
 import {
-  getContextFiles,
-  searchContextEntries,
-  type ContextEntrySearchResult,
-  type GetContextFilesInput
-} from "./context-service.js";
+  submitApplicationContextFeedback,
+  type ApplicationContextFeedbackResult,
+  type SubmitApplicationContextFeedbackInput
+} from "./context-feedback-service.js";
+import { getContextFiles, searchContextEntries, type ContextEntrySearchResult, type GetContextFilesInput } from "./context-service.js";
 import { getApplicationInterventions, type ApplicationInterventionResult } from "./intervention-service.js";
 
 export type ContextSearchToolInput = Parameters<typeof searchContextEntries>[0];

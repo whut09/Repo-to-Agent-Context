@@ -643,13 +643,13 @@ async function runContextSearch(args: ContextSearchInput): Promise<OpenCodePlusp
 async function runContextGet(args: ContextGetInput): Promise<OpenCodePlusplusMcpResult> {
   return {
     ...(await runContextGetTool({
-    repo: args.repo ?? ".",
-    id: args.entryId,
-    language: args.language,
-    packageVersion: args.packageVersion,
-    source: args.source,
-    file: args.file,
-    full: args.full,
+      repo: args.repo ?? ".",
+      id: args.entryId,
+      language: args.language,
+      packageVersion: args.packageVersion,
+      source: args.source,
+      file: args.file,
+      full: args.full,
       withAnnotations: args.withAnnotations
     }))
   };
