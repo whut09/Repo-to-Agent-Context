@@ -15,3 +15,4 @@ export * from "./content-reader.js";
 export * from "./annotations.js";
 export * from "./feedback.js";
 export * from "./feedback-store.js";
+export * from "./feedback-stats.js";
