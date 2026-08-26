@@ -13,3 +13,4 @@ export * from "./remote-source.js";
 export * from "./source-registry.js";
 export * from "./content-reader.js";
 export * from "./annotations.js";
+export * from "./feedback.js";
