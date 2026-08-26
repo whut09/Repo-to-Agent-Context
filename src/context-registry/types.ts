@@ -221,3 +221,62 @@ export interface ContextFetchResult {
   freshness?: ContextFetchFreshness;
   durationMs: number;
 }
+
+export type ContextAdviceKind = "file-location" | "api-version" | "error-handling" | "workaround" | "command" | "evidence-claim";
+export type ContextAdviceDisposition = "adopted" | "available" | "rejected";
+
+export interface ContextAdviceDecision {
+  id: string;
+  kind: ContextAdviceKind;
+  disposition: ContextAdviceDisposition;
+  summary: string;
+  reason: string;
+  sourceFile?: string;
+  suggestedCommand?: string;
+}
+
+export interface ContextVersionCompatibility {
+  status: "match" | "mismatch" | "unknown";
+  contextVersion?: string;
+  repositoryVersion?: string;
+  reason: string;
+}
+
+export interface ContextUsageAuthority {
+  commandAuthority: false;
+  evidenceAuthority: false;
+  contractAuthority: false;
+  freshnessAuthority: false;
+  forbiddenPathAuthority: false;
+  finalizeAuthority: false;
+}
+
+export interface ContextUsageRecord {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision?: number;
+  usageId: string;
+  taskId: string;
+  fetchedAt: string;
+  workingTreeHash: string;
+  entryId: string;
+  entryName: string;
+  packageVersion?: string;
+  apiVersion?: string;
+  contentRevision: number;
+  selectedFiles: string[];
+  omittedFiles: string[];
+  provenance: ContextProvenance;
+  freshness: ContextFetchFreshness;
+  cache: ContextFetchCache;
+  versionCompatibility: ContextVersionCompatibility;
+  advice: ContextAdviceDecision[];
+  authority: ContextUsageAuthority;
+}
+
+export interface ContextUsageStore {
+  schemaVersion: typeof CONTEXT_REGISTRY_SCHEMA_VERSION;
+  revision: number;
+  repository: string;
+  taskId: string;
+  records: ContextUsageRecord[];
+}
