@@ -56,10 +56,18 @@ export function expectedDecisionFor(scenario: ExplainabilityScenario): ContextEx
   return scenario === "positive" ? "finalize" : scenario === "wrong-command" || scenario === "similar-unrelated" ? "block" : "human-review";
 }
 
-export function decisionFromInterventions(events: Array<{ status: string }>): ContextExplainabilitySample["finalDecision"] {
-  if (events.some((event) => event.status === "verified") && !events.some((event) => event.status === "stale")) return "finalize";
-  if (events.some((event) => event.status === "prevented")) return "block";
+export function decisionFromInterventions(events: Array<{ status: string; interventionId?: string }>): ContextExplainabilitySample["finalDecision"] {
+  const terminalEvents = terminalDecisionEvents(events);
+  if (terminalEvents.some((event) => event.status === "prevented")) return "block";
+  if (terminalEvents.some((event) => ["human-review", "repaired", "requested", "stale", "unresolved"].includes(event.status))) return "human-review";
+  if (terminalEvents.some((event) => event.status === "verified")) return "finalize";
   return "human-review";
+}
+
+function terminalDecisionEvents<T extends { status: string; interventionId?: string }>(events: T[]): T[] {
+  const terminal = new Map<string, T>();
+  events.forEach((event, index) => terminal.set(event.interventionId ?? `event-${index}`, event));
+  return [...terminal.values()];
 }
 
 function appendEvidenceLifecycle(
