@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { readApplicationContextFeedbackStats, submitApplicationContextFeedback } from "../src/application/context-feedback-service.js";
+import { readApplicationContextFeedbackStats, readApplicationContextQualitySignals, submitApplicationContextFeedback } from "../src/application/context-feedback-service.js";
 
 test("application feedback service records locally and reports transport status", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-feedback-service-"));
@@ -22,6 +22,7 @@ test("application feedback service records locally and reports transport status"
     assert.equal(result.transport.status, "disabled");
     assert.equal(result.stats.total, 1);
     assert.equal(readApplicationContextFeedbackStats(root, "official/payments", "official").total, 1);
+    assert.equal(readApplicationContextQualitySignals(root)["official\0official/payments"], 3);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

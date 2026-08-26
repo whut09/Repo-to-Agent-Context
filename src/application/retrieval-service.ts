@@ -5,6 +5,7 @@ import { loadContextSourceRegistry } from "../context-registry/source-registry.j
 import { buildTestSelection } from "../outputs/test-selector.js";
 import { unique } from "../core/collections.js";
 import type { ContextPackage } from "../core/types.js";
+import { readApplicationContextQualitySignals } from "./context-feedback-service.js";
 
 export interface RetrieveApplicationInput {
   repo: string;
@@ -44,7 +45,8 @@ export async function retrieveApplicationContext(input: RetrieveApplicationInput
     packageVersion: input.packageVersion,
     language: input.language,
     source: input.source,
-    tags: input.tags
+    tags: input.tags,
+    localQualitySignals: context.config.feedback.useLocalQualitySignals ? readApplicationContextQualitySignals(context.scan.root) : undefined
   });
   const selectionPaths = unique([
     ...(input.changedFiles ?? []),

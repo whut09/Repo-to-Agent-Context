@@ -10,6 +10,7 @@ import { rankContextEntriesForTask } from "../core/ranker.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
 import { injectContextAnnotation, listContextAnnotations } from "../context-registry/annotations.js";
 import type { ContextEntry, ContextFetchResult, ContextFetchSelectionMode, ContextProvenance, ContextSourceConfig } from "../context-registry/types.js";
+import { readApplicationContextQualitySignals } from "./context-feedback-service.js";
 
 export interface ContextServiceResult {
   context: ContextPackage;
@@ -90,7 +91,8 @@ export async function searchContextEntries(input: SearchContextEntriesInput): Pr
     language: input.language,
     source: input.source,
     tags: input.tags,
-    negativeExamples: input.negativeExamples
+    negativeExamples: input.negativeExamples,
+    localQualitySignals: loaded.config.feedback.useLocalQualitySignals ? readApplicationContextQualitySignals(root) : undefined
   });
   const limit = adaptiveTopK(input.taskType ?? "auto", input.topK);
   return {
@@ -188,7 +190,7 @@ async function loadRegistry(root: string) {
   const result = context.config.contextRegistry.enabled
     ? await loadContextSourceRegistry({ root, sources: context.config.contextRegistry.sources, offline: context.config.contextRegistry.offline })
     : { valid: true, sources: [], issues: [], snapshot: undefined };
-  return { ...result, sourceConfigs: context.config.contextRegistry.sources };
+  return { ...result, sourceConfigs: context.config.contextRegistry.sources, config: context.config };
 }
 
 function findEntry(entries: ContextEntry[], input: { id: string; packageVersion?: string; language?: string; source?: string }): ContextEntry | undefined {

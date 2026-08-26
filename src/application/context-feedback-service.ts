@@ -1,5 +1,5 @@
 import { loadConfig } from "../config/load-config.js";
-import { buildContextFeedbackStats } from "../context-registry/feedback-stats.js";
+import { buildContextFeedbackStats, buildContextFeedbackStatsByEntry, localQualitySignal } from "../context-registry/feedback-stats.js";
 import { recordContextFeedback, readContextFeedback } from "../context-registry/feedback-store.js";
 import { submitContextFeedback, type ContextFeedbackTransportResult } from "../context-registry/feedback-transport.js";
 import type { CreateContextFeedbackInput } from "../context-registry/feedback.js";
@@ -30,4 +30,10 @@ export async function submitApplicationContextFeedback(input: SubmitApplicationC
 
 export function readApplicationContextFeedbackStats(repo: string, entryId?: string, source?: string): ContextFeedbackStats {
   return buildContextFeedbackStats(readContextFeedback(repo), { entryId, source });
+}
+
+export function readApplicationContextQualitySignals(repo: string): Record<string, number> {
+  return Object.fromEntries(
+    buildContextFeedbackStatsByEntry(readContextFeedback(repo)).map((stats) => [`${stats.source}\0${stats.entryId}`, localQualitySignal(stats) * 3])
+  );
 }
