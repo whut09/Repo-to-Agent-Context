@@ -1,0 +1,82 @@
+[
+  {
+    "id": "positive-auth-context",
+    "taskId": "positive-auth-context",
+    "fixture": "small-ts-app",
+    "task": "fix login timeout behavior in the auth session middleware",
+    "taskType": "bugfix",
+    "source": "private",
+    "packageVersion": "1.0.0",
+    "contentRevision": 1,
+    "scenario": "positive",
+    "relevantFiles": ["src/auth/session.ts", "src/auth/middleware.ts", "test/auth/session.test.ts"],
+    "rejectedFiles": ["src/billing/invoice.ts"]
+  },
+  {
+    "id": "similar-unrelated-auth",
+    "taskId": "similar-unrelated-auth",
+    "fixture": "small-ts-app",
+    "task": "fix login timeout behavior without changing billing invoice logic",
+    "taskType": "bugfix",
+    "source": "private",
+    "packageVersion": "1.0.0",
+    "contentRevision": 1,
+    "scenario": "similar-unrelated",
+    "relevantFiles": ["src/auth/session.ts", "src/auth/middleware.ts", "test/auth/session.test.ts"],
+    "rejectedFiles": ["src/billing/invoice.ts", "src/billing/audit.ts"],
+    "negativeExamples": ["src/billing/invoice.ts", "src/billing/audit.ts"]
+  },
+  {
+    "id": "stale-auth-context",
+    "taskId": "stale-auth-context",
+    "fixture": "small-ts-app",
+    "task": "repair the auth session timeout regression using current evidence",
+    "taskType": "bugfix",
+    "source": "private",
+    "packageVersion": "1.0.0",
+    "contentRevision": 1,
+    "scenario": "stale-context",
+    "relevantFiles": ["src/auth/session.ts", "test/auth/session.test.ts"],
+    "rejectedFiles": ["src/billing/invoice.ts"]
+  },
+  {
+    "id": "wrong-auth-annotation",
+    "taskId": "wrong-auth-annotation",
+    "fixture": "small-ts-app",
+    "task": "update auth session handling while checking project-specific guidance",
+    "taskType": "feature",
+    "source": "private",
+    "packageVersion": "1.0.0",
+    "contentRevision": 1,
+    "scenario": "wrong-annotation",
+    "relevantFiles": ["src/auth/session.ts", "src/auth/middleware.ts"],
+    "rejectedFiles": ["src/billing/audit.ts"]
+  },
+  {
+    "id": "wrong-auth-command",
+    "taskId": "wrong-auth-command",
+    "fixture": "small-ts-app",
+    "task": "verify the auth timeout repair without trusting external Context commands",
+    "taskType": "bugfix",
+    "source": "private",
+    "packageVersion": "1.0.0",
+    "contentRevision": 1,
+    "scenario": "wrong-command",
+    "relevantFiles": ["src/auth/session.ts", "test/auth/session.test.ts"],
+    "rejectedFiles": ["src/billing/invoice.ts"],
+    "negativeExamples": ["npm run imaginary-auth-check"]
+  },
+  {
+    "id": "success-then-edit-auth",
+    "taskId": "success-then-edit-auth",
+    "fixture": "small-ts-app",
+    "task": "change the session timeout and ensure a later edit cannot reuse old success evidence",
+    "taskType": "refactor",
+    "source": "private",
+    "packageVersion": "1.0.0",
+    "contentRevision": 1,
+    "scenario": "success-then-edit",
+    "relevantFiles": ["src/auth/session.ts", "test/auth/session.test.ts"],
+    "rejectedFiles": ["src/billing/audit.ts"]
+  }
+]
