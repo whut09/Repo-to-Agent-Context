@@ -8,6 +8,8 @@ import type { PluginRetrieveArgs, PluginRetrieveResult } from "./types.js";
 import { createPluginHarnessError } from "./protocol.js";
 import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginStage } from "./performance.js";
 import { pluginInterventionSnapshot, recordPluginContextSelection } from "./interventions.js";
+import { contextUsageStorePath, recordContextUsage } from "../../../../context-registry/usage-ledger.js";
+import path from "node:path";
 
 export async function retrievePluginHarnessContext(root: string, args: PluginRetrieveArgs): Promise<PluginRetrieveResult> {
   const staged = await runPluginStage("retrieve", () => retrievePluginHarnessContextInternal(root, args));
@@ -109,11 +111,13 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
     annotationId: args.annotationId,
     includeStaleAnnotation: args.includeStaleAnnotation
   });
+  const contextTaskId = session?.taskId ?? context.entry.id;
+  recordContextUsage(root, contextTaskId, context);
   const selected = context.files?.map((file) => `context://${context.entry.sourceName}/${file.path}`) ?? [];
   const excludedFiles = context.omittedFiles.map((file) => ({ path: file, reason: "omitted by incremental context fetch mode" }));
   recordPluginContextSelection({
     root,
-    taskId: session?.taskId ?? context.entry.id,
+    taskId: contextTaskId,
     sessionId: args.sessionId,
     phase: "retrieve",
     selectedFiles: selected,
@@ -131,7 +135,10 @@ async function fetchPluginContext(root: string, args: PluginRetrieveArgs): Promi
     blocking: false,
     nextAction: session ? "evaluate" : "prepare",
     mustInspect: selected,
-    artifacts: [".agent-context/manifest.json"],
+    artifacts: [
+      ".agent-context/manifest.json",
+      path.relative(root, contextUsageStorePath(root, contextTaskId)).replaceAll("\\", "/")
+    ],
     context,
     interventions: pluginInterventionSnapshot(root, session?.taskId ?? context.entry.id, selected, excludedFiles),
     performance: {
