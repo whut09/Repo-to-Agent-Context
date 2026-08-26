@@ -8,7 +8,7 @@ import { selectContextFiles } from "../context-registry/content-reader.js";
 import { adaptiveTopK } from "../retrievers/types.js";
 import { rankContextEntriesForTask } from "../core/ranker.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
-import { injectContextAnnotation, listContextAnnotations } from "../context-registry/annotations.js";
+import { injectContextAnnotation, listContextAnnotations, readContextAnnotation } from "../context-registry/annotations.js";
 import type { ContextEntry, ContextFetchResult, ContextFetchSelectionMode, ContextProvenance, ContextSourceConfig } from "../context-registry/types.js";
 import { readApplicationContextQualitySignals } from "./context-feedback-service.js";
 
@@ -83,6 +83,7 @@ export interface GetContextFilesInput {
   source?: string;
   annotationId?: string;
   includeStaleAnnotation?: boolean;
+  withAnnotations?: boolean;
 }
 
 const fetchedDocumentCache = new Map<string, { document: BuiltContextDocument; workingTreeHash: string; packHash: string }>();
@@ -155,6 +156,11 @@ export async function getContextFiles(input: GetContextFilesInput): Promise<Cont
   const selection = selectContextFiles(document, entry, input.file, mode === "full");
   const annotationScope = { repository: root, entryId: entry.id, packageVersion: entry.packageVersion, contentRevision: entry.contentRevision };
   const annotationAvailability = listContextAnnotations(annotationScope);
+  const annotations = input.withAnnotations
+    ? annotationAvailability.annotations
+        .filter((annotation) => !annotation.stale)
+        .map((annotation) => readContextAnnotation({ ...annotationScope, id: annotation.id }).annotation)
+    : undefined;
   const annotationInjection = input.annotationId
     ? injectContextAnnotation({ ...annotationScope, id: input.annotationId, allowStale: input.includeStaleAnnotation })
     : undefined;
@@ -188,6 +194,7 @@ export async function getContextFiles(input: GetContextFilesInput): Promise<Cont
     contextMode: cacheHit ? "reused" : previous ? "incremental" : "rebuilt",
     freshness,
     annotationAvailability,
+    ...(annotations ? { annotations } : {}),
     ...(annotationInjection ? { annotationInjection: annotationInjection.injection } : {}),
     durationMs: Date.now() - startedAt
   };

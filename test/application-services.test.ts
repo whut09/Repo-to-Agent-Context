@@ -8,6 +8,7 @@ import { planApplicationTask } from "../src/application/task-service.js";
 import { testApplicationChanges } from "../src/application/verification-service.js";
 import { retrieveApplicationContext } from "../src/application/retrieval-service.js";
 import { getContextFiles, getContextEntry, searchContextEntries } from "../src/application/context-service.js";
+import { addContextAnnotation } from "../src/context-registry/annotations.js";
 
 test("MCP task and verification tools use the shared application services", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-application-services-"));
@@ -97,6 +98,7 @@ test("context application services search entries and fetch entry, file, and ful
     assert.equal(typeof search.hits[0]?.scoreBreakdown.lexical, "number");
     const entry = await getContextEntry({ repo: root, id: "official/payments" });
     assert.equal(entry.entry.contentRevision, 2);
+    addContextAnnotation({ repository: root, entryId: entry.entry.id, packageVersion: "2.0.0", contentRevision: 2, kind: "workaround", note: "Use the current retry helper." });
 
     const main = await getContextFiles({ repo: root, id: entry.entry.id });
     assert.deepEqual(main.selectedFiles, ["official/docs/payments/DOC.md"]);
@@ -118,6 +120,9 @@ test("context application services search entries and fetch entry, file, and ful
     assert.equal(full.fetchMode, "full");
     assert.equal(full.files?.length, 2);
     assert.deepEqual(full.omittedFiles, []);
+    assert.equal(full.annotations, undefined);
+    const annotated = await getContextFiles({ repo: root, id: entry.entry.id, withAnnotations: true });
+    assert.equal(annotated.annotations?.[0]?.note, "Use the current retry helper.");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
