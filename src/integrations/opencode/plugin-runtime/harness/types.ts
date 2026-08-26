@@ -4,6 +4,10 @@ export const OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES = [
   "opencode_plusplus_status",
   "opencode_plusplus_prepare",
   "opencode_plusplus_retrieve",
+  "opencode_plusplus_context_search",
+  "opencode_plusplus_context_get",
+  "opencode_plusplus_context_status",
+  "opencode_plusplus_interventions",
   "opencode_plusplus_context_feedback",
   "opencode_plusplus_evaluate",
   "opencode_plusplus_next"

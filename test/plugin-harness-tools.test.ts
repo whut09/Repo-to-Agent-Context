@@ -51,10 +51,12 @@ test("Desktop feedback tool stores metadata locally without task or source conte
         target: "entry",
         label: "useful"
       })
-    ) as { ok: boolean; transport: { status: string }; stats: { total: number } };
+    ) as { ok: boolean; data: { transport: { status: string }; stats: { total: number }; annotationSeparate: boolean; evidenceAuthority: boolean } };
     assert.equal(feedback.ok, true);
-    assert.equal(feedback.transport.status, "disabled");
-    assert.equal(feedback.stats.total, 1);
+    assert.equal(feedback.data.transport.status, "disabled");
+    assert.equal(feedback.data.stats.total, 1);
+    assert.equal(feedback.data.annotationSeparate, true);
+    assert.equal(feedback.data.evidenceAuthority, false);
     const stored = readFileSync(contextFeedbackStorePath(root), "utf8");
     assert.equal(stored.includes("fix login timeout bug"), false);
     assert.equal(stored.includes("source code"), false);

@@ -3,7 +3,17 @@ import { recordOpencodeSidecarTool } from "../sidecar.js";
 import { runCommandGuard } from "./command-guard.js";
 import { createSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "./events.js";
 import { exitCodeFromOutput, outputText, toolKey } from "./evidence.js";
-import { executeEvaluateTool, executeFeedbackTool, executeNextTool, executePrepareTool, executeRetrieveTool } from "./harness/index.js";
+import {
+  executeContextGetTool,
+  executeContextSearchTool,
+  executeContextStatusTool,
+  executeEvaluateTool,
+  executeFeedbackTool,
+  executeInterventionsTool,
+  executeNextTool,
+  executePrepareTool,
+  executeRetrieveTool
+} from "./harness/index.js";
 import { createIdleVerifier } from "./idle-verify.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "./hook-input.js";
 import { commandFromTool, pathsFromTool } from "./paths.js";
@@ -141,6 +151,42 @@ export async function createOpenCodePlusPlusSidecar(
           sessionId: { type: "string" }
         },
         (args) => executeRetrieveTool(context.directory, args, context, recorder)
+      ),
+      opencode_plusplus_context_search: harnessTool(
+        "Search configured Context Registry entries and return deterministic scores, filters, cache state, conflicts, and diagnostics.",
+        {
+          query: { type: "string" },
+          topK: { type: "number" },
+          taskType: { type: "string" },
+          language: { type: "string" },
+          packageVersion: { type: "string" },
+          source: { type: "string" },
+          tags: { type: "array" }
+        },
+        (args) => executeContextSearchTool(context.directory, args)
+      ),
+      opencode_plusplus_context_get: harnessTool(
+        "Read a Context Registry entry or companion file with provenance, freshness, cache state, and optional explicit annotations.",
+        {
+          entryId: { type: "string" },
+          language: { type: "string" },
+          packageVersion: { type: "string" },
+          source: { type: "string" },
+          file: { type: "string" },
+          full: { type: "boolean" },
+          withAnnotations: { type: "boolean" }
+        },
+        (args) => executeContextGetTool(context.directory, args)
+      ),
+      opencode_plusplus_context_status: harnessTool(
+        "Return Context Registry sources, cache, freshness, selected and rejected Context, and the current intervention summary.",
+        { taskId: { type: "string" }, sessionId: { type: "string" } },
+        (args) => executeContextStatusTool(context.directory, args)
+      ),
+      opencode_plusplus_interventions: harnessTool(
+        "Return deterministic intervention events, verified fixes, remaining problems, Context usage, and feedback state for the current task.",
+        { taskId: { type: "string" }, sessionId: { type: "string" } },
+        (args) => executeInterventionsTool(context.directory, args)
       ),
       opencode_plusplus_context_feedback: harnessTool(
         "Record local Context quality feedback. Feedback is metadata only and cannot satisfy evidence or change a decision.",
