@@ -83,6 +83,7 @@ export function writeIterationArtifacts(root: string, iterationDir: string, inpu
       guardGates: input.guardGates.summary
     },
     convergence: input.convergence,
+    contextPolicy: input.policy.contextPolicy,
     arbitration: input.decision.arbitration,
     decision: input.decision
   };
@@ -107,6 +108,7 @@ export function writeIterationArtifacts(root: string, iterationDir: string, inpu
       decision: "decision.json"
     },
     convergence: input.convergence,
+    contextPolicy: input.policy.contextPolicy,
     summary: {
       executor: input.executorResult.executor,
       exitCode: input.executorResult.exitCode,

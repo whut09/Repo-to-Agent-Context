@@ -36,6 +36,7 @@ export function runPersistPhase(input: PersistPhaseInput): PersistPhaseOutput {
       executorResult: input.executorResult,
       changedFiles: input.changedFiles,
       policy: { passed: input.policy.passed, failOn: input.policy.failOn, summary: input.policy.summary },
+      contextPolicy: input.policy.contextPolicy,
       loop: {
         status: input.loop.status,
         risk: input.loop.risk,

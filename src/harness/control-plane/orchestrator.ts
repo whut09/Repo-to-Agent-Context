@@ -40,6 +40,7 @@ import { writeIterationArtifacts } from "./iteration-artifacts.js";
 import { combineContextRefreshMetrics, initialContextMetrics, refreshHarnessContext, type ContextRefreshMetrics } from "./context-refresh.js";
 import { renderOrchestratorReport } from "./orchestrator-report.js";
 import { recordIterationInterventions } from "../observability/intervention-mapper.js";
+import type { ContextPolicyAssessment } from "../knowledge/context-policy.js";
 import { listInterventionEvents, summarizeInterventions } from "../observability/intervention-ledger.js";
 import type { InterventionSummary } from "../types.js";
 import { writeJsonAtomic, writeTextAtomic } from "../../core/atomic-store.js";
@@ -137,6 +138,7 @@ export interface HarnessOrchestratorReport {
   changedFiles: string[];
   iterations: OrchestratorIterationReport[];
   policy: Pick<PolicyEngineReport, "passed" | "failOn" | "summary">;
+  contextPolicy?: ContextPolicyAssessment;
   loop: Pick<LoopControllerReport, "status" | "risk" | "trace" | "checks" | "decisions">;
   gates: Pick<GuardGateReport, "summary" | "gates">;
   decision: HarnessDecision;
@@ -174,6 +176,7 @@ export interface OrchestratorIterationReport {
   executorResult: AgentExecutorResult;
   changedFiles: string[];
   policy: Pick<PolicyEngineReport, "passed" | "failOn" | "summary">;
+  contextPolicy?: ContextPolicyAssessment;
   loop: Pick<LoopControllerReport, "status" | "risk" | "trace" | "checks" | "decisions">;
   gates: Pick<GuardGateReport, "summary" | "gates">;
   decision: HarnessOrchestratorReport["decision"];
@@ -589,6 +592,7 @@ export async function runHarnessOrchestrator(repo: string, task: string, options
         failOn: latestPolicy.failOn,
         summary: latestPolicy.summary
       },
+      contextPolicy: latestPolicy.contextPolicy,
       loop: {
         status: latestLoop.status,
         risk: latestLoop.risk,

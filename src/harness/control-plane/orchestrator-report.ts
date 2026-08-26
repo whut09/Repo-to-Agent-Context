@@ -176,6 +176,21 @@ export function renderOrchestratorReport(report: HarnessOrchestratorReport): str
       ]
     ),
     "",
+    heading(2, "External Context Provenance"),
+    bullet(
+      (report.contextPolicy?.provenance ?? []).map(
+        (item) => `${item.entryId} from ${item.sourceName} (${item.sourceTrustLevel}), revision ${item.contentRevision}, verified=${item.verified ? "yes" : "no"}`
+      )
+    ),
+    "",
+    heading(2, "External Context Intervention"),
+    bullet([
+      ...(report.contextPolicy?.intervention.providedHelp ?? []).map((item) => `Help: ${item}`),
+      ...(report.contextPolicy?.intervention.adoptedSuggestions ?? []).map((item) => `Adopted: ${item.summary} Reason: ${item.reason}`),
+      ...(report.contextPolicy?.intervention.availableSuggestions ?? []).map((item) => `Available: ${item.summary} Reason: ${item.reason}`),
+      ...(report.contextPolicy?.intervention.rejectedSuggestions ?? []).map((item) => `Rejected: ${item.summary} Reason: ${item.reason}`)
+    ]),
+    "",
     heading(2, "Loop Decisions"),
     bullet(report.loop.decisions.map((decision) => `${decision.action}: ${decision.reason}`)),
     "",
