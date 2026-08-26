@@ -3,6 +3,7 @@ import type { GuardFindingsArtifact } from "./guard-finding.js";
 import type { LoopControllerReport } from "../harness/control-plane/loop-controller.js";
 import type { PolicyEngineReport } from "../harness/verification-plane/policy-engine.js";
 import { latestTestResultSteps, testStepFailedByExitCode, testStepHasFailureOutput } from "./evidence.js";
+import type { ContextPolicyAssessment } from "../harness/knowledge/context-policy.js";
 
 export type GuardGateName = "context" | "boundary" | "evidence" | "hallucination" | "regression";
 export type GuardGateAction = "repack" | "expand-context" | "rollback" | "human-review" | "run-tests" | "repair" | "block" | "run-regression-tests";
@@ -27,6 +28,7 @@ export interface GuardGateReport {
   runId: string;
   iteration: number;
   gates: GuardGate[];
+  contextPolicy?: ContextPolicyAssessment;
   interventionIds?: string[];
   summary: {
     total: number;
@@ -65,6 +67,7 @@ export function buildGuardGateReport(input: {
     runId: input.runId,
     iteration: input.iteration,
     gates: normalized,
+    contextPolicy: input.policy.contextPolicy,
     summary: summarizeGates(normalized)
   };
 }
@@ -82,6 +85,34 @@ function contextGates(policy: PolicyEngineReport, loop: LoopControllerReport): G
       action: "repack",
       evidence: [`freshness: ${loop.context.freshness}`, `drift: ${loop.context.drift}`, ...(contextRefresh?.evidence ?? [])],
       findingIds: contextRefresh ? [contextRefresh.id] : []
+    });
+  }
+
+  const externalBlocked = policy.contextPolicy?.findings.filter((finding) => finding.status === "blocked") ?? [];
+  if (externalBlocked.length) {
+    gates.push({
+      id: "context.external-stale",
+      guard: "context",
+      condition: "external Context stale or provenance unreadable",
+      status: "blocked",
+      severity: "blocker",
+      action: "repack",
+      evidence: externalBlocked.flatMap((finding) => [finding.message, ...finding.evidence]).slice(0, 12),
+      findingIds: externalBlocked.map((finding) => `policy.required.${finding.id}`)
+    });
+  }
+
+  const versionWarnings = policy.contextPolicy?.findings.filter((finding) => finding.id.startsWith("context.version-mismatch") && finding.status === "warning") ?? [];
+  if (versionWarnings.length) {
+    gates.push({
+      id: "context.version-mismatch",
+      guard: "context",
+      condition: "external Context version mismatch",
+      status: "warning",
+      severity: "warning",
+      action: "human-review",
+      evidence: versionWarnings.flatMap((finding) => [finding.message, ...finding.evidence]).slice(0, 12),
+      findingIds: versionWarnings.map((finding) => `policy.risk.${finding.id}`)
     });
   }
 
