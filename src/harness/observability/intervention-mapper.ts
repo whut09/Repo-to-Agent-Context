@@ -58,6 +58,31 @@ export function recordIterationInterventions(input: RecordIterationInterventions
     );
   }
 
+  for (const suggestion of [
+    ...(input.policy.contextPolicy?.intervention.adoptedSuggestions ?? []),
+    ...(input.policy.contextPolicy?.intervention.availableSuggestions ?? []),
+    ...(input.policy.contextPolicy?.intervention.rejectedSuggestions ?? [])
+  ]) {
+    const interventionId = interventionIdFor({ taskId: input.taskId, findingId: suggestion.id, category: "context", problem: suggestion.summary });
+    const rejected = suggestion.disposition === "rejected";
+    allIds.add(interventionId);
+    events.push(
+      ...appendForStatus(input, {
+        interventionId,
+        findingId: suggestion.id,
+        category: "context",
+        problem: suggestion.summary,
+        action: rejected ? "do not execute or treat as verification" : suggestion.disposition === "adopted" ? "use as contextual guidance" : "keep available for review",
+        targetFiles: suggestion.sourceFile ? [suggestion.sourceFile] : input.changedFiles,
+        evidenceRefs: [suggestion.reason, ...(input.policy.contextPolicy?.provenance.map((item) => `${item.sourceName}:${item.contentHash}`) ?? [])],
+        status: rejected ? "prevented" : "observed",
+        source: "policy",
+        confidence: rejected ? 0.95 : 0.7,
+        afterState: { disposition: suggestion.disposition, reason: suggestion.reason, suggestedCommand: suggestion.suggestedCommand ?? null }
+      })
+    );
+  }
+
   for (const finding of input.guardFindings.findings) {
     const interventionId = interventionIdFor({ taskId: input.taskId, findingId: finding.id, category: finding.source, problem: finding.message });
     finding.interventionIds = [interventionId];
