@@ -98,7 +98,14 @@ test("context application services search entries and fetch entry, file, and ful
     assert.equal(typeof search.hits[0]?.scoreBreakdown.lexical, "number");
     const entry = await getContextEntry({ repo: root, id: "official/payments" });
     assert.equal(entry.entry.contentRevision, 2);
-    addContextAnnotation({ repository: root, entryId: entry.entry.id, packageVersion: "2.0.0", contentRevision: 2, kind: "workaround", note: "Use the current retry helper." });
+    addContextAnnotation({
+      repository: root,
+      entryId: entry.entry.id,
+      packageVersion: "2.0.0",
+      contentRevision: 2,
+      kind: "workaround",
+      note: "Use the current retry helper."
+    });
 
     const main = await getContextFiles({ repo: root, id: entry.entry.id });
     assert.deepEqual(main.selectedFiles, ["official/docs/payments/DOC.md"]);
