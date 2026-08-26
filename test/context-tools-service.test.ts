@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { runContextGetTool, runContextSearchTool, runContextStatusTool } from "../src/application/context-tools-service.js";
+import { runContextFeedbackTool, runContextGetTool, runContextSearchTool, runContextStatusTool } from "../src/application/context-tools-service.js";
 import { recordContextUsage } from "../src/context-registry/usage-ledger.js";
 import { getContextFiles } from "../src/application/context-service.js";
 import { runGit } from "../src/core/git.js";
@@ -63,6 +63,28 @@ test("Context get maps unknown entries and path traversal to stable errors", asy
     assert.equal(traversal.ok, false);
     if (traversal.ok) return;
     assert.equal(traversal.error.code, "INVALID_PATH");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Context feedback uses the shared structured tool envelope", async () => {
+  const root = createRegistryRepo();
+  try {
+    const result = await runContextFeedbackTool({
+      repo: root,
+      entryId: "private/payments",
+      source: "private",
+      revision: 1,
+      target: "entry",
+      label: "useful"
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.tool, "context-feedback");
+    assert.equal(result.data.annotationSeparate, true);
+    assert.equal(result.data.evidenceAuthority, false);
+    assert.equal(result.data.stats.total, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

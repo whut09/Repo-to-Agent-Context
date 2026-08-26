@@ -6,6 +6,7 @@ import type { ContextUsageRecord } from "../context-registry/types.js";
 import { currentWorkingTreeFingerprint } from "../core/working-tree.js";
 import { contextToolError } from "./context-tool-errors.js";
 import { contextToolFailure, contextToolSuccess, type ContextToolResult } from "./context-tools-protocol.js";
+import { submitApplicationContextFeedback, type ApplicationContextFeedbackResult, type SubmitApplicationContextFeedbackInput } from "./context-feedback-service.js";
 import {
   getContextFiles,
   searchContextEntries,
@@ -158,6 +159,17 @@ export async function runInterventionsTool(input: InterventionsToolInput): Promi
     return contextToolSuccess("interventions", getApplicationInterventions(input.repo, input.taskId));
   } catch (error) {
     return contextToolFailure("interventions", contextToolError(error));
+  }
+}
+
+export async function runContextFeedbackTool(
+  input: SubmitApplicationContextFeedbackInput
+): Promise<ContextToolResult<ApplicationContextFeedbackResult & { annotationSeparate: true; evidenceAuthority: false }>> {
+  try {
+    const result = await submitApplicationContextFeedback(input);
+    return contextToolSuccess("context-feedback", { ...result, annotationSeparate: true, evidenceAuthority: false });
+  } catch (error) {
+    return contextToolFailure("context-feedback", contextToolError(error));
   }
 }
 
