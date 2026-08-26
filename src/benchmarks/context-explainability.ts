@@ -70,6 +70,7 @@ export interface ContextExplainabilitySample {
     category: string;
     problem: string;
     evidenceRefs: string[];
+    currentWorkingTree: boolean;
   }>;
   finalDecision: "finalize" | "human-review" | "block" | "repair";
   expectedDecision: ContextExplainabilitySample["finalDecision"];
@@ -235,6 +236,7 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
       .sort((left, right) => left.localeCompare(right));
     const rejectedFiles = retrieval.rejectedFiles.slice(0, topK).sort((left, right) => left.localeCompare(right));
     const expectedDecision = expectedDecisionFor(definition.scenario);
+    const finalDecision = decisionFromInterventions(events);
     return {
       sampleId: definition.id,
       taskId: definition.taskId,
@@ -253,7 +255,7 @@ async function runScenario(benchmarkDir: string, definition: ContextExplainabili
         .map((hit) => hit.metadata.scoreBreakdown)
         .filter(isScoreBreakdown),
       interventionEvents: events,
-      finalDecision: expectedDecision,
+      finalDecision,
       expectedDecision,
       metrics: buildSampleMetrics({ definition, retrieval, fetched, fetchedAgain, status: status.data, selectedFiles, rejectedFiles, events, topK })
     };
@@ -316,7 +318,7 @@ function initializeFixtureRepo(root: string): void {
 function createScenarioInterventions(root: string, definition: ContextExplainabilityScenarioDefinition, workingTreeHash: string) {
   const interventionId = `explainability-${definition.id}`;
   const problem = problemFor(definition.scenario);
-  if (definition.scenario === "positive") {
+  if (definition.scenario === "positive" || definition.scenario === "success-then-edit") {
     appendInterventionEvent(
       root,
       createInterventionEvent({
@@ -378,6 +380,28 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
         source: "system"
       })
     );
+    if (definition.scenario === "success-then-edit") {
+      appendInterventionEvent(
+        root,
+        createInterventionEvent({
+          interventionId,
+          taskId: definition.taskId,
+          sessionId: "benchmark",
+          timestamp: "2026-01-01T00:00:03.000Z",
+          phase: "evaluate",
+          category: "evidence",
+          problem,
+          targetFiles: definition.relevantFiles,
+          action: "invalidate superseded evidence",
+          beforeState: { status: "verified", workingTreeHash },
+          afterState: { status: "stale" },
+          evidenceRefs: ["success-then-edit"],
+          status: "stale",
+          confidence: 1,
+          source: "system"
+        })
+      );
+    }
   } else {
     appendInterventionEvent(
       root,
@@ -406,7 +430,8 @@ function createScenarioInterventions(root: string, definition: ContextExplainabi
     status: event.status,
     category: event.category,
     problem: event.problem,
-    evidenceRefs: event.evidenceRefs
+    evidenceRefs: event.evidenceRefs,
+    currentWorkingTree: event.resolutionEvidence?.some((item) => item.currentWorkingTree && item.valid) ?? false
   }));
 }
 
@@ -418,7 +443,7 @@ function buildSampleMetrics(input: {
   status: ApplicationContextStatus;
   selectedFiles: string[];
   rejectedFiles: string[];
-  events: Array<{ status: string; evidenceRefs: string[] }>;
+  events: Array<{ status: string; evidenceRefs: string[]; currentWorkingTree: boolean }>;
   topK: number;
 }): ContextExplainabilitySampleMetrics {
   const expected = new Set(input.definition.relevantFiles);
@@ -426,7 +451,7 @@ function buildSampleMetrics(input: {
   const selected = new Set(input.selectedFiles);
   const rejected = new Set(input.rejectedFiles);
   const verified = input.events.filter((event) => event.status === "verified");
-  const validVerified = verified.filter((event) => event.evidenceRefs.includes("benchmark-command"));
+  const validVerified = verified.filter((event) => event.evidenceRefs.includes("benchmark-command") && event.currentWorkingTree);
   return {
     precisionAtK: input.topK ? [...selected].filter((file) => expected.has(file)).length / input.topK : 0,
     recallAtK: expected.size ? [...selected].filter((file) => expected.has(file)).length / expected.size : 1,
@@ -450,6 +475,12 @@ function buildSampleMetrics(input: {
 
 function expectedDecisionFor(scenario: ExplainabilityScenario): ContextExplainabilitySample["finalDecision"] {
   return scenario === "positive" ? "finalize" : scenario === "wrong-command" || scenario === "similar-unrelated" ? "block" : "human-review";
+}
+
+function decisionFromInterventions(events: Array<{ status: string }>): ContextExplainabilitySample["finalDecision"] {
+  if (events.some((event) => event.status === "verified") && !events.some((event) => event.status === "stale")) return "finalize";
+  if (events.some((event) => event.status === "prevented")) return "block";
+  return "human-review";
 }
 
 function problemFor(scenario: ExplainabilityScenario): string {
