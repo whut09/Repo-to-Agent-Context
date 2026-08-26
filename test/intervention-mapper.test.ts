@@ -103,6 +103,66 @@ test("finding, trace and evidence can reverse lookup the same intervention", () 
   }
 });
 
+test("Context advice records adopted guidance and prevents untrusted commands", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-intervention-context-"));
+  try {
+    const input = baseInput(root);
+    const policy = input.policy;
+    policy.contextPolicy = {
+      schemaVersion: "opencode-plusplus.context-policy.v1",
+      currentWorkingTreeHash: "tree",
+      records: [],
+      provenance: [
+        {
+          schemaVersion: 1,
+          revision: 1,
+          sourceName: "official",
+          sourceTrustLevel: "official",
+          entryId: "official/sdk",
+          contentRevision: 1,
+          contentHash: "a".repeat(64),
+          verified: true
+        }
+      ],
+      authority: {
+        commandAuthority: false,
+        evidenceAuthority: false,
+        contractAuthority: false,
+        freshnessAuthority: false,
+        forbiddenPathAuthority: false,
+        finalizeAuthority: false
+      },
+      findings: [],
+      intervention: {
+        providedHelp: ["located src/sdk.ts"],
+        adoptedSuggestions: [{ id: "file", kind: "file-location", disposition: "adopted", summary: "Use src/sdk.ts", reason: "selected file" }],
+        availableSuggestions: [],
+        rejectedSuggestions: [{ id: "cmd", kind: "command", disposition: "rejected", summary: "Run npm test", reason: "Context commands are suggestions only.", suggestedCommand: "npm test" }]
+      }
+    };
+    const result = recordIterationInterventions({
+      root,
+      taskId: "task-context",
+      sessionId: "session",
+      iteration: 1,
+      changedFiles: ["src/sdk.ts"],
+      currentWorkingTreeHash: "tree",
+      trace: null,
+      policy,
+      guardFindings: input.guardFindings,
+      guardGates: passingGates(),
+      decision: finalizeDecision(),
+      executorExitCode: 0
+    });
+    const events = listInterventionEvents(root, "task-context");
+    assert.ok(result.interventionIds.length >= 2);
+    assert.ok(events.some((event) => event.problem === "Run npm test" && event.status === "prevented"));
+    assert.ok(events.some((event) => event.problem === "Use src/sdk.ts" && event.status === "observed"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function baseInput(root: string) {
   const policy: PolicyEngineReport = {
     passed: false,
