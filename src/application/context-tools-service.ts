@@ -111,6 +111,9 @@ export async function runContextStatusTool(input: ContextStatusToolInput): Promi
           offline: config.contextRegistry.offline
         })
       : { valid: true, sources: [], issues: [], snapshot: undefined };
+    if (!registry.valid && !registry.snapshot) {
+      throw new Error(registry.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ") || "Context registry is invalid.");
+    }
     const workingTreeHash = currentWorkingTreeFingerprint(root);
     const usages = input.taskId ? readContextUsage(root, input.taskId) : [];
     const current = usages.filter((record) => record.workingTreeHash === workingTreeHash && record.freshness.status === "fresh");

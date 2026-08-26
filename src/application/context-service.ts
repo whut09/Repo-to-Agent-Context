@@ -205,6 +205,9 @@ async function loadRegistry(root: string) {
   const result = context.config.contextRegistry.enabled
     ? await loadContextSourceRegistry({ root, sources: context.config.contextRegistry.sources, offline: context.config.contextRegistry.offline })
     : { valid: true, sources: [], issues: [], snapshot: undefined };
+  if (!result.valid && !result.snapshot) {
+    throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ") || "Context registry is invalid.");
+  }
   return { ...result, sourceConfigs: context.config.contextRegistry.sources, config: context.config };
 }
 

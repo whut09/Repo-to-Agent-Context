@@ -90,6 +90,25 @@ test("Context feedback uses the shared structured tool envelope", async () => {
   }
 });
 
+test("Context search reports an unavailable remote registry as a retryable network failure", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-network-"));
+  try {
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "fixture" }), "utf8");
+    writeFileSync(
+      path.join(root, "opencode-plusplus.config.yml"),
+      "contextRegistry:\n  enabled: true\n  offline: false\n  sources:\n    - name: unavailable\n      kind: remote\n      location: http://127.0.0.1:1/registry.json\n      trustLevel: community\n      timeoutMs: 50\n      sha256: 0000000000000000000000000000000000000000000000000000000000000000\n",
+      "utf8"
+    );
+    const result = await runContextSearchTool({ repo: root, query: "anything" });
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "NETWORK_FAILURE");
+    assert.equal(result.error.retryable, true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function createRegistryRepo(): string {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-context-tools-"));
   const entryRoot = path.join(root, "packs", "docs", "payments");
