@@ -43,6 +43,14 @@ Select the mode, then describe the task normally. The mode instructs the active 
 
 The model still performs the actual reading, editing, and command execution. OpenCode++ provides the context, rules, evidence, and decision tools. It does not start a second model or invoke its CLI from the Desktop plugin.
 
+The normal user flow is:
+
+```text
+Context Registry -> Retrieval -> Guard -> Evidence -> Intervention -> next decision
+```
+
+Registry and annotation content is advisory. Retrieval explains why files were selected or rejected. Guard enforces command and edit boundaries. Evidence accepts only the configured evidence policy, with fresh command or CI evidence required for verified repair in strict workflows. Intervention Ledger then shows the distinction between observed, prevented, requested, repaired, verified, stale, unresolved, and human-review states.
+
 ## Context Tools
 
 The OpenCode++ mode can call five deterministic Context tools in addition to the existing Harness workflow:
@@ -61,6 +69,8 @@ Every tool returns JSON with `schemaVersion`, `ok`, `tool`, and either `data` or
 
 These tools run inside the plugin process and call shared application services directly. They do not launch an OpenCode++ CLI process and do not invoke another model. Registry content can help locate files and explain APIs, but only fresh command or CI evidence from the current working tree can verify a repair.
 
+The plugin does not access the network by default. Remote Context sources and feedback transport are opt-in and report timeout, size, hash, and offline-fallback failures explicitly. An external Context command is displayed as a suggestion and is never executed automatically. Annotation text is user-written, untrusted, and not a policy or command.
+
 ## State And Reports
 
 The plugin state is stored under the OpenCode config directory. Repository runtime artifacts are stored under `.agent-context/`:
@@ -71,6 +81,8 @@ The plugin state is stored under the OpenCode config directory. Repository runti
 - `sidecar/latest.md`: latest verification summary.
 
 These are runtime artifacts, not source files. Add `.agent-context/` to local Git exclusions when appropriate and never commit credentials or command output containing secrets.
+
+For each task, the result can show selected files, rejected files and reasons, risks prevented, suggested actions, verified fixes, and remaining human-review items. A suggested fix is an action still awaiting evidence. A verified fix requires a valid command or CI result captured after the relevant edit and matched to the current working-tree hash. A passing earlier test becomes stale after a later edit.
 
 ## Upgrade And Legacy Cleanup
 
@@ -90,9 +102,12 @@ After the upgrade, restart OpenCode and choose the mode again. If the mode is mi
 - Command success does not prove semantic correctness.
 - Manual, stale, or superseded evidence may remain blocking under the configured evidence policy.
 - It does not automatically commit, push, merge, or destructively roll back the repository.
+- It depends on Windows user permissions and the active OpenCode config directory; file locks, read-only paths, antivirus interference, and network failures remain diagnosable operational failures.
 
 ## Customize It
 
 Fork the repository or add a project-level agent when you need a different Harness. Customize the agent prompt, retrieval ranking, command guards, evidence policy, or loop decision logic, then add tests and rebuild the Windows installer. See [Windows plugin architecture](../concepts/windows-plugin-architecture.md) and [customization guidance](../../README.md#customize-your-own-harness).
+
+Project-specific Context Packs can be kept in an explicitly configured local source. Add a primary `DOC.md` or `SKILL.md`, optional version/language metadata, and companion references. Keep Context content separate from policy: if a team rule must block an action, encode and test it in Guard or Policy rather than relying on prose in a pack. Cache, usage, feedback, annotations, and interventions remain under the repository `.agent-context/` runtime boundary.
 
 CLI and MCP documentation is kept for developers and compatibility integrations only.

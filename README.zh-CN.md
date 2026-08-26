@@ -17,6 +17,15 @@ AI 编程经常出现“改动看起来合理，但读错文件、越界修改�
 - 评估 policy、freshness、regression、hallucination 和循环收敛；
 - 明确下一步是 repair、repack、human review 还是 finalize。
 
+控制流程被明确拆成几层：
+
+```text
+Context Registry -> Retrieval -> Guard -> Evidence -> Intervention / Decision
+       指导           选择        边界       证明          解释
+```
+
+Context Registry entry 和 annotation 帮助模型定位相关代码、理解 API 或版本差异。Retrieval 负责选择并解释文件，但不授予权限。Guard 阻止危险命令、受保护路径、过期 Context 和越界修改。Evidence 检查 command 或 CI 结果是否对应当前工作树。Intervention 记录 OpenCode++ 观察、阻止、要求、修复、验证或留给人工处理的事项。
+
 ## 现在能做什么
 
 Windows 安装器会向 OpenCode 增加一个可选择的 primary mode：**OpenCode++**。在输入框底部的模式选择器中选择它，然后像平常一样描述编码任务。不再需要记忆任何 OpenCode++ Slash Command。
@@ -26,6 +35,8 @@ Windows 安装器会向 OpenCode 增加一个可选择的 primary mode：**OpenC
 选择该模式后，模式 Prompt 会要求当前 OpenCode 模型调用进程内插件工具。插件不会启动第二个模型，也不会启动 OpenCode++ CLI；它运行在 OpenCode Desktop 插件进程内，并把可审计的运行文件写入当前仓库的 `.agent-context/`。
 
 安装器面向 Windows x64，按当前用户安装，不需要管理员权限。
+
+默认情况下插件离线运行：不会主动访问远程 Context source，也不会调用第二个模型。只有显式配置 remote source 或 feedback transport 后才会联网。真正读文件、改代码和执行命令的仍是当前 OpenCode 模型；OpenCode++ 在外围提供确定性工具和 gate。
 
 ## 安装和使用
 
@@ -62,6 +73,22 @@ Windows 安装器会向 OpenCode 增加一个可选择的 primary mode：**OpenC
 - `.agent-context/sidecar/latest.md`：最近一次验证摘要。
 
 插件不是操作系统级沙箱，无法阻止其他程序修改文件，无法仅凭退出码证明业务语义正确，也无法保证完全识别不透明的工具参数。命令成功只是证据，不是完整正确性证明；出现 blocker 时，模式必须继续修复或请求人工审核。
+
+### 用户会看到什么
+
+Desktop 结果和 `.agent-context/sidecar/latest.md` 会区分以下问题：
+
+- **介入了哪些文件：** 选中阅读、在边界内修改，或因原因被排除的文件；
+- **阻止了什么风险：** 危险命令、受保护路径、过期 Context、缺失测试、policy 违规或未解决回归；
+- **建议修复：** Harness 要求的动作，或 executor 报告的修改，但还没有验证证据；
+- **已验证修复：** 修改后有对应当前工作树的新鲜 command 或 CI evidence；
+- **仍需人工处理：** 未解决 finding、重复无进展，或 Harness 无法证明的业务语义。
+
+所以，`verified fix` 比 `suggested fix` 严格得多。annotation、Context 文档、手工声明、较早的成功测试或看起来合理的源代码修改，都不能自动变成 verified。外部 Context 是不可信指导，annotation 是本地知识，不是 policy。
+
+Context cache 和 registry usage 位于 `.agent-context/cache/`、`.agent-context/context-registry/usage/`；本地 feedback 位于 `.agent-context/context-registry/feedback/`；annotation 位于 `.agent-context/knowledge/annotations/`；介入记录位于 `.agent-context/interventions/`。这些都是本地运行文件，通常不应提交。
+
+Windows 支持带空格和非 ASCII 字符的路径，但插件仍依赖当前用户权限、仓库可写，以及 OpenCode Desktop 能加载实际配置目录。杀毒软件短暂锁定文件、只读目录、远程 source 断网、registry 内容损坏和权限失败都会返回诊断或 human-review，不会被当成验证成功。
 
 ## 定制自己的 Harness
 

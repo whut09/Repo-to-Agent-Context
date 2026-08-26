@@ -43,6 +43,14 @@ agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `ag
 
 真正读文件、改代码和执行命令的仍是当前 OpenCode 模型。OpenCode++ 提供 context、规则、证据和决策工具；Desktop 插件不会启动第二个模型，也不会调用自己的 CLI。
 
+普通用户流程是：
+
+```text
+Context Registry -> Retrieval -> Guard -> Evidence -> Intervention -> next decision
+```
+
+Registry 和 annotation 内容只能辅助说明。Retrieval 解释为什么选中或排除文件。Guard 执行命令和编辑边界。Evidence 按配置的 evidence policy 判断；在严格流程中，verified repair 必须有新鲜 command 或 CI evidence。随后 Intervention Ledger 区分 observed、prevented、requested、repaired、verified、stale、unresolved 和 human-review。
+
 ## Context 工具
 
 除现有 Harness 工作流外，OpenCode++ 模式还可以调用 5 个确定性 Context 工具：
@@ -61,6 +69,8 @@ agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `ag
 
 这些工具在插件进程内直接调用共享 application service，不会启动 OpenCode++ CLI 子进程，也不会调用第二个模型。Registry 内容可以帮助定位文件和解释 API，但只有当前工作树上的新鲜 command/CI evidence 才能验证修复。
 
+插件默认不联网。远程 Context source 和 feedback transport 必须显式开启，并会明确报告超时、大小、hash 和离线 fallback 失败。外部 Context 中的命令只作为建议显示，绝不会自动执行。Annotation 是用户编写、未受信任的内容，不是 policy，也不是命令。
+
 ## 状态和报告
 
 插件状态写在 OpenCode 配置目录。仓库运行文件写在 `.agent-context/`：
@@ -71,6 +81,8 @@ agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `ag
 - `sidecar/latest.md`：最近一次验证摘要。
 
 这些是运行时文件，不是源码。应按需要将 `.agent-context/` 加入本地 Git 排除，绝不要提交包含密钥的输出。
+
+每个任务的结果可以显示选中的文件、排除的文件及原因、阻止的风险、建议动作、已验证修复和仍需人工处理的事项。建议修复只是等待证据的动作；verified fix 必须是相关修改之后、匹配当前工作树 hash 的有效 command 或 CI 结果。后续编辑会让较早的通过测试变成 stale。
 
 ## 升级和旧版本清理
 
@@ -90,9 +102,12 @@ agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `ag
 - 命令成功不等于业务语义正确；
 - manual、stale 或 superseded evidence 在当前 policy 下仍可能阻塞；
 - 不会自动 commit、push、merge 或破坏性回滚仓库。
+- 运行依赖 Windows 当前用户权限和实际生效的 OpenCode 配置目录；文件锁、只读路径、杀毒软件干扰和网络失败仍会作为可诊断的运行失败返回。
 
 ## 定制插件
 
 如果需要不同 Harness，可以 fork 仓库或添加项目级 agent。可以定制 agent Prompt、retrieval 排序、命令 Guard、evidence policy 和 loop 决策逻辑；修改后补测试并重新构建 Windows 安装器。详见 [Windows 插件架构](../concepts/windows-plugin-architecture.zh-CN.md) 和[定制说明](../../README.zh-CN.md#定制自己的-harness)。
+
+项目专用 Context Pack 可以放在明确配置的本地 source 中。加入主入口 `DOC.md` 或 `SKILL.md`、可选的版本/语言 metadata，以及 companion references。Context 内容必须与 policy 分离：如果团队规则必须阻止某个动作，应在 Guard 或 Policy 中编码并测试，不要依赖 pack 中的自然语言。cache、usage、feedback、annotation 和 intervention 都留在仓库 `.agent-context/` 运行边界内。
 
 CLI 和 MCP 文档只面向开发者和兼容集成。
