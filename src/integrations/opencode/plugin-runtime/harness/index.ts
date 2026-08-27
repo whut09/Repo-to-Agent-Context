@@ -268,8 +268,8 @@ function notifyFromToolResult(
   if (!context) return;
   try {
     const result = JSON.parse(output) as import("./types.js").PluginHarnessResult;
-    notifyPluginHarnessStatus(context, result, recorder);
-    notifyPluginInterventionSignals(context, result.interventions, tool, recorder);
+    const notifiedSignals = notifyPluginInterventionSignals(context, result.interventions, tool, recorder);
+    notifyPluginHarnessStatus(context, result, recorder, notifiedSignals === 0);
   } catch (error) {
     recorder?.log("debug", "plugin intervention result notification skipped", { message: error instanceof Error ? error.message : String(error) });
   }

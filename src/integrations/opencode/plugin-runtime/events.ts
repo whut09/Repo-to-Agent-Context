@@ -47,7 +47,8 @@ export function notifyPluginHarnessStatus(
     PluginHarnessResult,
     "tool" | "summary" | "currentPhase" | "decision" | "blocking" | "nextAction" | "mustInspect" | "findings" | "missingEvidence" | "visualization"
   >,
-  recorder?: OpenCodeSidecarRecorder
+  recorder?: OpenCodeSidecarRecorder,
+  showToast = true
 ): "toast" | "log" {
   const visualization = result.visualization;
   const selectedFiles = visualization?.observed.selectedFiles ?? result.mustInspect;
@@ -80,12 +81,17 @@ export function notifyPluginHarnessStatus(
   }
 
   if (result.tool === "evaluate" || result.tool === "next" || result.tool === "dashboard") {
+    const key = `${path.resolve(context.directory)}:harness:${result.tool}:${result.currentPhase}:${result.decision}:${result.blocking}:${result.nextAction}:${result.summary}`;
+    if (notifiedHarnessStatuses.has(key)) return "log";
+    notifiedHarnessStatuses.add(key);
+    if (!showToast) return "log";
     return notifyOpenCodePlusPlusToast(context, "OpenCode++ Harness", message);
   }
   return "log";
 }
 
 const notifiedInterventionSignals = new Set<string>();
+const notifiedHarnessStatuses = new Set<string>();
 
 export function notifyPluginInterventionSignals(
   context: OpenCodeSidecarRuntimeContext,
