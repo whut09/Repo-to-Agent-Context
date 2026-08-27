@@ -41,6 +41,10 @@ Select the mode, then describe the task normally. The mode instructs the active 
 5. evaluate current evidence and working-tree freshness;
 6. follow `next` until the Harness returns `finalize` or human review.
 
+After `evaluate` or `next`, the JSON result contains a `visualization` object and `humanReadable` contains an **OpenCode++ Harness Dashboard**. The dashboard shows phase progress, selected and rejected files, findings, missing evidence, required commands, working-tree hash capture, evidence status, intervention counts, the current decision, the next action, and a final summary. You can also call `opencode_plusplus_dashboard` directly. Its snapshot is written to `.agent-context/sidecar/visualization.json` and the Markdown report remains at `.agent-context/sidecar/latest.md`.
+
+This is an explainability view of recorded system facts and deterministic decision inputs. It intentionally does not expose hidden model chain-of-thought. Commands, file selections, findings, evidence hashes, and decisions are inspectable; private model reasoning is not a verification artifact.
+
 The model still performs the actual reading, editing, and command execution. OpenCode++ provides the context, rules, evidence, and decision tools. It does not start a second model or invoke its CLI from the Desktop plugin.
 
 The normal user flow is:

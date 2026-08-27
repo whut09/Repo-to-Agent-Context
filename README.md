@@ -50,7 +50,8 @@ By default the plugin works offline: it does not fetch remote Context sources an
 5. Select **OpenCode++** in the mode picker.
 6. Enter a normal request, such as `Fix the login timeout and add a regression test`.
 7. Let the selected mode call `prepare`, `retrieve`, `evaluate`, and `next` while it works. Do not switch back to Build for a task that needs the Harness gates.
-8. Inspect `.agent-context/` when you need the trace, findings, required commands, or final report.
+8. Inspect the returned **Harness Dashboard** after `evaluate`, or call `opencode_plusplus_dashboard`, to see stage progress, selected and rejected files, decision basis, evidence freshness, interventions, and the final summary.
+9. Inspect `.agent-context/` when you need the trace, findings, required commands, or final report.
 
 The installer writes only these OpenCode configuration files:
 
@@ -71,10 +72,15 @@ Runtime evidence is local to each repository:
 - `.agent-context/runs/` contains task context and edit boundaries;
 - `.agent-context/loops/` contains decisions and convergence state;
 - `.agent-context/sidecar/latest.md` contains the latest verification summary.
+- `.agent-context/sidecar/visualization.json` contains the latest structured Harness Dashboard snapshot.
 
 The plugin is not an operating-system sandbox. It cannot stop another application from editing a file, prove business semantics from an exit code, or guarantee that an opaque tool argument is correctly classified. A passing command is evidence, not a complete correctness proof. Blocking results require the selected mode to repair or request human review.
 
 ### What The User Sees
+
+The Desktop tool result includes a visible Harness Dashboard. It shows `Plan -> Prepare -> Retrieve -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize`, with completed, active, blocked, and pending stages. It also shows the current decision, required commands, current working-tree hash capture, evidence status, intervention counts, selected/rejected files, and a concise final summary.
+
+The dashboard exposes recorded system facts and decision inputs. It does not expose hidden model chain-of-thought. This keeps the view useful for debugging and review without presenting private internal reasoning as an auditable fact.
 
 The Desktop result and `.agent-context/sidecar/latest.md` distinguish four questions:
 

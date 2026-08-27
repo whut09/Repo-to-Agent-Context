@@ -50,7 +50,8 @@ Windows 安装器会向 OpenCode 增加一个可选择的 primary mode：**OpenC
 5. 在模式选择器中选择 **OpenCode++**。
 6. 直接输入任务，例如：`修复登录超时并补充回归测试`。
 7. 让该模式在工作过程中调用 `prepare`、`retrieve`、`evaluate` 和 `next`。需要 Harness gate 时不要切回 Build 模式。
-8. 需要查看证据、发现项、必跑命令或最终报告时，打开 `.agent-context/`。
+8. 在 `evaluate` 后查看返回的 **Harness Dashboard**，或随时调用 `opencode_plusplus_dashboard`，查看阶段进度、选中/排除文件、决策依据、证据新鲜度、介入记录和最终总结。
+9. 需要查看证据、发现项、必跑命令或最终报告时，打开 `.agent-context/`。
 
 安装器只写入以下 OpenCode 配置文件：
 
@@ -71,10 +72,15 @@ Windows 安装器会向 OpenCode 增加一个可选择的 primary mode：**OpenC
 - `.agent-context/runs/`：任务 context 和编辑边界；
 - `.agent-context/loops/`：决策和收敛状态；
 - `.agent-context/sidecar/latest.md`：最近一次验证摘要。
+- `.agent-context/sidecar/visualization.json`：最新结构化 Harness Dashboard 快照。
 
 插件不是操作系统级沙箱，无法阻止其他程序修改文件，无法仅凭退出码证明业务语义正确，也无法保证完全识别不透明的工具参数。命令成功只是证据，不是完整正确性证明；出现 blocker 时，模式必须继续修复或请求人工审核。
 
 ### 用户会看到什么
+
+Desktop 工具结果现在包含可见的 Harness Dashboard。它展示 `Plan -> Prepare -> Retrieve -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize` 阶段，并标记已完成、进行中、阻塞和待处理状态。同时展示当前 decision、必跑命令、当前工作树 hash 是否已捕获、证据状态、介入统计、选中/排除文件和简短最终总结。
+
+Dashboard 展示的是已记录的系统事实和决策输入，不展示模型隐藏的思维链。这样可以支持调试和人工审核，又不会把模型内部推理冒充成可审计事实。
 
 Desktop 结果和 `.agent-context/sidecar/latest.md` 会区分以下问题：
 

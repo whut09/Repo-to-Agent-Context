@@ -9,7 +9,7 @@ OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Window
 - `src/integrations/opencode/global-plugin.ts` 是插件唯一的生产运行时入口。
 - 构建时由 esbuild 打成自包含的 CommonJS bundle（`build:installer:windows`），gzip 后嵌入 EXE 资源 `OpenCodePlusPlus.Plugin.gz`。
 - bundle 可以脱离本仓库目录独立加载，不依赖 `node_modules`，不依赖仓库绝对路径；运行时只使用 Node.js 内置模块。
-- 插件工具名保持不变：`opencode_plusplus_enable`、`opencode_plusplus_disable`、`opencode_plusplus_status`、`opencode_plusplus_prepare`、`opencode_plusplus_retrieve`、`opencode_plusplus_evaluate`、`opencode_plusplus_next`。
+- 现有插件工具名称保持兼容；新增 `opencode_plusplus_dashboard` 作为可见 Harness 状态工具。
 - 安装器会在 `agents/opencode-plusplus.md` 写入标准 `mode: primary` agent，由当前 OpenCode 模型调用进程内 Harness 工具。
 - 安装器会清理三个旧原生命令文件、两个旧工作流命令、旧 skill 和检测到的旧 `app.asar` 补丁。新版本不再修改 Desktop 本体。
 
@@ -45,7 +45,7 @@ OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Window
 
 ## 守护测试
 
-- `test/plugin-bundle.test.ts`：bundle 独立加载、单一函数导出、不含仓库路径、不 require node_modules 外部包、7 个工具名注册兼容、构建不依赖 CLI/MCP 模块。
+- `test/plugin-bundle.test.ts`：bundle 独立加载、单一函数导出、不含仓库路径、不 require node_modules 外部包、8 个工具名注册兼容、构建不依赖 CLI/MCP 模块。
 - `test/release-boundary.test.ts`：安装器只嵌入插件、构建脚本只打包 `global-plugin.ts`、`global-plugin.ts` 只导入 plugin-runtime、npm files 白名单排除发布/构建产物。
 - `test/installer-prompt-sync.test.ts`：C# EXE 安装器的常量与文件名和 TS prompt 源逐字节一致，避免 TS 测试通过但 EXE 没装上。
 - `test/windows-installer.test.ts`、`scripts/smoke-windows-installer.mjs`：安装器写入 primary mode、清理旧命令、加载插件，卸载时删除。

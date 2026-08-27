@@ -37,6 +37,12 @@ The install is atomic at the individual file level and preserves the enabled sta
 5. Idle verification and explicit `evaluate` recompute freshness, guards, policy, regression, and convergence against the current working tree.
 6. `next` returns a deterministic action. A blocking action is not completion.
 
+## Visible Harness State
+
+Every rendered Harness result includes a structured visualization snapshot. It is also persisted as `.agent-context/sidecar/visualization.json`. The snapshot renders the phase state machine, current decision and next action, file selection boundaries, findings, required evidence, intervention counts, and a final summary. `evaluate` and `next` make the plugin's effect visible inside the normal Desktop tool result, even when OpenCode does not provide a native plugin panel.
+
+The snapshot is limited to observable facts and deterministic decision inputs. It does not reveal hidden model chain-of-thought. A command result, working-tree hash, finding, selected file, guard outcome, and decision can be inspected and reproduced; private model reasoning cannot be treated as evidence.
+
 ## Evidence And Persistence
 
 The plugin records event identity, session/task identity, timestamps, command results, changed paths, working-tree hashes, and redacted output. State, traces, reports, and sessions use the shared atomic store and Windows-compatible lock behavior. Corrupt JSON is reported as a diagnostic state instead of silently becoming an empty state.

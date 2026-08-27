@@ -41,6 +41,10 @@ agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `ag
 5. 按当前工作树 freshness 评估证据；
 6. 持续执行 `next`，直到 Harness 返回 `finalize` 或 human review。
 
+在 `evaluate` 或 `next` 后，JSON 结果会包含 `visualization` 对象，`humanReadable` 会包含 **OpenCode++ Harness Dashboard**。Dashboard 展示阶段进度、选中/排除文件、findings、缺失 evidence、必跑命令、工作树 hash 捕获、证据状态、介入统计、当前 decision、下一步动作和最终总结。也可以直接调用 `opencode_plusplus_dashboard`。快照写入 `.agent-context/sidecar/visualization.json`，Markdown 报告仍在 `.agent-context/sidecar/latest.md`。
+
+这是对已记录系统事实和确定性决策输入的可解释视图，特意不展示模型隐藏的思维链。命令、文件选择、finding、证据 hash 和 decision 可以检查；模型私有推理不是验证 artifact。
+
 真正读文件、改代码和执行命令的仍是当前 OpenCode 模型。OpenCode++ 提供 context、规则、证据和决策工具；Desktop 插件不会启动第二个模型，也不会调用自己的 CLI。
 
 普通用户流程是：

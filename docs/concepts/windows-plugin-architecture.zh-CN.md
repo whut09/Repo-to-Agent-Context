@@ -37,6 +37,12 @@ EXE 写入：
 5. idle 验证和显式 `evaluate` 针对当前工作树重新计算 freshness、guard、policy、regression 和 convergence。
 6. `next` 返回确定性动作。blocking action 不是完成。
 
+## 可见 Harness 状态
+
+每个渲染后的 Harness 结果都包含结构化可视化快照，同时写入 `.agent-context/sidecar/visualization.json`。快照展示阶段状态机、当前 decision 和下一步动作、文件选择边界、findings、所需 evidence、介入统计和最终总结。因此，即使 OpenCode 没有提供原生插件面板，`evaluate` 和 `next` 也会在正常 Desktop 工具结果中让用户看见插件的作用。
+
+快照只包含可观察事实和确定性决策输入，不展示模型隐藏的思维链。命令结果、工作树 hash、finding、选中文件、Guard 结果和 decision 可以检查和复现；模型私有推理不能作为 evidence。
+
 ## 证据和持久化
 
 插件记录 event identity、session/task identity、时间、命令结果、变更路径、working-tree hash 和脱敏输出。state、trace、report、session 使用共享 atomic store 和兼容 Windows 的锁。损坏 JSON 会返回可诊断状态，不会静默变成空状态。

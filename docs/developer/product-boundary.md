@@ -9,7 +9,7 @@ OpenCode++ has exactly one runtime product: **the Windows plugin for the officia
 - `src/integrations/opencode/global-plugin.ts` is the only production runtime entry for the plugin.
 - At build time esbuild bundles it into a self-contained CommonJS bundle (`build:installer:windows`), gzip-compresses it, and embeds it as the EXE resource `OpenCodePlusPlus.Plugin.gz`.
 - The bundle loads standalone outside this repository, does not depend on `node_modules`, and does not depend on an absolute repository path. At runtime it uses Node.js built-in modules only.
-- Plugin tool names are unchanged: `opencode_plusplus_enable`, `opencode_plusplus_disable`, `opencode_plusplus_status`, `opencode_plusplus_prepare`, `opencode_plusplus_retrieve`, `opencode_plusplus_evaluate`, and `opencode_plusplus_next`.
+- Existing plugin tool names remain compatible; `opencode_plusplus_dashboard` is the additional visible Harness status tool.
 - The installer writes one standard `mode: primary` agent at `agents/opencode-plusplus.md`; the mode prompt invokes the in-process Harness tools through the current OpenCode model.
 - The installer removes the three old native command files, the two old workflow commands, the old skill, and a detected legacy `app.asar` patch. New releases do not patch the Desktop bundle.
 
@@ -45,7 +45,7 @@ The following remain in the repository and the npm developer package but are **n
 
 ## Guard Tests
 
-- `test/plugin-bundle.test.ts`: bundle loads standalone, single function export, no repository path, no node_modules requires, seven tool names registered, build independent of CLI/MCP modules.
+- `test/plugin-bundle.test.ts`: bundle loads standalone, single function export, no repository path, no node_modules requires, eight tool names registered, build independent of CLI/MCP modules.
 - `test/release-boundary.test.ts`: installer embeds only plugin + patch, build script bundles only `global-plugin.ts`, `global-plugin.ts` imports only plugin-runtime, and the npm files whitelist excludes release/build artifacts.
 - `test/installer-prompt-sync.test.ts`: the C# EXE installer constants and file names stay byte-identical to the TS prompt source, so a passing TS test cannot hide a missing EXE write.
 - `test/windows-installer.test.ts` and `scripts/smoke-windows-installer.mjs`: the installer writes the primary mode, removes legacy command files, loads the plugin, and uninstall removes owned files.
