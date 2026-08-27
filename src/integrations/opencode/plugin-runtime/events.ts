@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { appendJsonLineLocked } from "../../../core/atomic-store.js";
-import type { PluginInterventionSnapshot } from "./harness/types.js";
+import type { PluginHarnessResult, PluginInterventionSnapshot } from "./harness/types.js";
 
 export interface OpenCodeSidecarRuntimeContext {
   directory: string;
@@ -41,12 +41,56 @@ export function notifyOpenCodePlusPlusToast(context: OpenCodeSidecarRuntimeConte
   return "log";
 }
 
+export function notifyPluginHarnessStatus(
+  context: OpenCodeSidecarRuntimeContext,
+  result: Pick<
+    PluginHarnessResult,
+    "tool" | "summary" | "currentPhase" | "decision" | "blocking" | "nextAction" | "mustInspect" | "findings" | "missingEvidence" | "visualization"
+  >,
+  recorder?: OpenCodeSidecarRecorder
+): "toast" | "log" {
+  const visualization = result.visualization;
+  const selectedFiles = visualization?.observed.selectedFiles ?? result.mustInspect;
+  const message = [
+    `${result.tool} | phase=${result.currentPhase}`,
+    `decision=${result.decision}${result.blocking ? " (blocking)" : ""}`,
+    `next=${result.nextAction}`,
+    `selected=${selectedFiles.length}`,
+    `findings=${result.findings.length}`,
+    `missingEvidence=${result.missingEvidence.length}`,
+    `evidence=${visualization?.evidence.status ?? "pending"}`
+  ].join(" | ");
+  const extra = {
+    harnessDashboard: true,
+    tool: result.tool,
+    phase: result.currentPhase,
+    decision: result.decision,
+    blocking: result.blocking,
+    nextAction: result.nextAction,
+    selectedFiles,
+    findings: result.findings,
+    missingEvidence: result.missingEvidence,
+    summary: result.summary
+  };
+
+  try {
+    recorder?.log("info", `OpenCode++ Harness Dashboard: ${message}`, extra);
+  } catch {
+    // Dashboard logging is diagnostic output and must never break a tool call.
+  }
+
+  if (result.tool === "evaluate" || result.tool === "next" || result.tool === "dashboard") {
+    return notifyOpenCodePlusPlusToast(context, "OpenCode++ Harness", message);
+  }
+  return "log";
+}
+
 const notifiedInterventionSignals = new Set<string>();
 
 export function notifyPluginInterventionSignals(
   context: OpenCodeSidecarRuntimeContext,
   snapshot: PluginInterventionSnapshot | undefined,
-  tool: "prepare" | "retrieve" | "evaluate" | "next",
+  tool: "prepare" | "retrieve" | "evaluate" | "next" | "dashboard",
   recorder?: OpenCodeSidecarRecorder
 ): number {
   if (!snapshot || tool === "prepare" || tool === "retrieve") return 0;

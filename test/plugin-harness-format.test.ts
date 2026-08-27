@@ -10,6 +10,7 @@ import {
 } from "../src/integrations/opencode/plugin-runtime/harness/format.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
 import { buildPluginHarnessVisualization, renderPluginHarnessVisualization } from "../src/integrations/opencode/plugin-runtime/harness/visualization.js";
+import { notifyPluginHarnessStatus } from "../src/integrations/opencode/plugin-runtime/events.js";
 
 const base: PluginHarnessResult = {
   schemaVersion: "opencode-plusplus.desktop-harness.v1",
@@ -86,6 +87,33 @@ test("plugin harness renderers expose the unified Desktop protocol fields", () =
     renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }),
     /src\/auth\/session\.ts/
   );
+});
+
+test("Desktop prints OpenCode++ Harness status to the app log and status toast", () => {
+  const toasts: string[] = [];
+  const logs: string[] = [];
+  const recorder = {
+    eventLog: "events.jsonl",
+    record: () => undefined,
+    log: (_level: string, message: string) => logs.push(message)
+  };
+  const context = {
+    directory: "C:/repo",
+    client: {
+      app: { log: ({ message }: { message: string }) => logs.push(message) },
+      tui: { toast: { show: ({ message }: { message: string }) => toasts.push(message) } }
+    }
+  };
+
+  assert.equal(notifyPluginHarnessStatus(context, base, recorder), "toast");
+  assert.equal(toasts.length, 1);
+  assert.match(toasts[0], /evaluate/);
+  assert.match(toasts[0], /decision=run-tests/);
+  assert.match(logs.join("\n"), /OpenCode\+\+ Harness Dashboard/);
+
+  toasts.length = 0;
+  assert.equal(notifyPluginHarnessStatus(context, { ...base, tool: "retrieve" }, recorder), "log");
+  assert.equal(toasts.length, 0);
 });
 
 test("structured harness errors never become unparseable text", () => {

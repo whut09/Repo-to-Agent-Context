@@ -28,7 +28,7 @@ import { invalidArguments } from "../../../../application/context-tool-errors.js
 import { readPluginEvaluateState, readPluginHarnessSession, resolvePluginTask, resolvePluginTaskId } from "./session.js";
 import { createPluginHarnessResult } from "./protocol.js";
 import { pluginInterventionSnapshot } from "./interventions.js";
-import { notifyPluginInterventionSignals, type OpenCodeSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "../events.js";
+import { notifyPluginHarnessStatus, notifyPluginInterventionSignals, type OpenCodeSidecarRecorder, type OpenCodeSidecarRuntimeContext } from "../events.js";
 
 export { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "./types.js";
 export type { OpenCodePlusPlusPluginToolName } from "./types.js";
@@ -120,65 +120,78 @@ export async function executeContextStatusTool(root: string, args: unknown): Pro
   return structuredJson(await runContextStatusTool({ repo: root, ...(taskId ? { taskId } : {}) }));
 }
 
-export async function executeDashboardTool(root: string, args: unknown): Promise<string> {
-  const parsed = parseDashboardArgs(args);
-  if (typeof parsed === "string") return renderHarnessError("dashboard", parsed, root);
-  const resolved = resolvePluginTask(root, parsed.taskId, parsed.sessionId);
-  const latest = resolved.taskId ? readPluginEvaluateState(root, parsed.sessionId) : undefined;
-  const session = readPluginHarnessSession(root, parsed.sessionId);
-  const interventions = pluginInterventionSnapshot(
+export async function executeDashboardTool(
+  root: string,
+  args: unknown,
+  context?: OpenCodeSidecarRuntimeContext,
+  recorder?: OpenCodeSidecarRecorder
+): Promise<string> {
+  return runHarnessTool(
     root,
-    resolved.taskId ?? null,
-    latest?.interventions?.selectedFiles ?? [],
-    latest?.interventions?.excludedFiles ?? []
-  );
-  if (latest && resolved.taskId) {
-    return renderPluginResult(
-      createPluginHarnessResult(root, {
-        ok: true,
-        tool: "dashboard",
-        summary: latest.summary,
-        taskId: latest.taskId,
-        sessionId: latest.sessionId ?? resolved.sessionId,
-        taskIdSource: resolved.source,
-        currentPhase: "dashboard",
-        decision: latest.decision,
-        blocking: latest.blocking,
-        findings: latest.findings,
-        missingEvidence: latest.missingEvidence,
-        requiredCommands: latest.requiredCommands,
-        mustInspect: latest.mustInspect,
-        allowedEditGlobs: latest.allowedEditGlobs,
-        avoidEditGlobs: latest.avoidEditGlobs,
-        artifacts: latest.artifacts,
-        nextAction: latest.nextAction,
-        interventions
-      })
-    );
-  }
-  return renderPluginResult(
-    createPluginHarnessResult(root, {
-      ok: true,
-      tool: "dashboard",
-      summary: session
-        ? `OpenCode++ is tracking ${session.taskId}; no evaluate result is available yet.`
-        : "OpenCode++ is installed and waiting for a prepared task.",
-      taskId: session?.taskId ?? null,
-      sessionId: session?.sessionId ?? resolved.sessionId,
-      taskIdSource: session ? "session" : "none",
-      currentPhase: "dashboard",
-      decision: session ? "needs-inspection" : "idle",
-      blocking: Boolean(session),
-      findings: session ? ["No evaluate result is available yet."] : [],
-      missingEvidence: [],
-      requiredCommands: [],
-      mustInspect: [],
-      allowedEditGlobs: [],
-      avoidEditGlobs: [],
-      artifacts: [".agent-context/sidecar/visualization.json"],
-      nextAction: session ? "prepare" : "prepare",
-      interventions
-    })
+    "dashboard",
+    async () => {
+      const parsed = parseDashboardArgs(args);
+      if (typeof parsed === "string") return renderHarnessError("dashboard", parsed, root);
+      const resolved = resolvePluginTask(root, parsed.taskId, parsed.sessionId);
+      const latest = resolved.taskId ? readPluginEvaluateState(root, parsed.sessionId) : undefined;
+      const session = readPluginHarnessSession(root, parsed.sessionId);
+      const interventions = pluginInterventionSnapshot(
+        root,
+        resolved.taskId ?? null,
+        latest?.interventions?.selectedFiles ?? [],
+        latest?.interventions?.excludedFiles ?? []
+      );
+      if (latest && resolved.taskId) {
+        return renderPluginResult(
+          createPluginHarnessResult(root, {
+            ok: true,
+            tool: "dashboard",
+            summary: latest.summary,
+            taskId: latest.taskId,
+            sessionId: latest.sessionId ?? resolved.sessionId,
+            taskIdSource: resolved.source,
+            currentPhase: "dashboard",
+            decision: latest.decision,
+            blocking: latest.blocking,
+            findings: latest.findings,
+            missingEvidence: latest.missingEvidence,
+            requiredCommands: latest.requiredCommands,
+            mustInspect: latest.mustInspect,
+            allowedEditGlobs: latest.allowedEditGlobs,
+            avoidEditGlobs: latest.avoidEditGlobs,
+            artifacts: latest.artifacts,
+            nextAction: latest.nextAction,
+            interventions
+          })
+        );
+      }
+      return renderPluginResult(
+        createPluginHarnessResult(root, {
+          ok: true,
+          tool: "dashboard",
+          summary: session
+            ? `OpenCode++ is tracking ${session.taskId}; no evaluate result is available yet.`
+            : "OpenCode++ is installed and waiting for a prepared task.",
+          taskId: session?.taskId ?? null,
+          sessionId: session?.sessionId ?? resolved.sessionId,
+          taskIdSource: session ? "session" : "none",
+          currentPhase: "dashboard",
+          decision: session ? "needs-inspection" : "idle",
+          blocking: Boolean(session),
+          findings: session ? ["No evaluate result is available yet."] : [],
+          missingEvidence: [],
+          requiredCommands: [],
+          mustInspect: [],
+          allowedEditGlobs: [],
+          avoidEditGlobs: [],
+          artifacts: [".agent-context/sidecar/visualization.json"],
+          nextAction: "prepare",
+          interventions
+        })
+      );
+    },
+    context,
+    recorder
   );
 }
 
@@ -232,14 +245,14 @@ export async function executeNextTool(
 
 async function runHarnessTool(
   root: string,
-  tool: "prepare" | "retrieve" | "evaluate" | "next",
+  tool: "prepare" | "retrieve" | "dashboard" | "evaluate" | "next",
   action: () => Promise<string>,
   context?: OpenCodeSidecarRuntimeContext,
   recorder?: OpenCodeSidecarRecorder
 ): Promise<string> {
   try {
     const output = await action();
-    notifyFromToolResult(root, tool, output, context, recorder);
+    notifyFromToolResult(tool, output, context, recorder);
     return output;
   } catch (error) {
     return renderHarnessError(tool, harnessFailureMessage(error), root);
@@ -247,15 +260,15 @@ async function runHarnessTool(
 }
 
 function notifyFromToolResult(
-  root: string,
-  tool: "prepare" | "retrieve" | "evaluate" | "next",
+  tool: "prepare" | "retrieve" | "dashboard" | "evaluate" | "next",
   output: string,
   context?: OpenCodeSidecarRuntimeContext,
   recorder?: OpenCodeSidecarRecorder
 ): void {
   if (!context) return;
   try {
-    const result = JSON.parse(output) as { interventions?: import("./types.js").PluginInterventionSnapshot };
+    const result = JSON.parse(output) as import("./types.js").PluginHarnessResult;
+    notifyPluginHarnessStatus(context, result, recorder);
     notifyPluginInterventionSignals(context, result.interventions, tool, recorder);
   } catch (error) {
     recorder?.log("debug", "plugin intervention result notification skipped", { message: error instanceof Error ? error.message : String(error) });

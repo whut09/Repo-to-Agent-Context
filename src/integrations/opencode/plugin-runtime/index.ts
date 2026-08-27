@@ -136,7 +136,7 @@ export async function createOpenCodePlusPlusSidecar(
       opencode_plusplus_dashboard: harnessTool(
         "Show the visible OpenCode++ Harness dashboard: phase progress, selected and rejected files, findings, evidence freshness, interventions, decision basis, and final summary.",
         { taskId: { type: "string" }, sessionId: { type: "string" } },
-        (args) => executeDashboardTool(context.directory, args)
+        (args) => executeDashboardTool(context.directory, args, context, recorder)
       ),
       opencode_plusplus_prepare: harnessTool(
         "Call before editing. Builds repository context if missing and returns taskId, mustInspect, edit boundaries, and requiredCommands.",
