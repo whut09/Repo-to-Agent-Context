@@ -39,6 +39,29 @@ test("OpenCode plugin exposes persistent enable, disable, and status tools", asy
   }
 });
 
+test("OpenCode plugin exposes a visible Harness dashboard", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-dashboard-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const tools = plugin.tool as Record<string, { execute: (args?: unknown) => Promise<string> }>;
+    const dashboard = JSON.parse(await tools.opencode_plusplus_dashboard.execute()) as {
+      ok: boolean;
+      tool: string;
+      visualization: { view: string; summary: string; stages: unknown[] };
+      humanReadable: string;
+    };
+    assert.equal(dashboard.ok, true);
+    assert.equal(dashboard.tool, "dashboard");
+    assert.equal(dashboard.visualization.view, "harness-progress");
+    assert.ok(dashboard.visualization.stages.length >= 5);
+    assert.match(dashboard.humanReadable, /Harness Dashboard/);
+    assert.equal(existsSync(path.join(root, ".agent-context", "sidecar", "visualization.json")), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("disabled OpenCode plugin keeps controls available and skips command guards", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-disabled-"));
   const stateFile = path.join(root, "state.json");

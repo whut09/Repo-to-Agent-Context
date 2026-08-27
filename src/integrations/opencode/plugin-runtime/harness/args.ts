@@ -2,6 +2,7 @@ import type {
   PluginContextGetArgs,
   PluginContextSearchArgs,
   PluginContextStatusArgs,
+  PluginDashboardArgs,
   PluginEvaluateArgs,
   PluginFeedbackArgs,
   PluginHarnessTaskType,
@@ -150,13 +151,17 @@ export function parseEvaluateArgs(args: unknown): PluginEvaluateArgs | string {
   return parseOptionalTaskIdArgs(args, "evaluate");
 }
 
+export function parseDashboardArgs(args: unknown): PluginDashboardArgs | string {
+  return parseOptionalTaskIdArgs(args, "dashboard");
+}
+
 export function parseNextArgs(args: unknown): PluginNextArgs | string {
   return parseOptionalTaskIdArgs(args, "next");
 }
 
 function parseOptionalTaskIdArgs(
   args: unknown,
-  tool: "evaluate" | "next" | "context status" | "interventions"
+  tool: "evaluate" | "next" | "dashboard" | "context status" | "interventions"
 ): { taskId?: string; sessionId?: string | null } | string {
   const record = asRecord(args);
   const sessionId = readOptionalSessionId(record.sessionId);

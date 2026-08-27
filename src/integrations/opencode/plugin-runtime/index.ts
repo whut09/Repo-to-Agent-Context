@@ -7,6 +7,7 @@ import {
   executeContextGetTool,
   executeContextSearchTool,
   executeContextStatusTool,
+  executeDashboardTool,
   executeEvaluateTool,
   executeFeedbackTool,
   executeInterventionsTool,
@@ -132,6 +133,11 @@ export async function createOpenCodePlusPlusSidecar(
       opencode_plusplus_enable: controlTool("Enable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(true, stateFile)),
       opencode_plusplus_disable: controlTool("Disable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(false, stateFile)),
       opencode_plusplus_status: controlTool("Show OpenCode++ installation and enabled status.", () => readOpenCodePlusPlusPluginStatus(stateFile)),
+      opencode_plusplus_dashboard: harnessTool(
+        "Show the visible OpenCode++ Harness dashboard: phase progress, selected and rejected files, findings, evidence freshness, interventions, decision basis, and final summary.",
+        { taskId: { type: "string" }, sessionId: { type: "string" } },
+        (args) => executeDashboardTool(context.directory, args)
+      ),
       opencode_plusplus_prepare: harnessTool(
         "Call before editing. Builds repository context if missing and returns taskId, mustInspect, edit boundaries, and requiredCommands.",
         { task: { type: "string" }, type: { type: "string" }, sessionId: { type: "string" } },

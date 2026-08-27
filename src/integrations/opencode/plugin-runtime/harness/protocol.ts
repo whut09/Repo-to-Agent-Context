@@ -1,6 +1,7 @@
 import path from "node:path";
 import { currentSidecarWorkingTreeHash } from "../worktree-hash.js";
 import { emptyPluginInterventions, type PluginHarnessResult, type PluginHarnessToolKind, type PluginPerformance, type PluginTaskIdSource } from "./types.js";
+import { buildPluginHarnessVisualization, persistPluginHarnessVisualization, renderPluginHarnessVisualization } from "./visualization.js";
 
 export const PLUGIN_HARNESS_SCHEMA_VERSION = "opencode-plusplus.desktop-harness.v1";
 
@@ -19,11 +20,20 @@ export function createPluginHarnessResult(
     | "avoidEditGlobs"
     | "artifacts"
     | "interventions"
+    | "visualization"
   > &
     Partial<
       Pick<
         PluginHarnessResult,
-        "findings" | "missingEvidence" | "requiredCommands" | "mustInspect" | "allowedEditGlobs" | "avoidEditGlobs" | "artifacts" | "interventions"
+        | "findings"
+        | "missingEvidence"
+        | "requiredCommands"
+        | "mustInspect"
+        | "allowedEditGlobs"
+        | "avoidEditGlobs"
+        | "artifacts"
+        | "interventions"
+        | "visualization"
       >
     >
 ): PluginHarnessResult {
@@ -43,7 +53,22 @@ export function createPluginHarnessResult(
       input.interventions ??
       emptyPluginInterventions(
         path.relative(root, path.join(root, ".agent-context", "interventions", `${input.taskId ?? "unknown"}.jsonl`)).replaceAll("\\", "/")
-      )
+      ),
+    visualization:
+      input.visualization ??
+      buildPluginHarnessVisualization({
+        currentPhase: input.currentPhase,
+        taskStarted: Boolean(input.taskId),
+        decision: input.decision,
+        blocking: input.blocking,
+        nextAction: input.nextAction,
+        workingTreeHash: currentSidecarWorkingTreeHash(root),
+        findings: input.findings,
+        missingEvidence: input.missingEvidence,
+        requiredCommands: input.requiredCommands,
+        mustInspect: input.mustInspect,
+        interventions: input.interventions
+      })
   };
 }
 
@@ -73,7 +98,24 @@ export function createPluginHarnessError(
 }
 
 export function renderPluginHarnessResult(result: PluginHarnessResult): string {
-  return `${JSON.stringify({ ...result, humanReadable: humanReadableSummary(result) }, null, 2)}\n`;
+  const visualization =
+    result.visualization ??
+    buildPluginHarnessVisualization({
+      taskStarted: Boolean(result.taskId),
+      currentPhase: result.currentPhase,
+      decision: result.decision,
+      blocking: result.blocking,
+      nextAction: result.nextAction,
+      workingTreeHash: result.workingTreeHash,
+      findings: result.findings,
+      missingEvidence: result.missingEvidence,
+      requiredCommands: result.requiredCommands,
+      mustInspect: result.mustInspect,
+      interventions: result.interventions
+    });
+  const normalized = { ...result, visualization };
+  persistPluginHarnessVisualization(normalized.repository, visualization);
+  return `${JSON.stringify({ ...normalized, humanReadable: humanReadableSummary(normalized) }, null, 2)}\n`;
 }
 
 function humanReadableSummary(result: PluginHarnessResult): string {
@@ -101,6 +143,7 @@ function humanReadableSummary(result: PluginHarnessResult): string {
     lines.push(`Remaining problems: ${result.interventions.remainingProblems.map((event) => event.problem).join("; ")}`);
   if (result.interventions?.humanReview.length) lines.push(`Human review: ${result.interventions.humanReview.map((event) => event.problem).join("; ")}`);
   if (result.requiredCommands.length) lines.push(`Required commands: ${result.requiredCommands.join(" | ")}`);
+  if (result.visualization) lines.push(renderPluginHarnessVisualization(result.visualization));
   return lines.join("\n");
 }
 

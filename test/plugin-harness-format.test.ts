@@ -9,6 +9,7 @@ import {
   renderRetrieveText
 } from "../src/integrations/opencode/plugin-runtime/harness/format.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
+import { buildPluginHarnessVisualization, renderPluginHarnessVisualization } from "../src/integrations/opencode/plugin-runtime/harness/visualization.js";
 
 const base: PluginHarnessResult = {
   schemaVersion: "opencode-plusplus.desktop-harness.v1",
@@ -33,6 +34,37 @@ const base: PluginHarnessResult = {
   nextAction: "run-tests"
 };
 
+test("Harness visualization exposes progress and auditable decision basis", () => {
+  const visualization = buildPluginHarnessVisualization({
+    taskStarted: true,
+    currentPhase: "evaluate",
+    decision: "run-tests",
+    blocking: true,
+    nextAction: "run-tests",
+    workingTreeHash: "tree-hash",
+    findings: ["tests missing"],
+    missingEvidence: ["command evidence"],
+    requiredCommands: ["npm test"],
+    mustInspect: ["src/auth/session.ts"],
+    interventions: {
+      ledgerPath: ".agent-context/interventions/task.jsonl",
+      eventCount: 1,
+      selectedFiles: ["src/auth/session.ts"],
+      excludedFiles: [{ path: "src/billing.ts", reason: "unrelated" }],
+      interventions: [],
+      problems: ["tests missing"],
+      actions: ["npm test"],
+      verifiedFixes: [],
+      remainingProblems: [],
+      humanReview: []
+    }
+  });
+  assert.equal(visualization.evidence.status, "blocking");
+  assert.equal(visualization.stages.find((stage) => stage.id === "evaluate")?.status, "blocked");
+  assert.match(renderPluginHarnessVisualization(visualization), /Decision basis:/);
+  assert.match(renderPluginHarnessVisualization(visualization), /not hidden model reasoning/);
+});
+
 test("plugin harness renderers expose the unified Desktop protocol fields", () => {
   for (const rendered of [
     renderPrepareText(base),
@@ -47,6 +79,8 @@ test("plugin harness renderers expose the unified Desktop protocol fields", () =
     assert.equal(parsed.repository, "C:/repo");
     assert.ok(Array.isArray(parsed.findings));
     assert.ok(typeof parsed.summary === "string");
+    assert.equal(parsed.visualization?.view, "harness-progress");
+    assert.ok(parsed.humanReadable?.includes("OpenCode++ Harness Dashboard"));
   }
   assert.match(
     renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }),

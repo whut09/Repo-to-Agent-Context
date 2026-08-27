@@ -2,6 +2,7 @@ export const OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES = [
   "opencode_plusplus_enable",
   "opencode_plusplus_disable",
   "opencode_plusplus_status",
+  "opencode_plusplus_dashboard",
   "opencode_plusplus_prepare",
   "opencode_plusplus_retrieve",
   "opencode_plusplus_context_search",
@@ -78,6 +79,11 @@ export interface PluginInterventionsArgs {
   sessionId?: string | null;
 }
 
+export interface PluginDashboardArgs {
+  taskId?: string;
+  sessionId?: string | null;
+}
+
 export interface PluginEvaluateArgs {
   taskId?: string;
   sessionId?: string | null;
@@ -114,7 +120,7 @@ export interface PluginWorkflowState {
   updatedAt: string;
 }
 
-export type PluginHarnessToolKind = "prepare" | "retrieve" | "evaluate" | "next" | "feedback";
+export type PluginHarnessToolKind = "prepare" | "retrieve" | "dashboard" | "evaluate" | "next" | "feedback";
 export type PluginTaskIdSource = "argument" | "session" | "created" | "none";
 
 export type PluginPerformanceStatus = "completed" | "timeout";
@@ -212,6 +218,7 @@ export interface PluginHarnessResult {
   context?: import("../../../../context-registry/types.js").ContextFetchResult;
   performance?: PluginPerformance;
   interventions?: PluginInterventionSnapshot;
+  visualization?: import("./visualization.js").PluginHarnessVisualization;
 }
 
 export type PluginPrepareResult = PluginHarnessResult;
@@ -240,6 +247,7 @@ export interface PluginEvaluateState {
   summary: string;
   updatedAt: string;
   interventions?: PluginInterventionSnapshot;
+  visualization?: import("./visualization.js").PluginHarnessVisualization;
 }
 
 export function emptyPluginInterventions(ledgerPath = ""): PluginInterventionSnapshot {
