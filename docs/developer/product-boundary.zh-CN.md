@@ -45,7 +45,7 @@ OpenCode++ 的运行时产品只有一个：**官方 OpenCode Desktop 的 Window
 
 ## 守护测试
 
-- `test/plugin-bundle.test.ts`：bundle 独立加载、单一函数导出、不含仓库路径、不 require node_modules 外部包、8 个工具名注册兼容、构建不依赖 CLI/MCP 模块。
+- `test/plugin-bundle.test.ts`：bundle 可独立加载、只导出一个函数、不含仓库路径、不依赖 `node_modules` 外部包、注册所有已声明工具名称，且构建不依赖 CLI/MCP 模块。
 - `test/release-boundary.test.ts`：安装器只嵌入插件、构建脚本只打包 `global-plugin.ts`、`global-plugin.ts` 只导入 plugin-runtime、npm files 白名单排除发布/构建产物。
 - `test/installer-prompt-sync.test.ts`：C# EXE 安装器的常量与文件名和 TS prompt 源逐字节一致，避免 TS 测试通过但 EXE 没装上。
 - `test/windows-installer.test.ts`、`scripts/smoke-windows-installer.mjs`：安装器写入 primary mode、清理旧命令、加载插件，卸载时删除。

@@ -45,7 +45,7 @@ The following remain in the repository and the npm developer package but are **n
 
 ## Guard Tests
 
-- `test/plugin-bundle.test.ts`: bundle loads standalone, single function export, no repository path, no node_modules requires, eight tool names registered, build independent of CLI/MCP modules.
+- `test/plugin-bundle.test.ts`: bundle loads standalone, exports one function, contains no repository path, requires no external `node_modules` package, registers all declared tool names, and builds independently of CLI/MCP modules.
 - `test/release-boundary.test.ts`: installer embeds only plugin + patch, build script bundles only `global-plugin.ts`, `global-plugin.ts` imports only plugin-runtime, and the npm files whitelist excludes release/build artifacts.
 - `test/installer-prompt-sync.test.ts`: the C# EXE installer constants and file names stay byte-identical to the TS prompt source, so a passing TS test cannot hide a missing EXE write.
 - `test/windows-installer.test.ts` and `scripts/smoke-windows-installer.mjs`: the installer writes the primary mode, removes legacy command files, loads the plugin, and uninstall removes owned files.
