@@ -9,10 +9,14 @@ import { validateContracts, type ContractValidationReport } from "../../outputs/
 import { buildTestSelection, type TestSelectionReport } from "../../outputs/test-selector.js";
 import { renderTaskVerify } from "../../outputs/task-harness.js";
 import type { OpenCodeSidecarGuardStackSummary } from "./sidecar.js";
+import type { ContextPackage } from "../../core/types.js";
 
-export async function runSidecarIncrementalVerifier(root: string, input: { base: string; changedFiles: string[] }): Promise<OpenCodeSidecarGuardStackSummary> {
+export async function runSidecarIncrementalVerifier(
+  root: string,
+  input: { base: string; changedFiles: string[]; context?: ContextPackage }
+): Promise<OpenCodeSidecarGuardStackSummary> {
   try {
-    const context = await buildApplicationContext(root);
+    const context = input.context ?? (await buildApplicationContext(root));
     const contracts = validateContracts(context, { base: input.base, diff: true });
     const hallucination = buildHallucinationReport(context, { base: input.base });
     const regression = buildRegressionReport(context, { base: input.base, changedFiles: input.changedFiles });

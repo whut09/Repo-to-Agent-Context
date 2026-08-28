@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { AgentExecutorName } from "../harness/control-plane/orchestrator.js";
+import { isTestExecutionCommand } from "../core/test-command.js";
 
 export type AgentEvent =
   | { type: "message"; role: "assistant" | "user"; text: string; ts: string }
@@ -201,12 +202,8 @@ function commandEventFromTool(tool: string, args: unknown, record: Record<string
 }
 
 function commandEvent(command: string, exitCode: number | undefined, ts: string): AgentEvent {
-  if (looksLikeTestCommand(command)) return { type: "test_run", command, exitCode: exitCode ?? 0, ts };
+  if (isTestExecutionCommand(command)) return { type: "test_run", command, exitCode: exitCode ?? 0, ts };
   return exitCode === undefined ? { type: "command_run", command, ts } : { type: "command_run", command, exitCode, ts };
-}
-
-function looksLikeTestCommand(command: string): boolean {
-  return /\b(test|tests|vitest|jest|pytest|go test|cargo test|npm run test|pnpm test|yarn test|bun test)\b/i.test(command);
 }
 
 function roleFor(record: Record<string, unknown>): "assistant" | "user" {

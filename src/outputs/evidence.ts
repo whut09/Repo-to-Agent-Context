@@ -1,6 +1,7 @@
 import type { ExecutionTrace, ExecutionTraceStep } from "../harness/observability/execution-trace.js";
 import type { EvidencePolicyMode } from "../core/types.js";
 import type { ResolutionEvidence } from "../harness/types.js";
+import { isTestExecutionCommand } from "../core/test-command.js";
 
 export type EvidenceLevel = "none" | "manual" | "command" | "ci";
 export type HarnessRequirementKind = "tests" | "contract-validation";
@@ -101,8 +102,9 @@ export function evidenceRank(level: EvidenceLevel): number {
 }
 
 export function matchesTestStep(step: ExecutionTraceStep): boolean {
-  const text = `${step.action} ${step.command ?? ""} ${step.test ?? ""}`.toLowerCase();
-  return /\b(run-test|test|verify|check|lint|typecheck)\b/.test(text) || /\b(npm|pnpm|yarn|bun|pytest|vitest|jest|node --test)\b/.test(text);
+  if (step.command) return isTestExecutionCommand(step.command);
+  if (step.test) return true;
+  return /^(run-test|test|test-run)$/i.test(step.action.trim());
 }
 
 export function latestTestResultSteps(trace: ExecutionTrace, options: LatestTestResultOptions = {}): ExecutionTraceStep[] {

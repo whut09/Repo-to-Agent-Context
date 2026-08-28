@@ -2,6 +2,7 @@ import { unique } from "../../../../core/collections.js";
 import type { LoopControllerReport } from "../../../../harness/control-plane/loop-controller.js";
 import type { PolicyEngineReport } from "../../../../harness/verification-plane/policy-engine.js";
 import type { OpenCodeSidecarGuardStackSummary } from "../../sidecar.js";
+import { isTestSelectorCommand } from "../../../../core/test-command.js";
 
 export function evaluateFindings(input: { policy: PolicyEngineReport; guardStack: OpenCodeSidecarGuardStackSummary }): string[] {
   return unique([
@@ -28,5 +29,10 @@ export function evaluateRequiredCommands(input: { loop: LoopControllerReport; po
   return unique([
     ...input.loop.decisions.map((decision) => decision.command).filter((command): command is string => Boolean(command)),
     ...input.policy.findings.map((finding) => finding.requiredAction).filter((action): action is string => Boolean(action))
-  ]).filter((command) => !/^No .*detected/i.test(command));
+  ]).filter(isExecutableRequiredCommand);
+}
+
+function isExecutableRequiredCommand(command: string): boolean {
+  if (isTestSelectorCommand(command)) return false;
+  return /^(opencode-plusplus|npm|pnpm|yarn|bun|npx|node|python|pytest|go|cargo|dotnet|mvn|mvnw|gradle|gradlew)\b/i.test(command);
 }

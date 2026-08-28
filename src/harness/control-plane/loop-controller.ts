@@ -12,6 +12,7 @@ import { buildTestSelection } from "../../outputs/test-selector.js";
 import { bullet, code, heading, table } from "../../outputs/renderers/markdown.js";
 import { buildRunStateSnapshot, writeRunState, type RunStateSnapshot } from "../../outputs/runtime-state.js";
 import { taskSlug } from "../../core/task-id.js";
+import { firstTestExecutionCommand } from "../../core/test-command.js";
 
 export type LoopPhase = "preflight" | "after-edit" | "repair";
 export type LoopStatus = "ready" | "needs-context" | "needs-repair" | "needs-validation" | "blocked";
@@ -23,6 +24,7 @@ export type LoopAction =
   | "repair-contracts"
   | "add-or-update-tests"
   | "run-tests"
+  | "human-review"
   | "ready-for-review";
 
 export interface LoopControllerOptions {
@@ -121,6 +123,7 @@ export function buildLoopControllerReport(context: ContextPackage, task: string,
     impactDependents: impact.directDependents.length + impact.transitiveDependents.length,
     minimalCommands: tests.minimalCommands,
     regressionCommands: tests.recommendedCommands,
+    fullConfidenceCommands: tests.fullConfidenceCommands,
     taskPackOverBudget: taskPack.estimatedTokens > taskPack.tokenBudget,
     taskPackTokens: taskPack.estimatedTokens,
     taskPackBudget: taskPack.tokenBudget,
@@ -252,6 +255,7 @@ function decideNextSteps(input: {
   impactDependents: number;
   minimalCommands: string[];
   regressionCommands: string[];
+  fullConfidenceCommands: string[];
   taskPackOverBudget: boolean;
   taskPackTokens: number;
   taskPackBudget: number;
@@ -326,7 +330,7 @@ function decideNextSteps(input: {
         blocking: true,
         reason: "Changed source files have contract signals indicating missing related tests.",
         signals: [`missing test signals: ${input.missingTestSignals}`, `changed files: ${input.changedFiles.length}`],
-        command: `opencode-plusplus tests . --diff --base ${input.base}`
+        command: undefined
       })
     );
   }
@@ -346,21 +350,24 @@ function decideNextSteps(input: {
   }
 
   if (input.changedFiles.length && input.passedTestEvidence === "none") {
+    const testCommand = preferredTestCommand([...input.minimalCommands, ...input.regressionCommands, ...input.fullConfidenceCommands], input.task);
     decisions.push(
       decision({
-        action: "run-tests",
+        action: testCommand ? "run-tests" : "human-review",
         priority: input.impactRisk === "High" ? "high" : "medium",
-        confidence: confidenceForRunTests(input),
+        confidence: testCommand ? confidenceForRunTests(input) : 0.96,
         blocking: true,
-        reason: "The loop cannot close until the recommended focused tests and verification commands have been run.",
+        reason: testCommand
+          ? "The loop cannot close until an actual test command has been run."
+          : "No runnable test command is configured. Stop automatic execution and ask a human to configure or choose the repository test command.",
         signals: [
           `changed files: ${input.changedFiles.length}`,
           `minimal tests detected: ${input.minimalTests}`,
           `regression tests detected: ${input.regressionTests}`,
+          `runnable test command: ${testCommand ?? "none"}`,
           ...input.traceSignals
         ],
-        command:
-          firstUsefulCommand([...input.minimalCommands, ...input.regressionCommands], input.task) ?? `opencode-plusplus tests . --diff --base ${input.base}`
+        command: testCommand
       })
     );
   }
@@ -395,6 +402,7 @@ function statusFor(decisions: LoopDecision[]): LoopStatus {
   if (decisions.some((decision) => decision.action === "rebuild-context" || decision.action === "replan" || decision.action === "expand-context"))
     return "needs-context";
   if (decisions.some((decision) => decision.action === "run-tests" || decision.action === "add-or-update-tests")) return "needs-validation";
+  if (decisions.some((decision) => decision.action === "human-review")) return "blocked";
   if (decisions.some((decision) => decision.action === "start-agent" || decision.action === "ready-for-review")) return "ready";
   return "blocked";
 }
@@ -502,6 +510,11 @@ function firstUsefulCommand(commands: string[], task: string): string | undefine
   );
 }
 
+function preferredTestCommand(commands: string[], task: string): string | undefined {
+  const executable = commands.filter((command) => firstTestExecutionCommand([command]));
+  return firstUsefulCommand(executable, task);
+}
+
 function formatDecision(decision: LoopDecision): string {
   const command = decision.command ? ` Command: ${code(decision.command)}.` : "";
   const signals = decision.signals.length ? ` Signals: ${decision.signals.join("; ")}.` : "";
@@ -541,7 +554,7 @@ function confidenceForRunTests(input: {
   let confidence = input.impactRisk === "High" ? 0.86 : 0.8;
   if (input.minimalTests > 0) confidence += 0.04;
   if (input.regressionTests > 0) confidence += 0.03;
-  if (firstUsefulCommand([...input.minimalCommands, ...input.regressionCommands], "")) confidence += 0.03;
+  if (preferredTestCommand([...input.minimalCommands, ...input.regressionCommands], "")) confidence += 0.03;
   return confidence;
 }
 

@@ -107,14 +107,15 @@ export function collectDecisionCandidates(input: DecisionEngineInput): HarnessDe
   }
 
   if (input.policy.summary.requiredMissing > 0) {
+    const requiredCommands = requiredCommandsFromPolicy(input.policy);
     candidates.push(
       candidate({
         id: "policy.required-missing",
         source: "policy",
-        action: "repair",
+        action: requiredCommands.length ? "repair" : "human-review",
         confidence: 0.88,
         reasons: ["Required policy evidence is missing.", `required missing: ${input.policy.summary.requiredMissing}`],
-        requiredCommands: requiredCommandsFromPolicy(input.policy),
+        requiredCommands,
         artifacts
       })
     );
@@ -283,12 +284,14 @@ function actionForLoopDecision(action: LoopControllerReport["decisions"][number]
   if (action === "rebuild-context" || action === "replan" || action === "expand-context") return "repack";
   if (action === "repair-contracts" || action === "add-or-update-tests") return "repair";
   if (action === "run-tests") return "run-tests";
+  if (action === "human-review") return "human-review";
   return null;
 }
 
 function loopReasonPrefix(action: HarnessDecisionAction): string {
   if (action === "repack") return "The next loop needs refreshed or expanded context before continuing.";
   if (action === "repair") return "The next loop must repair code, contracts, or tests before continuing.";
+  if (action === "human-review") return "Automatic execution cannot make progress without a human-selected repository command.";
   return "The next loop must run required verification commands before continuing.";
 }
 
@@ -324,7 +327,7 @@ function decisionForGate(action: GuardGateAction, checkpointMode: "none" | "git-
 
 function commandForGate(action: GuardGateAction): string[] {
   if (action === "repack" || action === "expand-context") return ['opencode-plusplus pack "<task>" .'];
-  if (action === "run-tests") return ["opencode-plusplus tests . --diff --base main"];
+  if (action === "run-tests") return [];
   if (action === "run-regression-tests") return ["opencode-plusplus regression . --base main --trace <trace-id>"];
   if (action === "repair") return ['opencode-plusplus loop "<task>" . --phase repair'];
   return [];

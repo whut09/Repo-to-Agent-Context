@@ -53,7 +53,7 @@ async function evaluatePluginHarnessInternal(root: string, args: PluginEvaluateA
   const context = await loadPluginHarnessContext(root);
   const task = resolved.task ?? resolved.taskId;
   const base = resolveGitBase(root);
-  const guardStack = await runSidecarIncrementalVerifier(root, { base, changedFiles: [] });
+  const guardStack = await runSidecarIncrementalVerifier(root, { base, changedFiles: [], context });
   const traceId = traceIdForOpenCodeSession(resolved.sessionId);
   const policy = buildPolicyReport(context, { base, traceId, failOn: "required", contextTaskId: resolved.taskId });
   const loop = buildLoopControllerReport(context, task, { phase: "after-edit", base, traceId });

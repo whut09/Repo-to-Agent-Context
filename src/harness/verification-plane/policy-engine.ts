@@ -13,6 +13,7 @@ import type { GuardResult } from "../types.js";
 import { createGuardResult } from "../types.js";
 import { assessExternalContextPolicy, type ContextPolicyAssessment } from "../knowledge/context-policy.js";
 import type { ContextUsageRecord } from "../../context-registry/types.js";
+import { firstTestExecutionCommand } from "../../core/test-command.js";
 
 export type PolicyKind = "forbidden" | "risk" | "required";
 export type PolicyStatus = "failed" | "warning" | "missing" | "satisfied";
@@ -211,7 +212,9 @@ export function buildPolicyReport(context: ContextPackage, options: PolicyEngine
           ...testEvidence.evidence,
           ...tests.fullConfidenceCommands.slice(0, 3).map((command) => `Suggested: ${command}`)
         ],
-        requiredAction: firstRunnableCommand(tests.fullConfidenceCommands) ?? `opencode-plusplus tests . --diff --base ${base}`
+        requiredAction:
+          firstTestExecutionCommand(tests.fullConfidenceCommands) ??
+          "No runnable test command is configured; choose or configure the repository test command before finalizing."
       })
     );
 
@@ -471,10 +474,6 @@ function isContractGeneratorPath(file: string): boolean {
 
 function requiresContractRegeneration(files: string[]): boolean {
   return files.some(isContractGeneratorPath);
-}
-
-function firstRunnableCommand(commands: string[]): string | undefined {
-  return commands.find((command) => !/^No .*detected/i.test(command));
 }
 
 function policyFindingFromGuardResult(result: GuardResult): PolicyFinding {
