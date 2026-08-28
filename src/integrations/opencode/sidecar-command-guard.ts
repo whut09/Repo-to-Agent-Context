@@ -25,6 +25,11 @@ function checkDangerousCommand(command: string): OpenCodeSidecarCommandFinding[]
   const findings: OpenCodeSidecarCommandFinding[] = [];
   const patterns: Array<[RegExp, string, string]> = [
     [
+      /(?:^|\s)(?:start-sleep|sleep)(?:\.exe)?(?:\s+[-\w]+)*\s+\d+/i,
+      "Artificial wait command 人为等待命令",
+      "Do not wait for Harness output with sleep. Call the reported OpenCode++ tool again or stop at human-review. 不要用 sleep 等待 harness，重新调用工具或停在人工审查。"
+    ],
+    [
       /\brm\s+(-[^\s]*[rf][^\s]*|-[^\s]*r[^\s]*f[^\s]*|-[^\s]*f[^\s]*r[^\s]*)\s+(\/|\*|\.|~|\$HOME|%USERPROFILE%)/i,
       "Destructive recursive remove 破坏性递归删除",
       "Remove specific files inside the repository, e.g. `rm src/tmp.txt`. 只删除仓库内明确文件，不要递归删 /、~、*。"

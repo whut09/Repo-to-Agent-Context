@@ -27,6 +27,7 @@ import {
   setOpenCodePlusPlusPluginEnabled
 } from "./state.js";
 import { currentSidecarWorkingTreeHash } from "./worktree-hash.js";
+import { isGeneratedRuntimePath } from "../sidecar-path-guard.js";
 
 export { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "./harness/index.js";
 
@@ -258,6 +259,7 @@ export async function createOpenCodePlusPlusSidecar(
         if (type === "file.edited") {
           const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
           const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
+          if (isGeneratedRuntimePath(String(file))) return;
           const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
           const workflow = safeInitializeWorkflow(sessionId);
           safeUpdateWorkflow(sessionId, { phase: "editing", taskId: workflow.taskId, eventKey: `file.edited:${file}` });
@@ -267,6 +269,10 @@ export async function createOpenCodePlusPlusSidecar(
         if (type === "file.watcher.updated") {
           const properties = eventRecord.properties && typeof eventRecord.properties === "object" ? (eventRecord.properties as Record<string, unknown>) : {};
           const file = properties.file ?? properties.path ?? eventRecord.file ?? eventRecord.path ?? "unknown";
+          if (isGeneratedRuntimePath(String(file))) {
+            recorder.record("file.watcher.updated.ignored", { file: String(file), reason: "generated-runtime-path" });
+            return;
+          }
           const sessionId = String(eventRecord.sessionID ?? eventRecord.sessionId ?? "default");
           const workflow = safeInitializeWorkflow(sessionId);
           if (!workflow.taskId) throw new Error("OpenCode++ requires opencode_plusplus_prepare before source edits.");

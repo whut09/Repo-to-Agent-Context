@@ -157,6 +157,61 @@ test("session.idle blocker toasts the first blocker with a next-step hint and ne
   }
 });
 
+test("generated runtime watcher updates do not trigger another dirty verification", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-runtime-watcher-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
+    await eventHook({ event: { type: "session.created", sessionID: "session-runtime" } });
+    const tracePath = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
+    const before = existsSync(tracePath) ? readEventLines(root).length : 1;
+    await eventHook({
+      event: {
+        type: "file.watcher.updated",
+        sessionID: "session-runtime",
+        properties: { file: ".agent-context/cache/tokenizer-cache.json" }
+      }
+    });
+    const workflow = readEventLines(root);
+    assert.equal(
+      workflow.some((line) => line.type === "file.watcher.updated.ignored"),
+      true
+    );
+    assert.equal(workflow.filter((line) => line.type === "repository marked dirty").length, 0);
+    assert.ok(workflow.length >= before);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("absolute generated runtime watcher updates are ignored", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-absolute-runtime-watcher-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
+    await eventHook({
+      event: {
+        type: "file.watcher.updated",
+        sessionID: "session-absolute-runtime",
+        properties: { file: path.join(root, ".agent-context", "cache", "tokenizer-cache.json") }
+      }
+    });
+    const events = readEventLines(root);
+    assert.equal(
+      events.some((line) => line.type === "file.watcher.updated.ignored"),
+      true
+    );
+    assert.equal(
+      events.some((line) => line.type === "repository marked dirty"),
+      false
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("compacting injects harness state into output.context and never replaces output.prompt", () => {
   const fixture = createLifecycleFixture();
   const root = fixture.root;

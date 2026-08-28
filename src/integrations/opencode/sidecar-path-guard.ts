@@ -18,6 +18,11 @@ export function isGeneratedSidecarOutput(filePath: string): boolean {
   return filePath === ".agent-context/sidecar/latest.json" || filePath === ".agent-context/sidecar/latest.md";
 }
 
+export function isGeneratedRuntimePath(filePath: string): boolean {
+  const normalized = normalizeToolPath(filePath);
+  return normalized === "AGENTS.md" || normalized.endsWith("/AGENTS.md") || normalized.startsWith(".agent-context/") || normalized.includes("/.agent-context/");
+}
+
 export function isSecretLike(file: string): boolean {
   return /(^|\/)(\.env|.*\.local\.(yml|yaml|json)|opencode-plusplus\.local\.yml)$/i.test(file);
 }

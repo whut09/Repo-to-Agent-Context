@@ -9,6 +9,7 @@ import { exitCodeFromOutput } from "../src/integrations/opencode/plugin-runtime/
 import { workflowStatePath } from "../src/integrations/opencode/plugin-runtime/harness/workflow.js";
 import { normalizeToolExecuteAfter, normalizeToolExecuteBefore } from "../src/integrations/opencode/plugin-runtime/hook-input.js";
 import { setOpenCodePlusPlusPluginEnabled } from "../src/integrations/opencode/plugin-runtime/state.js";
+import { checkSidecarCommand } from "../src/integrations/opencode/sidecar-command-guard.js";
 
 test("OpenCode plugin normalizes current before hook arguments", () => {
   const result = normalizeToolExecuteBefore(
@@ -94,6 +95,12 @@ test("enabled OpenCode plugin guard rejection tells the model what to run instea
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("sidecar rejects artificial wait commands instead of letting the Desktop loop sleep", () => {
+  const result = checkSidecarCommand(".", { command: "Start-Sleep -Seconds 45" });
+  assert.equal(result.allowed, false);
+  assert.ok(result.findings.some((finding) => /wait|等待/i.test(finding.message)));
 });
 
 test("OpenCode plugin keeps compatibility with legacy before hook arguments", () => {

@@ -23,6 +23,7 @@ Workflow:
 7. Call opencode_plusplus_dashboard after evaluate and next when a visible progress summary is needed; it reports recorded decision inputs, not hidden model reasoning.
 8. Call opencode_plusplus_next with the taskId returned by prepare.
 9. If nextAction is not finalize, follow the reported action, then evaluate and call next again. Never claim completion while the decision is blocking or nextAction is not finalize.
+10. Do not run opencode-plusplus CLI commands, Start-Sleep, sleep, or polling loops from Desktop. Use the in-process OpenCode++ plugin tools; if no real repository test command exists, stop at human-review.
 
 Evidence rules:
 - Do not invent files, commands, test results, or output.
