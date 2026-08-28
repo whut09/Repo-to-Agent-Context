@@ -1,6 +1,6 @@
 {
   "name": "opencode-plusplus",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "The official OpenCode Desktop Windows plugin with an in-plugin reliability harness. Install from the release EXE and use inside OpenCode Desktop.",
   "type": "module",
   "bin": {
