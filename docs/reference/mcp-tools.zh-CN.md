@@ -4,6 +4,8 @@
 
 MCP server 通过 stdio 暴露 OpenCode++。基础工具包括 build、plan、pack、retrieve、tests、impact、verify 和 explain；实验 runtime 工具包括 start_loop、step、evaluate、repair 和 finalize。
 
+这是开发者和兼容集成入口。普通 OpenCode Desktop 用户应安装 Windows EXE 并选择 `OpenCode++` primary mode，不需要配置这个 MCP server。
+
 ## Context 兼容工具
 
 - `opencode_plusplus_context_search`

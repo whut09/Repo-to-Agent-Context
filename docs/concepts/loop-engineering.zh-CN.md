@@ -10,6 +10,8 @@
 Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 ```
 
+对普通 Windows 用户，这个闭环通过 OpenCode Desktop 的进程内插件提供。OpenCode 负责模型对话、文件编辑和命令执行；插件工具与 hook 收集闭环所需的有限运行状态。下面的 CLI `orchestrate` 是可选的开发者自动化入口，由它持有外部 executor 循环，不是第二套 Desktop runtime。
+
 ## 介入记录 Ledger
 
 每轮 Harness 会在 `.agent-context/interventions/` 写入 Intervention Ledger（介入记录）。它明确区分两件事：OpenCode++ 观察到或阻止了什么，以及某个修复是否真的被验证。每条记录都能反查对应的 finding、decision、trace 和 evidence。

@@ -4,6 +4,8 @@
 
 `opencode-plusplus-mcp` exposes OpenCode++ through stdio MCP.
 
+This is a developer and compatibility surface. Normal OpenCode Desktop users install the Windows EXE and select the `OpenCode++` primary mode; they do not configure this MCP server.
+
 ## Foundation Tools
 
 - `opencode_plusplus_build`

@@ -4,6 +4,8 @@
 
 This guide connects OpenCode to OpenCode++ through the stdio MCP server. OpenCode remains the coding runtime; OpenCode++ supplies task context, edit boundaries, evidence checks, and repair/finalize decision reports.
 
+This is for developers and compatibility hosts. It is not the normal installation path for OpenCode Desktop; Desktop users should install the Windows EXE and select the `OpenCode++` primary mode.
+
 ## Configuration
 
 Build the package:

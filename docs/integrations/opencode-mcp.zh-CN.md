@@ -2,7 +2,7 @@
 
 [English](opencode-mcp.md) | 中文
 
-OpenCode MCP 有两种边界：官方 Desktop 通过全局插件接入，批处理或其他客户端通过 stdio MCP server 接入。两者共享领域逻辑，但 MCP server 不提供 Desktop UI，也不负责安装全局插件。
+OpenCode MCP 有两种边界：官方 Desktop 通过全局插件接入，批处理或其他客户端通过 stdio MCP server 接入。两者共享领域逻辑，但 MCP server 不提供 Desktop UI，也不负责安装全局插件。它是开发者和兼容宿主入口，不是 Desktop 的普通安装方式；普通用户应安装 Windows EXE 并选择 `OpenCode++` primary mode。
 
 ## Agent-led
 

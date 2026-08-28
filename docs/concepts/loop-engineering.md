@@ -8,6 +8,8 @@ OpenCode++ is moving from a context compiler into an Agent Harness Runtime Contr
 Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 ```
 
+For ordinary Windows users, this loop is exposed through the in-process OpenCode Desktop plugin. OpenCode owns the model conversation, file edits, and command execution; plugin tools and hooks collect the bounded state used by the loop. The CLI `orchestrate` command described below is an optional developer automation surface that owns an external executor loop, not a second Desktop runtime.
+
 ## Intervention Ledger
 
 Each harness iteration also writes an Intervention Ledger under `.agent-context/interventions/`. The ledger answers two separate questions: what OpenCode++ observed or prevented, and whether a proposed repair was actually verified. Every event links back to its finding, decision, trace, and evidence references.
