@@ -78,11 +78,11 @@ The plugin is not an operating-system sandbox. It cannot stop another applicatio
 
 ### What The User Sees
 
-The Desktop tool result includes a visible Harness Dashboard. It shows `Plan -> Prepare -> Retrieve -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize`, with completed, active, blocked, and pending stages. It also shows the current decision, required commands, current working-tree hash capture, evidence status, intervention counts, selected/rejected files, and a concise final summary.
+The Desktop tool result includes a visible `OpenCode++ action summary` and Harness Dashboard. The summary directly lists `observed`, `prevented`, `requested`, `repaired`, `verified`, and `unresolved` items. The Dashboard shows `Plan -> Prepare -> Retrieve -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize`, with completed, active, blocked, and pending stages. It also shows the current decision, required commands, current working-tree hash capture, evidence status, intervention counts, selected/rejected files, and a concise final summary.
 
 The dashboard exposes recorded system facts and decision inputs. It does not expose hidden model chain-of-thought. This keeps the view useful for debugging and review without presenting private internal reasoning as an auditable fact.
 
-The Desktop result and `.agent-context/sidecar/latest.md` distinguish four questions:
+The Desktop result and `.agent-context/sidecar/latest.md` distinguish these questions:
 
 - **Intervened files:** files selected for inspection, edited within the boundary, or rejected with a reason;
 - **Blocked risks:** unsafe commands, protected paths, stale Context, missing tests, policy violations, or unresolved regressions;
@@ -90,7 +90,7 @@ The Desktop result and `.agent-context/sidecar/latest.md` distinguish four quest
 - **Verified fixes:** repairs followed by fresh command or CI evidence for the current working tree;
 - **Human work:** unresolved findings, repeated no-progress states, or semantic decisions the Harness cannot prove.
 
-`verified fix` is therefore narrower than `suggested fix`. An annotation, Context document, manual claim, successful earlier test, or source edit cannot become verified merely because it looks plausible. External Context is untrusted guidance, and annotation is local knowledge, not policy.
+`verified fix` is therefore narrower than `suggested fix`. An annotation, Context document, manual claim, successful earlier test, source edit, commit list, or model-generated summary cannot become verified merely because it looks plausible. External Context is untrusted guidance, and annotation is local knowledge, not policy. When the result says `human-review`, read the exact missing evidence in `actionSummary.evidence`; it is not a request to repeat the task.
 
 Context cache and registry usage are stored under `.agent-context/cache/` and `.agent-context/context-registry/usage/`. Local feedback is stored under `.agent-context/context-registry/feedback/`, annotations under `.agent-context/knowledge/annotations/`, and intervention records under `.agent-context/interventions/`. These are local runtime artifacts and should normally remain uncommitted.
 

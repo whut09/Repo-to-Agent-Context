@@ -2,24 +2,40 @@
 
 [中文](getting-started.zh-CN.md) | English
 
-OpenCode++ is for coding sessions where a plausible answer is not enough. It makes the selected OpenCode model gather repository context, stay inside explicit edit boundaries, produce current evidence, and explain why a task can or cannot be finalized.
+OpenCode++ is a Windows plugin for OpenCode Desktop. It is useful when a plausible answer is not enough: the selected OpenCode model must gather repository context, stay inside explicit edit boundaries, produce current evidence, and explain why a task can or cannot be finalized.
 
 ## Five Minutes
 
 1. Download the Windows EXE from [Releases](https://github.com/whut09/opencode-plusplus/releases).
-2. Exit OpenCode Desktop, double-click the EXE, and restart OpenCode.
-3. Open a repository and select **OpenCode++** in the mode picker.
-4. Describe a coding task normally.
-5. Review `.agent-context/` when you need the evidence or decision report.
+2. Fully exit OpenCode Desktop, double-click the EXE, and wait for the confirmation message.
+3. Restart OpenCode Desktop, open a repository, and select **OpenCode++** in the mode picker.
+4. Describe a coding task normally. Do not start an OpenCode++ CLI command and do not add a second model.
+5. After the task reaches `evaluate` or `next`, read the `OpenCode++ action summary` at the top of the returned tool result.
+6. Open the `dashboard` tool or `.agent-context/sidecar/visualization.json` for the phase view; open `.agent-context/sidecar/latest.md` for the latest report.
 
 ![OpenCode++ mode](images/opencode-plusplus-mode.png)
 
 ## What Happens
 
-The mode prompt steers the current model through `retrieve` and `prepare` before edits, built-in shell execution for required commands, and `evaluate` plus `next` after edits. If a check is stale, missing, forbidden, or repeated without progress, the Harness reports the reason instead of silently claiming success.
+The mode prompt steers the current model through `retrieve` and `prepare` before edits, built-in shell execution for required commands, and `evaluate` plus `next` after edits. The plugin runs these tools in-process inside OpenCode Desktop. If a check is stale, missing, forbidden, or repeated without progress, the Harness reports the reason instead of silently claiming success.
+
+The visible result answers six concrete questions:
+
+- `observed`: what OpenCode++ recorded;
+- `prevented`: which command, path, or policy risk it blocked;
+- `requested`: what must happen next;
+- `repaired`: what was changed but is not verified yet;
+- `verified`: which repair has fresh command or CI evidence for the current working tree;
+- `unresolved`: what still blocks completion.
+
+The current model may provide a natural-language task summary, but that summary is not the Harness record. Use `actionSummary`, the Dashboard, and `.agent-context/` when you need to know what OpenCode++ itself did.
+
+## If The Mode Is Missing
+
+Fully exit OpenCode Desktop before installing or upgrading. After restarting, check the mode picker again. The installer writes to `%USERPROFILE%\.config\opencode` unless `OPENCODE_CONFIG_DIR` is set. The plugin is loaded from the active OpenCode configuration directory; installing the EXE while another Desktop process is still running does not refresh an already loaded plugin.
 
 ## When To Customize
 
 Use the default mode first. Fork or extend the plugin when your repository needs different protected paths, test trust, retrieval weighting, evidence policy, or loop stopping rules. Add a test for the new rule and keep the Windows installer and bilingual docs synchronized.
 
-CLI and MCP are developer/compatibility surfaces. They are not needed for this installation path.
+CLI and MCP are developer/compatibility surfaces. They are not needed for this installation path and are not called by the Desktop plugin.

@@ -78,7 +78,7 @@ Windows 安装器会向 OpenCode 增加一个可选择的 primary mode：**OpenC
 
 ### 用户会看到什么
 
-Desktop 工具结果现在包含可见的 Harness Dashboard。它展示 `Plan -> Prepare -> Retrieve -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize` 阶段，并标记已完成、进行中、阻塞和待处理状态。同时展示当前 decision、必跑命令、当前工作树 hash 是否已捕获、证据状态、介入统计、选中/排除文件和简短最终总结。
+Desktop 工具结果现在包含可见的 `OpenCode++ action summary` 和 Harness Dashboard。总结会直接列出 `observed`（检测到）、`prevented`（已阻止）、`requested`（已要求）、`repaired`（已修正）、`verified`（已验证）和 `unresolved`（未解决）。Dashboard 展示 `Plan -> Prepare -> Retrieve -> Execute -> Collect -> Evaluate -> Decide -> Persist -> Finalize` 阶段，并标记已完成、进行中、阻塞和待处理状态。同时展示当前 decision、必跑命令、当前工作树 hash 是否已捕获、证据状态、介入统计、选中/排除文件和简短最终总结。
 
 Dashboard 展示的是已记录的系统事实和决策输入，不展示模型隐藏的思维链。这样可以支持调试和人工审核，又不会把模型内部推理冒充成可审计事实。
 
@@ -90,7 +90,7 @@ Desktop 结果和 `.agent-context/sidecar/latest.md` 会区分以下问题：
 - **已验证修复：** 修改后有对应当前工作树的新鲜 command 或 CI evidence；
 - **仍需人工处理：** 未解决 finding、重复无进展，或 Harness 无法证明的业务语义。
 
-所以，`verified fix` 比 `suggested fix` 严格得多。annotation、Context 文档、手工声明、较早的成功测试或看起来合理的源代码修改，都不能自动变成 verified。外部 Context 是不可信指导，annotation 是本地知识，不是 policy。
+所以，`verified fix` 比 `suggested fix` 严格得多。annotation、Context 文档、手工声明、较早的成功测试、看起来合理的源代码修改、提交列表或模型生成的总结，都不能自动变成 verified。外部 Context 是不可信指导，annotation 是本地知识，不是 policy。返回 `human-review` 时，应读取 `actionSummary.evidence` 中的具体证据缺口；这不是要求重新做一遍任务。
 
 Context cache 和 registry usage 位于 `.agent-context/cache/`、`.agent-context/context-registry/usage/`；本地 feedback 位于 `.agent-context/context-registry/feedback/`；annotation 位于 `.agent-context/knowledge/annotations/`；介入记录位于 `.agent-context/interventions/`。这些都是本地运行文件，通常不应提交。
 
