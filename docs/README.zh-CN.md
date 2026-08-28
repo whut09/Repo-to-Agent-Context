@@ -4,7 +4,13 @@
 
 OpenCode++ 是面向官方 OpenCode Desktop 的 Windows Harness 插件。安装 EXE 后选择 **OpenCode++** primary mode，它会围绕正常编码任务提供 context、编辑边界、证据和验证决策。CLI 与 MCP 只面向开发者和兼容集成，不是普通安装方式，也不是第二个 Desktop 应用。
 
+![OpenCode++ 系统架构](images/opencode-plusplus-architecture.svg)
+
+产品只有一条普通用户路径：OpenCode Desktop 加上已安装的进程内插件。当前 OpenCode 模型仍然负责实际编码工作。OpenCode++ 让外围控制闭环可见：Context 和 Retrieval 选择重要内容，Guard 定义允许做什么，Evidence 检查什么已经被真实证明，Intervention Ledger 说明检测到、阻止、要求、修复、验证或仍未解决了什么。
+
 ## 从这里开始
+
+如果刚接触 OpenCode++，建议按这个顺序阅读：先安装 Windows 插件，再理解产品边界，最后查看架构和 Desktop 中可见的结果。
 
 | 目标                                  | 文档                                                                    |
 | ------------------------------------- | ----------------------------------------------------------------------- |

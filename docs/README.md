@@ -4,7 +4,13 @@
 
 OpenCode++ is a Windows-first Harness plugin for the official OpenCode Desktop. Install the EXE, select the **OpenCode++** primary mode, and let it provide context, edit boundaries, evidence, and verification decisions around normal coding work. CLI and MCP are developer/compatibility surfaces, not user installation paths and not a second Desktop application.
 
+![OpenCode++ system architecture](images/opencode-plusplus-architecture.svg)
+
+The product has one normal user path: OpenCode Desktop plus the installed in-process plugin. The current OpenCode model still performs the coding work. OpenCode++ makes the surrounding control loop visible: Context and Retrieval select what matters, Guards define what is allowed, Evidence checks what is actually proven, and the Intervention Ledger explains what was observed, blocked, requested, repaired, verified, or left unresolved.
+
 ## Start Here
+
+Read these in order if OpenCode++ is new to you: install the Windows plugin, understand the product boundary, then inspect the architecture and the visible Desktop results.
 
 | Goal                                               | Document                                                                              |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
