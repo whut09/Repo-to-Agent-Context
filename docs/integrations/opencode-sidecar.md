@@ -24,6 +24,8 @@ The plugin handles `tool.execute.before`, `tool.execute.after`, `file.edited`, `
 
 The plugin exposes status and enable/disable controls as model-visible tools for compatibility, while the normal Desktop entry is the `opencode-plusplus` primary mode. The Windows installer no longer adds command menu entries or patches the Desktop bundle. A disabled plugin remains loaded and only bypasses Guard, evidence capture, and idle verification. The installer EXE can still use `--status`, `--enable`, or `--disable` outside Desktop for diagnostics.
 
+Desktop Harness calls return structured JSON and human-readable text. The top-level `actionSummary` is the recorded OpenCode++ result: `observed`, `prevented`, `requested`, `repaired`, `verified`, `unresolved`, and `human-review` entries identify what the plugin saw, blocked, requested, or verified. The Dashboard tool and `.agent-context/sidecar/visualization.json` expose the same decision inputs, including selected/rejected files, findings, missing evidence, required commands, working-tree hash, and intervention counts. A model-written task summary or commit list is not substituted for this record.
+
 ## Evidence and Artifacts
 
 After a tool call, the plugin records sanitized previews and hashes instead of unrestricted output. It records an exit code when the host supplies one; otherwise the result is `unknown`. It records before/after working-tree hashes and changed paths when available. Reports and traces are written under the current repository's `.agent-context/` through the shared atomic store. Tool events use the OpenCode call ID when available, so a repeated after-hook is idempotent in both the event log and execution trace. Concurrent hooks serialize through file locks and receive monotonic event sequences.
@@ -32,7 +34,7 @@ The sidecar is an evidence collection and verification layer. It is not a replac
 
 ## Relation to the Batch Harness
 
-The Desktop sidecar is session-local and event-driven. The CLI/MCP Harness can own a bounded multi-iteration flow:
+The Desktop sidecar is session-local and event-driven. The following CLI/MCP Harness flow is a developer-only compatibility example; it is not required for normal Desktop use:
 
 ```powershell
 opencode-plusplus orchestrate "fix the login timeout and add a regression test" . --executor opencode --max-loops 3 --fail-on required

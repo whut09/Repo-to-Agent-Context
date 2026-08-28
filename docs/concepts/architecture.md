@@ -2,7 +2,7 @@
 
 [中文](architecture.zh-CN.md) | English
 
-OpenCode++ is a problem-driven enhancement layer for coding agents. It does not replace Codex, OpenCode, Claude Code, Cursor, or MiMoCode as the coding agent; it adds context enhancement, edit boundaries, regression guards, impact analysis, test-evidence validation, and repair/finalize decision reports around them.
+OpenCode++ is a Windows-first plugin for the official OpenCode Desktop. It does not replace the model or the Desktop application; it adds context enhancement, edit boundaries, regression guards, impact analysis, test-evidence validation, intervention records, and repair/finalize decision reports around normal coding work. CLI and MCP remain developer and compatibility surfaces.
 
 The core product is no longer just documentation generation or context-pack compilation. It is a static but verifiable Agent Reliability Layer:
 
@@ -12,14 +12,15 @@ Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 
 The generated context remains important, but it is one part of the enhancement layer: agents use it together with traces, policy checks, tests, freshness, drift, impact, and verification signals to plan, edit, repair, and finalize changes.
 
-Current boundary: this is not a fully autonomous coding agent. It is a context, policy, trace, and runtime-state control plane with a bounded harness-led loop. The controller consumes repository state and trace evidence, persists `.agent-context/runs/<task-id>/state.json`, and reports the next allowed action, while an external coding agent or user still executes edits and commands. Harness-led mode can invoke an executor, but the real code changes still happen inside that external executor.
+Current boundary: the Desktop plugin is not a second model, a hidden chain-of-thought viewer, or an OS sandbox. It is an in-process context, policy, trace, and runtime-state control plane. OpenCode still executes model work, edits, and commands; the plugin records bounded facts and returns deterministic decisions. A separate CLI Harness mode can invoke an explicitly configured executor for developer automation and persists `.agent-context/runs/<task-id>/state.json`.
 
 ## OpenCode Sidecar Flow
 
 ```mermaid
 flowchart TD
-  User["User"] --> CLI["opencode-plusplus"]
-  Desktop["Official OpenCode Desktop"] --> Plugin["User-level OpenCode++ plugin"]
+  User["User"] --> Desktop["Official OpenCode Desktop"]
+  Desktop --> Plugin["User-level OpenCode++ plugin"]
+  Developer["Developer / CI"] --> CLI["CLI / MCP compatibility surfaces"]
 
   Plugin --> Before["tool.execute.before"]
   Plugin --> After["tool.execute.after"]
@@ -35,9 +36,9 @@ flowchart TD
   EvidenceRecorder --> Latest
   IncrementalVerify --> Latest
 
-  Latest --> Report["opencode-plusplus report"]
-  Latest --> Status["opencode-plusplus status"]
-  Latest --> Doctor["opencode-plusplus doctor"]
+  Latest --> Report["sidecar report and Dashboard"]
+  Latest --> Status["Desktop status tool"]
+  Latest --> Doctor["developer diagnostics"]
 ```
 
 This is the default product path: OpenCode owns chat, code reading, edits, and tool execution; OpenCode++ owns the surrounding sidecar, evidence, guards, verification reports, and diagnostics.
@@ -147,16 +148,17 @@ The v2 architecture is organized around five responsibilities:
 
 - External Agent Executor Layer: generic command adapters for Codex, Claude Code, Cursor, OpenCode, MiMoCode / MiMoCodex, and other scriptable code agents. The deterministic `mock` executor is implemented for CI and tests; real code-agent CLIs can be wired through argv-style `--executor-command` templates with placeholders such as `{prompt}`, `{task}`, `{repo}`, and `{runDir}`. Executor commands and trace commands run without a shell, preserve quoted paths, and reject shell control operators. The first native event normalizer supports OpenCode `run --format json` stdout, optional OpenCode transcript files through `--opencode-transcript`, and generic stdout/stderr fallback. MiMoCode, Codex JSONL, and Claude Code transcript normalizers remain adapter work. These code agents own file reading, code edits, command execution, and their own tools. OpenCode++ orchestrates context packs, edit boundaries, trace evidence, policy checks, impact analysis, test recommendations, and repair/finalize decision reports around those executors. OpenCode and MiMoCode are priority integration targets because they are open-source code-agent runtimes.
 
-The integration model has two modes:
+There is one end-user product path and two developer surfaces:
 
-- Agent-led mode: a code agent calls OpenCode++ tools through MCP or CLI. This gives the agent plan/pack/retrieve/tests/impact/verify/evaluate/repair/finalize capabilities, but the agent still decides whether to call them and whether to obey the result.
-- Harness-led mode: OpenCode++ runs a bounded loop and treats the code agent as an executor. The flow is `user task -> plan/pack -> choose executor -> execute -> collect diff/trace/test evidence -> policy/contracts/tests/impact/verify -> decision report`. Decision reports are `finalize`, `repair`, `repack`, `block`, `rollback`, or `require human review`. `opencode-plusplus orchestrate` now runs a bounded multi-loop controller and writes each turn under `.agent-context/runs/<task-id>/iterations/<nnn>/`; `--checkpoint git-worktree` runs executors in an isolated temporary worktree and exports patches back to the host run directory. `opencode-plusplus agent run` remains the one-pass executor wrapper. Native MiMoCode, Codex, and Claude event parsing remains adapter work.
+- Desktop plugin path: the user installs the Windows EXE, selects the `OpenCode++` primary mode, and uses the in-process tools. The current tool contract is documented in [Integration Modes](integration-modes.md); results expose `actionSummary`, visualization, evidence, and human-review reasons.
+- Agent-led compatibility surface: an external host may call the existing CLI or MCP contracts. It decides when to call the tools and remains responsible for model work.
+- Harness-led developer surface: `opencode-plusplus orchestrate` runs a bounded loop around an explicitly configured executor. The flow is `task -> prepare -> execute -> collect -> evaluate -> decide -> persist`; reports can be `finalize`, `repair`, `repack`, `block`, `rollback`, or `human-review`. This mode is not the normal Desktop installation path.
 
 This keeps the project distinct from repo summarizers, README generators, and raw RAG loaders. The goal is to help coding agents safely complete concrete changes, not just read a repository.
 
 For a source-level walkthrough of the runtime loop, see [Loop Engineering Code Path](loop-engineering.md). The Chinese version is [Loop Engineering 源码链路](loop-engineering.zh-CN.md).
 
-For the two integration modes and their isolated entry points, see [Integration Modes and Entry Isolation](integration-modes.md). The Chinese version is [两套集成模式与入口隔离](integration-modes.zh-CN.md).
+For the Desktop product path and developer-only entry points, see [Integration Modes and Entry Boundaries](integration-modes.md). The Chinese version is [集成模式与入口边界](integration-modes.zh-CN.md).
 
 For Guard responsibilities and maturity, see [Guard Modules](guard-modules.md). The Chinese version is [Guard Modules](guard-modules.zh-CN.md).
 

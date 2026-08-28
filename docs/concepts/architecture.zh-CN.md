@@ -12,7 +12,7 @@ Context -> Agent -> Execution -> Trace -> Evaluation -> Context Update -> Loop
 
 ## Windows 默认路径
 
-官方 OpenCode Desktop 加载用户级全局插件。插件接收 tool before/after、file edited、watcher updated 和 session idle 事件，分别执行命令/路径 Guard、证据记录和空闲增量验证。输出写入当前仓库的 .agent-context。
+官方 OpenCode Desktop 加载用户级全局插件，这是普通用户唯一的产品入口。插件接收 tool before/after、file edited、watcher updated 和 session idle 事件，分别执行命令/路径 Guard、证据记录和空闲增量验证；prepare/retrieve/evaluate/next 等工具在插件进程内调用 application service。输出写入当前仓库的 .agent-context，并通过 actionSummary 和 Dashboard 显示可审计事实。
 
 ## 可靠性层
 
