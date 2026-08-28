@@ -31,6 +31,28 @@ test("policy engine requires trace evidence for source edits", async () => {
   }
 });
 
+test("policy engine does not present the test selector as a runnable test", async () => {
+  const root = createPolicyRepo(false);
+  try {
+    await prepareGeneratedContext(root);
+    writeFileSync(path.join(root, "src", "core", "session.ts"), "export function loginSession() { return 'fixed'; }\n", "utf8");
+
+    const context = await buildContextPackage(root);
+    const report = buildPolicyReport(context, { base: "main" });
+    const finding = report.findings.find((item) => item.id === "policy.required.tests");
+    const result = report.results.find((item) => item.id === "policy.required.tests");
+
+    assert.match(finding?.requiredAction ?? "", /No runnable test command/);
+    assert.deepEqual(result?.requiredCommands, []);
+    assert.equal(
+      report.results.some((item) => item.requiredCommands.some((command) => command.startsWith("opencode-plusplus tests"))),
+      false
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("policy engine fail-on forbidden ignores missing required evidence", async () => {
   const root = createPolicyRepo();
   try {
@@ -228,11 +250,12 @@ test("external Context cannot forge tests, contract validation, or finalize evid
   }
 });
 
-function createPolicyRepo(): string {
+function createPolicyRepo(withTestScript = true): string {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-policy-"));
   mkdirSync(path.join(root, "src", "core"), { recursive: true });
   mkdirSync(path.join(root, "test", "core"), { recursive: true });
-  writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node -e \"console.log('ok')\"", check: "tsc --noEmit" } }), "utf8");
+  const scripts = withTestScript ? { test: "node -e \"console.log('ok')\"", check: "tsc --noEmit" } : { check: "tsc --noEmit" };
+  writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts }), "utf8");
   writeFileSync(path.join(root, "src", "core", "session.ts"), "export function loginSession() { return 'ok'; }\n", "utf8");
   writeFileSync(path.join(root, "test", "core", "session.test.ts"), "import { loginSession } from '../../src/core/session.js';\nloginSession();\n", "utf8");
   return root;

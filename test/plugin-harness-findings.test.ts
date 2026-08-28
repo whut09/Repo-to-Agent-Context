@@ -32,10 +32,29 @@ test("evaluate commands and missing evidence stay unique", () => {
   const loop = {
     decisions: [{ command: "npm run test" }, { command: "npm run test" }],
     runtime: { missingEvidence: ["command evidence"] }
-  } as LoopControllerReport;
+  } as unknown as LoopControllerReport;
   const policy = {
     findings: [{ id: "policy.required.tests", status: "missing", message: "tests missing", requiredAction: "npm run test" }]
   } as PolicyEngineReport;
   assert.deepEqual(evaluateMissingEvidence({ loop, policy }), ["command evidence", "policy.required.tests: tests missing"]);
   assert.deepEqual(evaluateRequiredCommands({ loop, policy }), ["npm run test"]);
+});
+
+test("evaluate commands exclude the test selector and explanatory text", () => {
+  const loop = {
+    decisions: [{ command: "opencode-plusplus tests . --diff --base main" }],
+    runtime: { missingEvidence: [] }
+  } as unknown as LoopControllerReport;
+  const policy = {
+    findings: [
+      {
+        id: "policy.required.tests",
+        status: "missing",
+        message: "tests missing",
+        requiredAction: "No runnable test command is configured; choose one before finalizing."
+      }
+    ]
+  } as PolicyEngineReport;
+
+  assert.deepEqual(evaluateRequiredCommands({ loop, policy }), []);
 });

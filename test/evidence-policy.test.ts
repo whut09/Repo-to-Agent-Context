@@ -50,6 +50,17 @@ test("strict accepts valid CI evidence", () => {
   assert.equal(result.verified, true);
 });
 
+test("test selection output cannot satisfy test evidence", () => {
+  const result = evidenceSatisfies(
+    requirement("tests", "strict"),
+    trace([commandTest(currentHash, 0, "selection complete", "2026-01-01T00:00:20.000Z", "opencode-plusplus tests . --diff --base main")])
+  );
+
+  assert.equal(result.satisfied, false);
+  assert.equal(result.claimed, false);
+  assert.equal(result.verified, false);
+});
+
 test("latest failure supersedes an earlier success for the same command", () => {
   const result = evidenceSatisfies(
     requirement("tests", "strict"),

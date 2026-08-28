@@ -147,6 +147,31 @@ test("evaluate reads the current working tree and next requires a matching evalu
   }
 });
 
+test("Desktop evaluate stops when the repository has no runnable test command", async () => {
+  const root = createPluginHarnessRepo(false);
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "state.json") });
+    const tools = plugin.tool as Record<string, PluginHarnessTool>;
+    const prepared = result(await tools.opencode_plusplus_prepare.execute({ task: "fix login timeout bug", sessionId: "session-no-tests" }));
+    writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'changed'; }\n", "utf8");
+
+    const evaluated = result(await tools.opencode_plusplus_evaluate.execute({ taskId: prepared.taskId, sessionId: "session-no-tests" }));
+    const next = result(await tools.opencode_plusplus_next.execute({ taskId: prepared.taskId, sessionId: "session-no-tests" }));
+
+    assert.equal(evaluated.decision, "human-review");
+    assert.equal(evaluated.blocking, true);
+    assert.equal(
+      evaluated.requiredCommands.some((command) => command.startsWith("opencode-plusplus tests")),
+      false
+    );
+    assert.ok(evaluated.findings.some((finding) => /test evidence/i.test(finding)));
+    assert.match(evaluated.humanReadable ?? "", /human-review/i);
+    assert.equal(next.nextAction, "human-review");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Desktop hook evidence is readable from the shared execution trace", async () => {
   const root = createPluginHarnessRepo();
   try {
@@ -278,11 +303,12 @@ test("Desktop retrieve incrementally fetches Context Registry entry content", as
   }
 });
 
-function createPluginHarnessRepo(): string {
+function createPluginHarnessRepo(withTestScript = true): string {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-plugin-harness-"));
   mkdirSync(path.join(root, "src", "auth"), { recursive: true });
   mkdirSync(path.join(root, "test", "auth"), { recursive: true });
-  writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test", check: "tsc --noEmit" } }), "utf8");
+  const scripts = withTestScript ? { test: "node --test", check: "tsc --noEmit" } : { check: "tsc --noEmit" };
+  writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts }), "utf8");
   writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'ok'; }\n", "utf8");
   writeFileSync(
     path.join(root, "src", "auth", "middleware.ts"),

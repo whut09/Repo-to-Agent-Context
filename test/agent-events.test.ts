@@ -22,6 +22,23 @@ test("OpenCode JSON stdout normalizer extracts messages, file events, commands, 
   assert.ok(result.events.some((event) => event.type === "test_run" && event.command.includes("npm run test") && event.exitCode === 0));
 });
 
+test("OpenCode test selector is a command event, not a test result", () => {
+  const result = normalizeOpenCodeJsonStream(
+    JSON.stringify({
+      type: "tool.call",
+      name: "Bash",
+      args: { command: "opencode-plusplus tests . --diff --base main" },
+      exitCode: 0
+    })
+  );
+
+  assert.ok(result.events.some((event) => event.type === "command_run"));
+  assert.equal(
+    result.events.some((event) => event.type === "test_run"),
+    false
+  );
+});
+
 test("OpenCode transcript normalizer reads JSON transcript files", () => {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-opencode-transcript-"));
   try {

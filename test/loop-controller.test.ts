@@ -138,11 +138,35 @@ test("loop controller rejects stale test evidence after later edits", async () =
   }
 });
 
-function createLoopRepo(): string {
+test("loop controller stops for human review when no test command is configured", async () => {
+  const root = createLoopRepo(false);
+  try {
+    await prepareGeneratedContext(root);
+    writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'fixed'; }\n", "utf8");
+
+    const context = await buildContextPackage(root);
+    const report = buildLoopControllerReport(context, "fix login timeout bug", { phase: "after-edit", type: "bugfix", base: "main" });
+    const decision = report.decisions.find((item) => item.action === "human-review");
+
+    assert.ok(decision);
+    assert.equal(decision.blocking, true);
+    assert.equal(decision.command, undefined);
+    assert.match(decision.reason, /No runnable test command/);
+    assert.equal(
+      report.decisions.some((item) => item.command?.startsWith("opencode-plusplus tests")),
+      false
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function createLoopRepo(withTestScript = true): string {
   const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-loop-"));
   mkdirSync(path.join(root, "src", "auth"), { recursive: true });
   mkdirSync(path.join(root, "test", "auth"), { recursive: true });
-  writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node -e \"console.log('ok')\"", check: "tsc --noEmit" } }), "utf8");
+  const scripts = withTestScript ? { test: "node -e \"console.log('ok')\"", check: "tsc --noEmit" } : { check: "tsc --noEmit" };
+  writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts }), "utf8");
   writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'ok'; }\n", "utf8");
   writeFileSync(path.join(root, "test", "auth", "session.test.ts"), "import { loginSession } from '../../src/auth/session.js';\nloginSession();\n", "utf8");
   runGit(root, ["init"]);
