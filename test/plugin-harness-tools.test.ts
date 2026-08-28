@@ -166,6 +166,8 @@ test("Desktop evaluate stops when the repository has no runnable test command", 
     );
     assert.ok(evaluated.findings.some((finding) => /test evidence/i.test(finding)));
     assert.match(evaluated.humanReadable ?? "", /human-review/i);
+    assert.match(evaluated.humanReadable ?? "", /OpenCode\+\+ action summary/);
+    assert.match(evaluated.humanReadable ?? "", /No runnable test command is configured/);
     assert.equal(next.nextAction, "human-review");
   } finally {
     rmSync(root, { recursive: true, force: true });

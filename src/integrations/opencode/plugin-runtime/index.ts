@@ -135,7 +135,7 @@ export async function createOpenCodePlusPlusSidecar(
       opencode_plusplus_disable: controlTool("Disable OpenCode++ guards and evidence capture.", () => setOpenCodePlusPlusPluginEnabled(false, stateFile)),
       opencode_plusplus_status: controlTool("Show OpenCode++ installation and enabled status.", () => readOpenCodePlusPlusPluginStatus(stateFile)),
       opencode_plusplus_dashboard: harnessTool(
-        "Show the visible OpenCode++ Harness dashboard: phase progress, selected and rejected files, findings, evidence freshness, interventions, decision basis, and final summary.",
+        "Show the visible OpenCode++ Harness dashboard and actionSummary: what the plugin observed, prevented, requested, repaired, verified, and left unresolved. Do not replace it with a model-generated summary.",
         { taskId: { type: "string" }, sessionId: { type: "string" } },
         (args) => executeDashboardTool(context.directory, args, context, recorder)
       ),
@@ -211,12 +211,12 @@ export async function createOpenCodePlusPlusSidecar(
         (args) => executeFeedbackTool(context.directory, args)
       ),
       opencode_plusplus_evaluate: harnessTool(
-        "Call after edits or before claiming done. Returns blocking, findings, decision, and missing evidence.",
+        "Call after edits or before claiming done. Returns OpenCode++ actionSummary, blocking findings, decision, and exact missing evidence.",
         { taskId: { type: "string" }, sessionId: { type: "string" } },
         (args) => executeEvaluateTool(context.directory, args, context, recorder)
       ),
       opencode_plusplus_next: harnessTool(
-        "Call to get the next harness action. If nextAction is not finalize, do not claim the task is complete.",
+        "Call to get the next harness action and copy actionSummary into the final response. If nextAction is not finalize, do not claim completion or ask the user to repeat the task.",
         { taskId: { type: "string" }, sessionId: { type: "string" } },
         (args) => executeNextTool(context.directory, args, context, recorder)
       )

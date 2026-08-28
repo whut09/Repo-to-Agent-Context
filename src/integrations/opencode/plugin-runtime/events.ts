@@ -45,7 +45,17 @@ export function notifyPluginHarnessStatus(
   context: OpenCodeSidecarRuntimeContext,
   result: Pick<
     PluginHarnessResult,
-    "tool" | "summary" | "currentPhase" | "decision" | "blocking" | "nextAction" | "mustInspect" | "findings" | "missingEvidence" | "visualization"
+    | "tool"
+    | "summary"
+    | "currentPhase"
+    | "decision"
+    | "blocking"
+    | "nextAction"
+    | "mustInspect"
+    | "findings"
+    | "missingEvidence"
+    | "visualization"
+    | "actionSummary"
   >,
   recorder?: OpenCodeSidecarRecorder,
   showToast = true
@@ -59,7 +69,11 @@ export function notifyPluginHarnessStatus(
     `selected=${selectedFiles.length}`,
     `findings=${result.findings.length}`,
     `missingEvidence=${result.missingEvidence.length}`,
-    `evidence=${visualization?.evidence.status ?? "pending"}`
+    `evidence=${visualization?.evidence.status ?? "pending"}`,
+    `prevented=${result.actionSummary?.prevented.length ?? 0}`,
+    `repaired=${result.actionSummary?.repaired.length ?? 0}`,
+    `verified=${result.actionSummary?.verified.length ?? 0}`,
+    `unresolved=${result.actionSummary?.unresolved.length ?? 0}`
   ].join(" | ");
   const extra = {
     harnessDashboard: true,
@@ -71,7 +85,8 @@ export function notifyPluginHarnessStatus(
     selectedFiles,
     findings: result.findings,
     missingEvidence: result.missingEvidence,
-    summary: result.summary
+    summary: result.summary,
+    actionSummary: result.actionSummary
   };
 
   try {

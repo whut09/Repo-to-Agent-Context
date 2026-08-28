@@ -191,6 +191,16 @@ export interface PluginFeedbackSummary {
   evidenceAuthority: false;
 }
 
+export interface PluginActionSummary {
+  observed: string[];
+  prevented: string[];
+  requested: string[];
+  repaired: string[];
+  verified: string[];
+  unresolved: string[];
+  evidence: string[];
+}
+
 export interface PluginHarnessResult {
   schemaVersion: string;
   ok: boolean;
@@ -218,6 +228,7 @@ export interface PluginHarnessResult {
   context?: import("../../../../context-registry/types.js").ContextFetchResult;
   performance?: PluginPerformance;
   interventions?: PluginInterventionSnapshot;
+  actionSummary?: PluginActionSummary;
   visualization?: import("./visualization.js").PluginHarnessVisualization;
 }
 

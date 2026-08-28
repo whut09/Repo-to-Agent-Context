@@ -82,11 +82,60 @@ test("plugin harness renderers expose the unified Desktop protocol fields", () =
     assert.ok(typeof parsed.summary === "string");
     assert.equal(parsed.visualization?.view, "harness-progress");
     assert.ok(parsed.humanReadable?.includes("OpenCode++ Harness Dashboard"));
+    assert.match(parsed.humanReadable ?? "", /OpenCode\+\+ action summary/);
+    assert.match(parsed.humanReadable ?? "", /Observed \/ 检测到/);
+    assert.match(parsed.humanReadable ?? "", /Repaired, not yet verified/);
+    assert.ok(parsed.actionSummary);
+    assert.match(parsed.summary, /OpenCode\+\+ recorded: observed=/);
   }
   assert.match(
     renderRetrieveText({ ...base, tool: "retrieve", hits: [{ path: "src/auth/session.ts", score: 12, reason: "timeout" }] }),
     /src\/auth\/session\.ts/
   );
+});
+
+test("Desktop result separates recorded plugin actions from external task claims", () => {
+  const parsed = JSON.parse(
+    renderEvaluateText({
+      ...base,
+      findings: ["No runnable test command was configured."],
+      missingEvidence: ["current working-tree test evidence"],
+      requiredCommands: [],
+      interventions: {
+        ledgerPath: ".agent-context/interventions/task.jsonl",
+        eventCount: 2,
+        selectedFiles: ["src/auth/session.ts"],
+        excludedFiles: [{ path: "src/generated.ts", reason: "generated file" }],
+        interventions: [
+          {
+            interventionId: "guard-1",
+            eventId: "event-1",
+            status: "prevented",
+            phase: "evaluate",
+            category: "boundary",
+            problem: "protected path edit",
+            targetFiles: ["src/generated.ts"],
+            action: "block edit",
+            evidenceRefs: [],
+            confidence: 1,
+            source: "guard",
+            timestamp: "2026-01-01T00:00:00.000Z"
+          }
+        ],
+        problems: ["protected path edit"],
+        actions: ["block edit"],
+        verifiedFixes: [],
+        remainingProblems: [],
+        humanReview: []
+      }
+    })
+  ) as PluginHarnessResult;
+
+  assert.deepEqual(parsed.actionSummary?.prevented, ["protected path edit -> block edit [src/generated.ts]"]);
+  assert.deepEqual(parsed.actionSummary?.repaired, []);
+  assert.match(parsed.humanReadable ?? "", /recorded by the OpenCode\+\+ plugin/);
+  assert.match(parsed.humanReadable ?? "", /No runnable test command was configured/);
+  assert.doesNotMatch(parsed.humanReadable ?? "", /please confirm.*tests passed/i);
 });
 
 test("Desktop prints OpenCode++ Harness status to the app log and status toast", () => {
