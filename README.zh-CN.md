@@ -4,6 +4,8 @@
 
 **面向 Windows 官方 OpenCode Desktop 的 Harness 插件。**
 
+OpenCode++ 让 AI 生成的 diff 周边工作可见、可审查：它检查了什么、阻止了什么、要求执行什么，以及当前证据到底验证了什么。
+
 ## 它解决什么问题
 
 AI 编程经常出现“改动看起来合理，但读错文件、越界修改、跑了无关命令，或没有当前工作树上的测试证据就宣布完成”。OpenCode++ 在 OpenCode Desktop 外围增加一层可审计的验证控制面，让模型基于仓库 context、明确编辑边界、可追踪证据和最终决策完成任务。
@@ -17,14 +19,21 @@ AI 编程经常出现“改动看起来合理，但读错文件、越界修改�
 - 评估 policy、freshness、regression、hallucination 和循环收敛；
 - 明确下一步是 repair、repack、human review 还是 finalize。
 
-控制流程被明确拆成几层：
+## 系统架构
 
-```text
-Context Registry -> Retrieval -> Guard -> Evidence -> Intervention / Decision
-       指导           选择        边界       证明          解释
-```
+![OpenCode++ 系统架构](docs/images/opencode-plusplus-architecture.svg)
 
-Context Registry entry 和 annotation 帮助模型定位相关代码、理解 API 或版本差异。Retrieval 负责选择并解释文件，但不授予权限。Guard 阻止危险命令、受保护路径、过期 Context 和越界修改。Evidence 检查 command 或 CI 结果是否对应当前工作树。Intervention 记录 OpenCode++ 观察、阻止、要求、修复、验证或留给人工处理的事项。
+最重要的边界很简单：OpenCode 仍然负责读文件、改代码和执行命令；OpenCode++ 在外围提供确定性的 context、边界、证据检查和决策。
+
+| 层                           | OpenCode++ 做什么                                                     | 它不声称什么                               |
+| ---------------------------- | --------------------------------------------------------------------- | ------------------------------------------ |
+| Context Registry + Retrieval | 定位相关 pack、文件、符号、版本和依赖；解释选中与排除的文件。         | Context 是指导，不是权限或证明。           |
+| Guard + Policy               | 检查命令、受保护路径、contracts、freshness、regression 和必需动作。   | 它不是操作系统级沙箱。                     |
+| Evidence                     | 将 command 或 CI 结果与当前工作树 hash 和 evidence policy 对齐。      | 命令通过不等于业务正确性已证明。           |
+| Intervention Ledger          | 记录检测、阻止、要求、修复、验证、未解决和人工审核状态。              | 阻止或建议不等于已验证修复。               |
+| Decision + Dashboard         | 返回下一步允许动作，并在 Desktop 结果和本地 artifact 中展示记录事实。 | 不展示模型隐藏思维链，也不调用另一个模型。 |
+
+普通 Desktop 路径只使用当前 OpenCode 模型和一个进程内插件。CLI 和 MCP 只是开发者/兼容入口，不是安装或日常使用的必需品。
 
 ## 现在能做什么
 
