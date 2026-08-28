@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1040" viewBox="0 0 1440 1040" role="img" aria-labelledby="title desc">
+  <title id="title">OpenCode++ Architecture / OpenCode++ 架构</title>
+  <desc id="desc">A Windows-first OpenCode Desktop plugin architecture showing the model, in-process plugin tools, context and guard layers, evidence and intervention records, decisions, and local artifacts.</desc>
+  <rect width="1440" height="1040" fill="#f8fafc"/>
+  <style>
+    .title { font: 700 34px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #111827; }
+    .subtitle { font: 500 16px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #52627a; }
+    .layer { font: 700 18px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #173b70; }
+    .layer-zh { font: 500 13px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #52627a; }
+    .box-title { font: 700 17px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #172033; }
+    .box-copy { font: 500 13px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #52627a; }
+    .small { font: 500 12px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #52627a; }
+    .boundary { font: 700 14px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #9a3412; }
+    .boundary-copy { font: 500 12px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #7c2d12; }
+  </style>
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-teal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <text x="720" y="50" text-anchor="middle" class="title">OpenCode++ Architecture / OpenCode++ 架构</text>
+  <text x="720" y="78" text-anchor="middle" class="subtitle">Auditable Harness control around the existing OpenCode Desktop runtime / 围绕现有 OpenCode Desktop runtime 的可审计 Harness 控制面</text>
+
+  <text x="42" y="132" class="layer">User Surface</text>
+  <text x="42" y="153" class="layer-zh">用户入口</text>
+  <rect x="185" y="106" width="1210" height="108" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="790" y="138" text-anchor="middle" class="box-title">Official OpenCode Desktop / 官方 OpenCode Desktop</text>
+  <rect x="215" y="156" width="330" height="38" rx="6" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="380" y="180" text-anchor="middle" class="box-title">OpenCode++ primary mode</text>
+  <rect x="575" y="156" width="330" height="38" rx="6" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="740" y="180" text-anchor="middle" class="box-title">Current OpenCode model</text>
+  <rect x="936" y="156" width="425" height="38" rx="6" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="1148" y="180" text-anchor="middle" class="box-title">Plugin tools + hooks / 工具与 hook</text>
+  <path d="M740 214 L740 250" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <text x="42" y="286" class="layer">Control Plane</text>
+  <text x="42" y="307" class="layer-zh">控制面</text>
+  <rect x="185" y="260" width="1210" height="190" rx="8" fill="#ffffff" stroke="#0f766e" stroke-width="2"/>
+  <text x="790" y="292" text-anchor="middle" class="box-title" fill="#0f766e">Deterministic Context, Guard, Evidence, and Policy</text>
+  <rect x="215" y="317" width="255" height="92" rx="6" fill="#f0fdfa" stroke="#2dd4bf"/>
+  <text x="342" y="344" text-anchor="middle" class="box-title">Context Registry</text>
+  <text x="342" y="367" text-anchor="middle" class="box-copy">packs, versions, provenance</text>
+  <text x="342" y="387" text-anchor="middle" class="small">上下文、版本、来源</text>
+  <rect x="500" y="317" width="255" height="92" rx="6" fill="#f0fdfa" stroke="#2dd4bf"/>
+  <text x="627" y="344" text-anchor="middle" class="box-title">Retrieval</text>
+  <text x="627" y="367" text-anchor="middle" class="box-copy">selected / related / rejected</text>
+  <text x="627" y="387" text-anchor="middle" class="small">选择、关联、排除文件</text>
+  <rect x="785" y="317" width="255" height="92" rx="6" fill="#f0fdfa" stroke="#2dd4bf"/>
+  <text x="912" y="344" text-anchor="middle" class="box-title">Guard + Policy</text>
+  <text x="912" y="367" text-anchor="middle" class="box-copy">commands, paths, contracts</text>
+  <text x="912" y="387" text-anchor="middle" class="small">命令、路径、契约边界</text>
+  <rect x="1070" y="317" width="285" height="92" rx="6" fill="#f0fdfa" stroke="#2dd4bf"/>
+  <text x="1212" y="344" text-anchor="middle" class="box-title">Evidence + Freshness</text>
+  <text x="1212" y="367" text-anchor="middle" class="box-copy">current-tree command / CI proof</text>
+  <text x="1212" y="387" text-anchor="middle" class="small">当前工作树上的验证证据</text>
+  <path d="M470 363 L500 363" stroke="#0f766e" stroke-width="2" marker-end="url(#arrow-teal)"/>
+  <path d="M755 363 L785 363" stroke="#0f766e" stroke-width="2" marker-end="url(#arrow-teal)"/>
+  <path d="M1040 363 L1070 363" stroke="#0f766e" stroke-width="2" marker-end="url(#arrow-teal)"/>
+  <path d="M740 450 L740 486" stroke="#0f766e" stroke-width="2" marker-end="url(#arrow-teal)"/>
+
+  <text x="42" y="524" class="layer">Execution And Decision</text>
+  <text x="42" y="545" class="layer-zh">执行与决策</text>
+  <rect x="185" y="496" width="1210" height="206" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="790" y="528" text-anchor="middle" class="box-title">OpenCode Work + Harness Evaluation / OpenCode 工作与 Harness 评估</text>
+  <rect x="215" y="554" width="320" height="105" rx="6" fill="#faf5ff" stroke="#a78bfa"/>
+  <text x="375" y="582" text-anchor="middle" class="box-title">OpenCode execution</text>
+  <text x="375" y="605" text-anchor="middle" class="box-copy">read files, edit code, run commands</text>
+  <text x="375" y="626" text-anchor="middle" class="small">当前模型负责实际编码动作</text>
+  <rect x="570" y="554" width="320" height="105" rx="6" fill="#faf5ff" stroke="#a78bfa"/>
+  <text x="730" y="582" text-anchor="middle" class="box-title">Hooks + Intervention Ledger</text>
+  <text x="730" y="605" text-anchor="middle" class="box-copy">before / after / idle observations</text>
+  <text x="730" y="626" text-anchor="middle" class="small">观察、阻止、要求、验证、未解决</text>
+  <rect x="925" y="554" width="430" height="105" rx="6" fill="#faf5ff" stroke="#a78bfa"/>
+  <text x="1140" y="582" text-anchor="middle" class="box-title">Decision + Convergence</text>
+  <text x="1140" y="605" text-anchor="middle" class="box-copy">finalize, repair, repack, human-review</text>
+  <text x="1140" y="626" text-anchor="middle" class="small">确定下一步，不替模型隐式决策</text>
+  <path d="M535 606 L570 606" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <path d="M890 606 L925 606" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <path d="M1090 702 L1090 740" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)"/>
+
+  <text x="42" y="780" class="layer">Visible And Persistent Output</text>
+  <text x="42" y="801" class="layer-zh">可见输出与持久化</text>
+  <rect x="185" y="742" width="1210" height="164" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <rect x="215" y="782" width="350" height="82" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="390" y="813" text-anchor="middle" class="box-title">actionSummary + Dashboard</text>
+  <text x="390" y="837" text-anchor="middle" class="box-copy">what was observed, blocked, verified</text>
+  <rect x="605" y="782" width="350" height="82" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="780" y="813" text-anchor="middle" class="box-title">.agent-context/</text>
+  <text x="780" y="837" text-anchor="middle" class="box-copy">trace, reports, state, interventions</text>
+  <rect x="995" y="782" width="360" height="82" rx="6" fill="#fff7ed" stroke="#fb923c"/>
+  <text x="1175" y="813" text-anchor="middle" class="boundary">Hard boundaries / 硬边界</text>
+  <text x="1175" y="837" text-anchor="middle" class="boundary-copy">no second model · no app.asar patch</text>
+  <text x="1175" y="854" text-anchor="middle" class="boundary-copy">不执行自动 push、merge、破坏性回滚</text>
+
+  <path d="M390 742 L390 702" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M780 742 L780 702" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <path d="M215 950 L1355 950" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 6"/>
+  <text x="720" y="978" text-anchor="middle" class="subtitle">Desktop is the user path. CLI / MCP are developer compatibility surfaces only. / Desktop 是用户路径，CLI / MCP 仅用于开发者兼容集成。</text>
+  <text x="720" y="1004" text-anchor="middle" class="small">OpenCode++ makes recorded facts visible; it does not expose hidden model chain-of-thought. / 展示记录事实，不展示模型隐藏思维链。</text>
+</svg>
