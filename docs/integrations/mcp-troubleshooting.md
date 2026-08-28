@@ -11,7 +11,7 @@ npm run build
 node dist/mcp/server.js
 ```
 
-If installed from npm, use:
+For a developer npm installation, use:
 
 ```bash
 opencode-plusplus-mcp
@@ -20,6 +20,8 @@ opencode-plusplus-mcp
 ## Client Cannot Find Tools
 
 Confirm that the client is configured for a stdio MCP server and points to `opencode-plusplus-mcp` or `node dist/mcp/server.js`.
+
+This troubleshooting page applies to developer or compatibility integrations. It does not install or enable the OpenCode Desktop plugin. For normal Desktop use, install the Windows EXE, restart OpenCode, and select the `OpenCode++` primary mode.
 
 ## Runtime Tools Look Advisory
 

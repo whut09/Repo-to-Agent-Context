@@ -4,7 +4,7 @@
 
 ## 工具没有出现
 
-确认 MCP client 启动的是 opencode-plusplus-mcp，配置路径指向正确的 Node/npm 环境，并重新启动 client。MCP 与 OpenCode Desktop 插件是两条入口，MCP 正常不代表 Desktop 插件已安装。
+确认 MCP client 启动的是 opencode-plusplus-mcp，配置路径指向正确的 Node/npm 环境，并重新启动 client。MCP 与 OpenCode Desktop 插件是两条入口，MCP 正常不代表 Desktop 插件已安装。本页只适用于开发者或兼容集成，不负责安装或启用 Desktop 插件。普通 Desktop 使用请安装 Windows EXE、重启 OpenCode，然后选择 `OpenCode++` primary mode。
 
 ## Windows 路径
 
