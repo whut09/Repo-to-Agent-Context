@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { runGit } from "../core/git.js";
 import { getOpenCodePlusplusPackageVersion } from "../core/package-info.js";
+import { loadPluginHarnessContext } from "../integrations/opencode/plugin-runtime/harness/context.js";
 import { OPENCODE_PLUSPLUS_PLUGIN_TOOL_NAMES } from "../integrations/opencode/plugin-runtime/harness/index.js";
 import type { PluginHarnessResult } from "../integrations/opencode/plugin-runtime/harness/types.js";
 import { createOpenCodePlusPlusSidecar } from "../integrations/opencode/plugin-runtime/index.js";
@@ -34,6 +35,7 @@ export async function runDesktopPluginBenchmark(): Promise<DesktopPluginBenchmar
   const startedAt = performance.now();
   const checks: DesktopPluginBenchmarkCheck[] = [];
   try {
+    await loadPluginHarnessContext(root);
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "plugin-state.json") });
     const tools = plugin.tool as Record<string, DesktopHarnessTool>;
     checks.push(
