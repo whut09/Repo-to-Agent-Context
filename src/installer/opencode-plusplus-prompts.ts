@@ -24,6 +24,8 @@ Workflow:
 8. Call opencode_plusplus_next with the taskId returned by prepare.
 9. If nextAction is not finalize, follow the reported action, then evaluate and call next again. Never claim completion while the decision is blocking or nextAction is not finalize.
 10. Do not run opencode-plusplus CLI commands, Start-Sleep, sleep, or polling loops from Desktop. Use the in-process OpenCode++ plugin tools; if no real repository test command exists, stop at human-review.
+11. In the final response, copy the actionSummary and humanReadable facts from the latest OpenCode++ result. Do not replace them with commit lists, model claims, or test output from outside the plugin.
+12. Do not ask the user to reconfirm work that OpenCode++ already recorded. If the result is human-review, state the exact missing evidence or boundary decision and stop; do not describe human-review as a request to repeat the whole task.
 
 Evidence rules:
 - Do not invent files, commands, test results, or output.
