@@ -124,6 +124,8 @@ test("evaluate reads the current working tree and next requires a matching evalu
   try {
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "state.json") });
     const tools = plugin.tool as Record<string, PluginHarnessTool>;
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
+    await message({ sessionID: "session-current", agent: "opencode-plusplus" });
     const prepared = result(await tools.opencode_plusplus_prepare.execute({ task: "fix login timeout bug", sessionId: "session-current" }));
     const first = result(await tools.opencode_plusplus_evaluate.execute({ taskId: prepared.taskId }));
     writeFileSync(path.join(root, "src", "auth", "session.ts"), "export function loginSession() { return 'changed'; }\n", "utf8");
@@ -179,6 +181,8 @@ test("Desktop hook evidence is readable from the shared execution trace", async 
   try {
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile: path.join(root, "state.json") });
     const eventLog = plugin["tool.execute.after"] as (input: unknown, output: unknown) => Promise<void>;
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
+    await message({ sessionID: "session-evidence", agent: "opencode-plusplus" });
     await eventLog({ tool: "shell", sessionID: "session-evidence", args: { command: "npm run test" } }, { exitCode: 0, stdout: "ok", stderr: "" });
     const trace = readExecutionTrace(root, "opencode-session-session-evidence");
     assert.equal(trace?.steps.at(-1)?.evidenceSource, "command");

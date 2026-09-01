@@ -9,6 +9,7 @@ import {
   renderRetrieveText
 } from "../src/integrations/opencode/plugin-runtime/harness/format.js";
 import type { PluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/types.js";
+import { createPluginHarnessError, renderPluginHarnessResult } from "../src/integrations/opencode/plugin-runtime/harness/protocol.js";
 import { buildPluginHarnessVisualization, renderPluginHarnessVisualization } from "../src/integrations/opencode/plugin-runtime/harness/visualization.js";
 import { notifyPluginHarnessStatus } from "../src/integrations/opencode/plugin-runtime/events.js";
 
@@ -171,6 +172,21 @@ test("structured harness errors never become unparseable text", () => {
   assert.equal(parsed.error?.code, "HARNESS_ERROR");
   assert.equal(parsed.blocking, true);
   assert.equal(parsed.nextAction, "prepare");
+});
+
+test("non-retryable plugin errors stop at attributed human review", () => {
+  const result = createPluginHarnessError(".", "evaluate", "evaluation timed out", "task-1", "session-1", "argument", undefined, {
+    code: "PLUGIN_EVALUATION_TIMEOUT",
+    message: "evaluation timed out",
+    attribution: "opencode-plusplus",
+    retryable: false,
+    nextStep: "stop without polling"
+  });
+  const parsed = JSON.parse(renderPluginHarnessResult(result)) as PluginHarnessResult;
+  assert.equal(parsed.decision, "human-review");
+  assert.equal(parsed.nextAction, "human-review");
+  assert.equal(parsed.error?.attribution, "opencode-plusplus");
+  assert.equal(parsed.error?.retryable, false);
 });
 
 test("next completion rule forbids claiming done unless finalize is unblocked", () => {

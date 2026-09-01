@@ -4,7 +4,7 @@ import type { CacheStats } from "../../../../core/types.js";
 export const PLUGIN_STAGE_TARGETS = {
   prepare: 60000,
   retrieve: 3000,
-  evaluate: 5000
+  evaluate: 60000
 } as const;
 
 export function contextModeForStats(stats: CacheStats): PluginPerformance["contextMode"] {

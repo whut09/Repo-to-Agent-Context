@@ -98,7 +98,7 @@ test("session ready build is debounced at least two seconds by default", () => {
   assert.ok(SESSION_READY_DEBOUNCE_MS >= 2000);
 });
 
-test("session.created marks dirty, builds context in the background, and toasts ready", async () => {
+test("session.created stays quiet until the OpenCode++ mode is activated", async () => {
   const fixture = createLifecycleFixture({
     debounceMs: 50,
     buildContext: async (root) => {
@@ -108,6 +108,12 @@ test("session.created marks dirty, builds context in the background, and toasts 
   });
   try {
     fixture.lifecycle.onSessionCreated();
+    await sleep(100);
+    assert.deepEqual(fixture.dirtyMarks, []);
+    assert.deepEqual(fixture.toasts, []);
+    assert.equal(existsSync(path.join(fixture.root, ".agent-context", "build-ran.json")), false);
+
+    fixture.lifecycle.onHarnessActivated();
     assert.deepEqual(fixture.dirtyMarks, ["session.created"]);
 
     await waitFor(() => existsSync(path.join(fixture.root, ".agent-context", "build-ran.json")));
@@ -121,7 +127,7 @@ test("session.created marks dirty, builds context in the background, and toasts 
   }
 });
 
-test("session.created build failure only logs and never throws", async () => {
+test("mode activation build failure only logs and never throws", async () => {
   const fixture = createLifecycleFixture({
     debounceMs: 50,
     buildContext: async () => {
@@ -130,6 +136,7 @@ test("session.created build failure only logs and never throws", async () => {
   });
   try {
     fixture.lifecycle.onSessionCreated();
+    fixture.lifecycle.onHarnessActivated();
     await waitFor(() => readEventLines(fixture.root).some((line) => line.type === "sidecar.log" && line.message === "session ready context build failed"));
     assert.deepEqual(fixture.toasts, []);
   } finally {
@@ -163,7 +170,9 @@ test("generated runtime watcher updates do not trigger another dirty verificatio
   try {
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
     const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
     await eventHook({ event: { type: "session.created", sessionID: "session-runtime" } });
+    await message({ sessionID: "session-runtime", agent: "opencode-plusplus" });
     const tracePath = path.join(root, ".agent-context", "traces", "opencode-sidecar-events.jsonl");
     const before = existsSync(tracePath) ? readEventLines(root).length : 1;
     await eventHook({
@@ -191,6 +200,8 @@ test("absolute generated runtime watcher updates are ignored", async () => {
   try {
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
     const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
+    await message({ sessionID: "session-absolute-runtime", agent: "opencode-plusplus" });
     await eventHook({
       event: {
         type: "file.watcher.updated",
@@ -216,10 +227,11 @@ test("compacting injects harness state into output.context and never replaces ou
   const fixture = createLifecycleFixture();
   const root = fixture.root;
   try {
-    writeJsonFile(root, path.join(".agent-context", "sidecar", "plugin-session.json"), {
+    writeJsonFile(root, path.join(".agent-context", "sidecar", "plugin-session-session-1.json"), {
       taskId: "fix-login-timeout-bug",
       task: "fix login timeout bug",
       type: "bugfix",
+      sessionId: "session-1",
       updatedAt: new Date().toISOString()
     });
     writeJsonFile(root, path.join(".agent-context", "runs", "fix-login-timeout-bug", "run.json"), {
@@ -227,8 +239,9 @@ test("compacting injects harness state into output.context and never replaces ou
       allowedEditGlobs: ["src/auth/**"],
       avoidEditGlobs: ["docs/**"]
     });
-    writeJsonFile(root, path.join(".agent-context", "sidecar", "plugin-evaluate.json"), {
+    writeJsonFile(root, path.join(".agent-context", "sidecar", "plugin-evaluate-session-1.json"), {
       taskId: "fix-login-timeout-bug",
+      sessionId: "session-1",
       blocking: true,
       decision: "repair",
       missingEvidence: ["required_tests_passed"],
@@ -246,12 +259,11 @@ test("compacting injects harness state into output.context and never replaces ou
     assert.match(output.context[0]!, /blocking=yes/);
     assert.match(output.context[0]!, /decision=repair/);
     assert.match(output.context[0]!, /missingEvidence: required_tests_passed/);
-    assert.match(output.context[0]!, /sidecar latest/);
     assert.match(output.context[0]!, /opencode_plusplus_next returns finalize/);
     assert.equal(output.prompt, "original prompt");
 
     const bare: { context?: string[] } = {};
-    fixture.lifecycle.onSessionCompacting({}, bare);
+    fixture.lifecycle.onSessionCompacting({ sessionID: "session-1" }, bare);
     assert.equal(bare.context?.length, 1);
 
     fixture.lifecycle.onSessionCompacting({}, undefined);

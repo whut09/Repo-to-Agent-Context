@@ -88,20 +88,22 @@ export function createPluginHarnessError(
   taskId: string | null = null,
   sessionId: string | null = null,
   taskIdSource: PluginTaskIdSource = "none",
-  performance?: PluginPerformance
+  performance?: PluginPerformance,
+  error: NonNullable<PluginHarnessResult["error"]> = { code: "HARNESS_ERROR", message }
 ): PluginHarnessResult {
+  const stopForReview = error.retryable === false;
   return createPluginHarnessResult(root, {
     ok: false,
     tool,
     summary: `OpenCode++ ${tool} failed: ${message}`,
-    error: { code: "HARNESS_ERROR", message },
+    error,
     taskId,
     sessionId,
     taskIdSource,
     currentPhase: tool,
-    decision: "error",
+    decision: stopForReview ? "human-review" : "error",
     blocking: true,
-    nextAction: "prepare",
+    nextAction: stopForReview ? "human-review" : "prepare",
     performance
   });
 }

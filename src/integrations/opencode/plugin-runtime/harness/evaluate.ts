@@ -14,18 +14,41 @@ import { cacheStatusForStats, contextModeForStats, pluginPerformance, runPluginS
 import { pluginInterventionSnapshot, recordPluginEvaluationInterventions } from "./interventions.js";
 import { readExecutionTrace } from "../../../../harness/observability/execution-trace.js";
 import { blockersFromGuardStack } from "../../sidecar-incremental-verifier.js";
+import { PLUGIN_STAGE_TARGETS } from "./performance.js";
+
+const evaluations = new Map<string, Promise<PluginEvaluateResult | string>>();
 
 export async function evaluatePluginHarness(root: string, args: PluginEvaluateArgs = {}): Promise<PluginEvaluateResult | string> {
-  const staged = await runPluginStage("evaluate", () => evaluatePluginHarnessInternal(root, args));
+  const evaluationKey = `${root}\0${args.sessionId ?? ""}\0${args.taskId ?? ""}`;
+  let evaluation = evaluations.get(evaluationKey);
+  if (!evaluation) {
+    evaluation = evaluatePluginHarnessInternal(root, args);
+    evaluations.set(evaluationKey, evaluation);
+    void evaluation.then(
+      () => evaluations.delete(evaluationKey),
+      () => evaluations.delete(evaluationKey)
+    );
+  }
+  const activeEvaluation = evaluation;
+  const staged = await runPluginStage("evaluate", () => activeEvaluation);
   if (staged.status === "timeout") {
+    const targetMs = PLUGIN_STAGE_TARGETS.evaluate;
+    const message = `evaluate exceeded the ${targetMs}ms Desktop target. Do not retry, sleep, or poll in this turn; stop at human-review and inspect .agent-context/sidecar plus OpenCode logs.`;
     return createPluginHarnessError(
       root,
       "evaluate",
-      `evaluate exceeded the ${5000}ms Desktop target; inspect the returned artifacts and retry.`,
+      message,
       args.taskId ?? null,
       args.sessionId ?? null,
       args.taskId ? "argument" : "none",
-      pluginPerformance("evaluate", staged, "miss", "rebuilt", [], [])
+      pluginPerformance("evaluate", staged, "miss", "rebuilt", [], []),
+      {
+        code: "PLUGIN_EVALUATION_TIMEOUT",
+        message,
+        attribution: "opencode-plusplus",
+        retryable: false,
+        nextStep: "Stop this turn at human-review. Do not use Start-Sleep, sleep, or a polling loop."
+      }
     );
   }
   const result = staged.value!;

@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createCacheStats } from "../src/core/cache.js";
 import {
+  PLUGIN_STAGE_TARGETS,
   cacheStatusForStats,
   contextModeForStats,
   pluginPerformance,
   runPluginStage
 } from "../src/integrations/opencode/plugin-runtime/harness/performance.js";
+
+test("Desktop evaluate allows real repository checks before returning a timeout", () => {
+  assert.ok(PLUGIN_STAGE_TARGETS.evaluate >= 60000);
+});
 
 test("plugin stages return structured timeout state", async () => {
   const result = await runPluginStage(

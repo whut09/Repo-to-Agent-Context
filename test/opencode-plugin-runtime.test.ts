@@ -85,13 +85,51 @@ test("enabled OpenCode plugin guard rejection tells the model what to run instea
   try {
     const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
     const before = plugin["tool.execute.before"] as (input: unknown, output: unknown) => Promise<void>;
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
+    await message({ sessionID: "session-guard", agent: "opencode-plusplus" });
 
-    await assert.rejects(before({ tool: "shell", callID: "call-1" }, { args: { command: "git reset --hard HEAD" } }), (error: Error) => {
-      assert.match(error.message, /BLOCKED: Hard git reset/);
-      assert.match(error.message, /Evidence: git reset --hard HEAD/);
-      assert.match(error.message, /Do instead:/);
-      return true;
-    });
+    await assert.rejects(
+      before({ tool: "shell", sessionID: "session-guard", callID: "call-1" }, { args: { command: "git reset --hard HEAD" } }),
+      (error: Error) => {
+        assert.match(error.message, /BLOCKED: Hard git reset/);
+        assert.match(error.message, /Evidence: git reset --hard HEAD/);
+        assert.match(error.message, /Do instead:/);
+        return true;
+      }
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Build mode is silent on the next turn while OpenCode++ mode keeps guards active", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "opencode-plusplus-agent-scope-"));
+  const stateFile = path.join(root, "state.json");
+  try {
+    const plugin = await createOpenCodePlusPlusSidecar({ directory: root }, { stateFile });
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
+    const before = plugin["tool.execute.before"] as (input: unknown, output: unknown) => Promise<void>;
+    const tools = plugin.tool as Record<string, { execute: (args?: unknown, context?: unknown) => Promise<string> }>;
+
+    await message({ sessionID: "session-mode", agent: "opencode-plusplus" });
+    await message({ sessionID: "session-mode" });
+    await assert.rejects(
+      before({ tool: "shell", sessionID: "session-mode", callID: "call-plus" }, { args: { command: "Start-Sleep -Seconds 45" } }),
+      /wait|等待/i
+    );
+
+    await message({ sessionID: "session-mode", agent: "build" });
+    await before({ tool: "shell", sessionID: "session-mode", callID: "call-build" }, { args: { command: "Start-Sleep -Seconds 45" } });
+
+    const inactive = JSON.parse(await tools.opencode_plusplus_prepare.execute({ task: "should not run" }, { sessionID: "session-mode", agent: "build" })) as {
+      active: boolean;
+      error: { code: string; retryable: boolean; nextStep: string };
+    };
+    assert.equal(inactive.active, false);
+    assert.equal(inactive.error.code, "HARNESS_INACTIVE_AGENT");
+    assert.equal(inactive.error.retryable, false);
+    assert.match(inactive.error.nextStep, /new message/i);
+    assert.equal(existsSync(path.join(root, ".agent-context", "runs", "should-not-run")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -155,6 +193,8 @@ test("OpenCode plugin event hooks survive corrupt workflow persistence", async (
       { stateFile }
     );
     const eventHook = plugin.event as (input: { event?: Record<string, unknown> }) => Promise<void>;
+    const message = plugin["chat.message"] as (input: unknown) => Promise<void>;
+    await message({ sessionID: "session-1", agent: "opencode-plusplus" });
 
     await eventHook({ event: { type: "file.edited", sessionID: "session-1", properties: { file: "src/index.ts" } } });
 

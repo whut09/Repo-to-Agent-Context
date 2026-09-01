@@ -24,6 +24,8 @@ export interface SessionLifecycleOptions {
 
 export interface SessionLifecycle {
   onSessionCreated: () => void;
+  onHarnessActivated: () => void;
+  onHarnessDeactivated: () => void;
   onSessionIdle: (verify: OpenCodeSidecarVerifyResult | null) => void;
   onSessionCompacting: (input: unknown, output: unknown) => void;
   onSessionError: (event: Record<string, unknown>) => void;
@@ -42,9 +44,17 @@ export function createSessionLifecycle(options: SessionLifecycleOptions): Sessio
     const enabled = isEnabled();
     recorder.record("session.created", { enabled });
     recorder.log("debug", "session created", { enabled, directory: context.directory, worktree: context.worktree });
-    if (!enabled) return;
+  }
+
+  function onHarnessActivated(): void {
+    if (!isEnabled()) return;
     idle.markDirty("session.created", {});
     scheduleReadyBuild();
+  }
+
+  function onHarnessDeactivated(): void {
+    if (buildTimer) clearTimeout(buildTimer);
+    buildTimer = undefined;
   }
 
   function scheduleReadyBuild(): void {
@@ -90,7 +100,7 @@ export function createSessionLifecycle(options: SessionLifecycleOptions): Sessio
   function onSessionCompacting(input: unknown, output: unknown): void {
     try {
       if (!isEnabled()) return;
-      const injected = buildCompactingContext(directory);
+      const injected = buildCompactingContext(directory, sessionIdFromInput(input));
       if (!injected) return;
       if (typeof output !== "object" || output === null) {
         recorder.log("debug", "compacting output unavailable; context injection skipped");
@@ -118,12 +128,12 @@ export function createSessionLifecycle(options: SessionLifecycleOptions): Sessio
     }
   }
 
-  return { onSessionCreated, onSessionIdle, onSessionCompacting, onSessionError };
+  return { onSessionCreated, onHarnessActivated, onHarnessDeactivated, onSessionIdle, onSessionCompacting, onSessionError };
 }
 
-export function buildCompactingContext(root: string): string | undefined {
+export function buildCompactingContext(root: string, sessionId?: string): string | undefined {
   const lines: string[] = [];
-  const session = readPluginHarnessSession(root);
+  const session = readPluginHarnessSession(root, sessionId);
   if (session) {
     lines.push(`OpenCode++ taskId: ${session.taskId} (task: ${session.task})`);
   }
@@ -132,17 +142,24 @@ export function buildCompactingContext(root: string): string | undefined {
     if (manifest.allowedEditGlobs.length) lines.push(`OpenCode++ allowedEditGlobs: ${manifest.allowedEditGlobs.join(", ")}`);
     if (manifest.avoidEditGlobs.length) lines.push(`OpenCode++ avoidEditGlobs: ${manifest.avoidEditGlobs.join(", ")}`);
   }
-  const evaluate = readPluginEvaluateState(root);
+  const evaluate = readPluginEvaluateState(root, sessionId);
   if (evaluate) {
     lines.push(`OpenCode++ last evaluate: blocking=${evaluate.blocking ? "yes" : "no"}, decision=${evaluate.decision}`);
     if (evaluate.missingEvidence.length) lines.push(`OpenCode++ missingEvidence: ${evaluate.missingEvidence.join(", ")}`);
     if (evaluate.requiredCommands.length) lines.push(`OpenCode++ requiredCommands: ${evaluate.requiredCommands.join(" | ")}`);
   }
-  const latest = readSidecarLatestSummary(root);
+  const latest = sessionId ? undefined : readSidecarLatestSummary(root);
   if (latest) lines.push(`OpenCode++ sidecar latest:\n${latest}`);
   if (session || evaluate || latest) lines.push("Do not claim the task complete until opencode_plusplus_next returns finalize.");
   if (!lines.length) return undefined;
   return lines.join("\n");
+}
+
+function sessionIdFromInput(input: unknown): string | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const record = input as Record<string, unknown>;
+  const value = record.sessionID ?? record.sessionId;
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 function readTaskRunManifest(root: string, taskId: string): TaskRunManifest | undefined {

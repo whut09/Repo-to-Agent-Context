@@ -207,7 +207,13 @@ export interface PluginHarnessResult {
   tool: PluginHarnessToolKind;
   summary: string;
   humanReadable?: string;
-  error?: { code: string; message: string };
+  error?: {
+    code: string;
+    message: string;
+    attribution?: "opencode-plusplus" | "opencode-host" | "model-provider" | "unknown";
+    retryable?: boolean;
+    nextStep?: string;
+  };
   taskId: string | null;
   sessionId: string | null;
   taskIdSource: PluginTaskIdSource;
