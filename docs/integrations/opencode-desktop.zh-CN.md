@@ -49,6 +49,21 @@ agent 文件是标准 OpenCode `mode: primary` agent。OpenCode 会从全局 `ag
 
 真正读文件、改代码和执行命令的仍是当前 OpenCode 模型。OpenCode++ 提供 context、规则、证据和决策工具；Desktop 插件不会启动第二个模型，也不会调用自己的 CLI。
 
+### 切换模式与卡死归因
+
+模式选择器选择的是**下一条消息**使用的 agent，不会取消已经运行的回复。如果当前回复由 OpenCode++ 启动，在回复仍运行时把选择器改成 Build，旧回复仍可能继续打印 OpenCode++ 结果。此时应点击方形的**停止**按钮，保持 Build 已选中，再发送一条新消息。从新的 Build 轮次开始，OpenCode++ 的命令 Guard、证据 hook、compacting context、idle verification 和 Harness 工具都会对该轮保持关闭。对话历史仍包含旧的 OpenCode++ 文本；如果需要完全干净的 Build 记录，还应新建一个 OpenCode 会话。
+
+不要笼统判断“OpenCode 卡死”，应按可见信号归因：
+
+| 可见信号                                                           | 主要来源                      | 含义                                                                                                        |
+| ------------------------------------------------------------------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `PLUGIN_*` 错误且 `attribution: opencode-plusplus`                 | OpenCode++                    | 插件内部阶段失败或超过自己的时间目标。`retryable` 为 `false` 时，模型必须停止，不能 sleep、轮询或再次调用。 |
+| OpenCode `session.error`、provider timeout、限流或连接错误         | OpenCode host 或模型 provider | provider 请求或 host 会话在有效插件结果完成前失败。                                                         |
+| 收到 `retryable: false` 后仍反复 `Start-Sleep`、轮询或重复调用工具 | 当前模型行为                  | 模型没有遵守模式指令。应停止当前轮；重复同一个调用只会增加负载。                                            |
+| 已选择 Build，但旧回复仍显示 OpenCode++                            | 当前 OpenCode 轮次            | 旧的 OpenCode++ 轮次没有取消。停止它，再发送新的 Build 消息。                                               |
+
+`evaluate` 现在最多允许 60 秒完成仓库检查，并会合并同一任务的重复调用。超时只返回一次结构化、不可重试的 `human-review` 结果，不再要求模型在第一次评估仍运行时继续重试。
+
 普通用户流程是：
 
 ```text

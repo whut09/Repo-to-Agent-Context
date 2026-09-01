@@ -49,6 +49,21 @@ This is an explainability view of recorded system facts and deterministic decisi
 
 The model still performs the actual reading, editing, and command execution. OpenCode++ provides the context, rules, evidence, and decision tools. It does not start a second model or invoke its CLI from the Desktop plugin.
 
+### Switching Modes And Diagnosing A Stuck Turn
+
+The mode picker selects the agent for the **next message**. It does not cancel a response that is already running. If a turn was started in OpenCode++ and you change the picker to Build while that response is still running, the existing response may continue to print OpenCode++ results. Click the square **Stop** button, keep Build selected, and send a new message. From that new Build turn onward, OpenCode++ command guards, evidence hooks, compacting context, idle verification, and Harness tools stay inactive for that session turn. The conversation still contains older OpenCode++ text, so start a new OpenCode session as well when you need a completely clean Build transcript.
+
+Use the failure source instead of guessing which component froze:
+
+| Visible signal                                                                   | Likely source                   | Meaning                                                                                                                                                    |
+| -------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLUGIN_*` error with `attribution: opencode-plusplus`                           | OpenCode++                      | The in-process plugin stage failed or exceeded its own target. When `retryable` is `false`, the model must stop rather than sleep, poll, or call it again. |
+| OpenCode `session.error`, provider timeout, rate limit, or connection error      | OpenCode host or model provider | The provider request or host session failed before a valid plugin result completed.                                                                        |
+| Repeated `Start-Sleep`, polling, or repeated tool calls after `retryable: false` | Current model behavior          | The model ignored the mode instructions. Stop the turn; retrying the same call can only add load.                                                          |
+| Build is selected but the old response still mentions OpenCode++                 | Current OpenCode turn           | The old OpenCode++ turn was not cancelled. Stop it and start a new Build message.                                                                          |
+
+`evaluate` allows up to 60 seconds for repository checks and coalesces duplicate calls for the same task. A timeout returns one structured, non-retryable `human-review` result; it no longer asks the model to retry while the first evaluation is still running.
+
 The normal user flow is:
 
 ```text
